@@ -121,29 +121,4 @@ namespace orc {
     inflate(&infstream, Z_NO_FLUSH);
     inflateEnd(&infstream);
   }
-
-  /*
-  bool LzoCodec::compress(SeekableInputStream& in, SeekableInputStream& out) {
-      return true;
-  }
-
-  void LzoCodec::decompress(SeekableInputStream& in, SeekableInputStream& out) {
-
-      // lzo works by blocks 
-      // in order to decompress a block, the following steps need to be done in sequence
-      // 1) read uncompressed block size
-      // 2) read compressed block size
-      // 3) read checksum of uncompressed block
-      // 4) read checksum of compressed block
-      // 5) read block
-      // 6) verify checksum of compressed block
-      // 7) decompress
-      // 8) verify checksum of uncompressed block
-      //
-      // reference: lzo_decompress() of lzop.c
-
-      lzo_uint32 dst_len;
-      lzo_uint32 src_len;
-  }
-  */
 }
