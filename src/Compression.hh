@@ -21,6 +21,9 @@
 
 #include <initializer_list>
 #include <list>
+#include <vector>
+#include <fstream>
+#include <sstream>
 #include <memory>
 
 #include "wrap/zero-copy-stream-wrapper.h"
@@ -28,6 +31,8 @@
 #include "zlib.h"
 #include "lzo/lzo1x.h"
 #include "lzo/lzo_asm.h"
+
+using namespace std;
 
 namespace orc {
 
@@ -75,6 +80,7 @@ namespace orc {
    * Compression base class
    */
   class CompressionCodec {
+  public:
 
   /**
    * Compress the in buffer to the out buffer.
@@ -82,14 +88,14 @@ namespace orc {
    * @param out the uncompressed bytes
    * @return true if the output is smaller than input
    */
-  virtual bool compress(SeekableInputStream& in, SeekableInputStream& out) = 0;
+  virtual bool compress(SeekableInputStream* in, SeekableInputStream* out) = 0;
 
   /**
    * Decompress the in buffer to the out buffer.
    * @param in the bytes to decompress
    * @param out the decompressed bytes
    */
-  virtual void decompress(SeekableInputStream& in, SeekableInputStream& out) = 0;
+  virtual void decompress(SeekableInputStream* in, SeekableInputStream* out) = 0;
 
   };
 
@@ -102,17 +108,21 @@ namespace orc {
       int level;
       int strategy;
 
-      // TODO: ctor takes (level,strategy)
+      // TODO: ctor takes compress size
 
-      bool compress(SeekableInputStream& in, SeekableInputStream& out);
+  public:
+      bool compress(SeekableInputStream* in, SeekableInputStream* out);
 
-      void decompress(SeekableInputStream& in, SeekableInputStream& out);
+      void decompress(SeekableInputStream* in, SeekableInputStream* out);
+
+      void decompress(string in, vector<char>& out);
   };
 
   /**
    * LZO codec
    */
 
+  /*
   class LzoCodec: public CompressionCodec {
 
       // TODO: ctor
@@ -121,6 +131,7 @@ namespace orc {
 
       void decompress(SeekableInputStream& in, SeekableInputStream& out);
   };
+  */
 
 }
 

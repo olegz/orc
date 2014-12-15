@@ -45,6 +45,17 @@ namespace orc {
     delete[] data;
   }
 
+  TEST(Zlib, simpleTest) {
+    std::ifstream t("../../examples/demo-12-zlib.orc");
+    std::stringstream buffer;
+    buffer << t.rdbuf();
+    EXPECT_EQ(buffer.str().size(), 45979);
+
+    ZlibCodec* zlib = new ZlibCodec();
+    vector<char> outstream(1024*1024, 0); // should be config decompressor size
+    zlib->decompress(buffer.str(), outstream);
+  }
+
   TEST(RLEv1, signedNullLiteralTest) {
     SeekableInputStream* stream =
       new SeekableArrayInputStream({0xf8, 0x0, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6,
