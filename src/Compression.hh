@@ -114,6 +114,18 @@ namespace orc {
   };
 
   /** 
+   * Compression base class, round 2 (need to be a derived class from SeekableInputStream, and take a SeekalbeInputStream as input
+   */
+  class CompressionCodec2 : public SeekableInputStream {
+  private:
+
+  public:
+     CompressionCodec2(SeekableInputStream* input) {};
+
+     virtual void seek(PositionProvider& position) {};
+  };
+
+  /**
    * Compression base class
    */
   class CompressionCodec {
@@ -139,20 +151,24 @@ namespace orc {
   /**
    * Zlib codec
    */
-
   class ZlibCodec: public CompressionCodec {
-      bool direct;
-      int level;
-      int strategy;
-
-      // TODO: ctor takes compress size
+      int blk_sz; // max uncompressed buffer size per block
 
   public:
+      // ctor takes max uncompressed size per block
+      ZlibCodec(int blksz) : blk_sz (blksz) {};
+
+      int getBlockSize() { return blk_sz; }
+
+      // compress need input/output, and compression level
+      // impl need a vector<char> buf(blk_size) to hold each pass, see http://panthema.net/2007/0328-ZLibString.html
       bool compress(SeekableInputStream* in, SeekableInputStream* out);
 
       void decompress(SeekableInputStream* in, SeekableInputStream* out);
 
-      void decompress(string in, vector<char>& out);
+      // unit functions
+      string compress(string& in, int compr_level = Z_BEST_COMPRESSION);
+      string decompress(string& in);
   };
 
   /**

@@ -136,24 +136,77 @@ namespace orc {
       throw string("Zlib decompress not implemented yet!");
   }
 
-  // decompress 1 block
-  void ZlibCodec::decompress(string in, vector<char>& out) {
-    // zlib control struct
-    z_stream infstream;
-    infstream.zalloc = Z_NULL;
-    infstream.zfree = Z_NULL;
-    infstream.opaque = Z_NULL;
+  string ZlibCodec::compress(string& in, int compr_level /* = Z_BEST_COMPRESSION */) {
+      // zlib control struct
+      z_stream zs;
+      zs.zalloc = Z_NULL;
+      zs.zfree = Z_NULL;
+      zs.opaque = Z_NULL;
+      zs.next_in = (Bytef*)in.data();
+      zs.avail_in = in.size();
 
-    // check how much left in input stream
+      if (deflateInit(&zs, compr_level) != Z_OK)
+          throw(std::string("deflateInit failed while compressing."));
 
-    infstream.avail_in = (uInt) in.size(); // size of input
-    infstream.next_in = (Bytef*) in.c_str(); // input char array
-    infstream.avail_out = (uInt) out.size(); // size of output
-    infstream.next_out = (reinterpret_cast<Bytef*> (&out[0])); // output char array
-    // do actual work
-    inflateInit(&infstream);
-    inflate(&infstream, Z_NO_FLUSH);
-    inflateEnd(&infstream);
+      int ret;
+      char buf[getBlockSize()];
+      string out; // output string
+
+      do {
+          zs.next_out = reinterpret_cast<Bytef*>(buf);
+          zs.avail_out = sizeof(buf);
+
+          ret = deflate(&zs, Z_FINISH);
+
+          // take everything out of output buf every call
+          int have = sizeof(buf) - zs.avail_out; 
+          out.append(buf, have);
+      } while (ret == Z_OK) ;
+
+      deflateEnd(&zs);
+
+      // did not finish (reach EOF) properly
+      if (ret != Z_STREAM_END) 
+          throw(std::string("Exception during Zlib compression"));
+
+      return out;
+  }
+
+  string ZlibCodec::decompress(string& in) {
+      // zlib control struct
+      z_stream zs;
+      zs.zalloc = Z_NULL;
+      zs.zfree = Z_NULL;
+      zs.opaque = Z_NULL;
+      zs.next_in = (Bytef*)in.data();
+      zs.avail_in = in.size();
+
+      if (inflateInit(&zs) != Z_OK)
+          throw(std::string("inflateInit failed while decompressing."));
+
+      int ret;
+      char buf[getBlockSize()];
+      string out; // output string
+
+      // TODO: decompress whole thing
+      do {
+          zs.next_out = reinterpret_cast<Bytef*>(buf);
+          zs.avail_out = sizeof(buf);
+
+          ret = inflate(&zs, 0);
+
+          // take everything out of output buf every call
+          int have = sizeof(buf) - zs.avail_out; 
+          out.append(buf, have);
+      } while (ret == Z_OK) ;
+
+      inflateEnd(&zs);
+
+      // did not finish (reach EOF) properly
+      if (ret != Z_STREAM_END) 
+          throw(std::string("Exception during Zlib decompression"));
+
+      return out;
   }
 
   std::string SeekableArrayInputStream::getName() const {
