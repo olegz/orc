@@ -17,12 +17,17 @@
 
 #ifdef __APPLE__
   #pragma clang diagnostic push
-  #pragma clang diagnostic ignored "-Wpadded"
+  #pragma clang diagnostic ignored "-Wdeprecated"
+  #pragma clang diagnostic ignored "-Wshorten-64-to-32"
+  #pragma clang diagnostic ignored "-Wsign-conversion"
+  #pragma clang diagnostic ignored "-Wunused-parameter"
+  #pragma clang diagnostic ignored "-Wnested-anon-types"
+  #pragma clang diagnostic ignored "-Wweak-vtables"
 #else
   #pragma GCC diagnostic push
 #endif
 
-#include <uv.h>
+#include "orc_proto.pb.h"
 
 #ifdef __APPLE__
   #pragma clang diagnostic pop

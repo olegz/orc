@@ -20,9 +20,10 @@
 #define ORC_FILE_HH
 
 #include <string>
-#include <orc/Reader.hh>
 
-/** @file orc/OrcFile.hh
+#include "Reader.hh"
+
+/** /file orc/OrcFile.hh
     @brief The top level interface to ORC.
 */
 
@@ -48,7 +49,8 @@ namespace orc {
      * @param offset the position in the file to read from
      * @param length the number of bytes toread
      */
-    virtual void read(void* buffer, long offset, long length) const = 0;
+    virtual void read(void* buffer, unsigned long offset, 
+                      unsigned long length) = 0;
 
     /**
      * Get the name of the stream for error messages.
@@ -58,17 +60,17 @@ namespace orc {
 
   /**
    * Create a stream to a local file.
-   * The resulting object should be deleted when the user is done with the
-   * stream.
    * @param path the name of the file in the local file system
    */
-  InputStream* readLocalFile(const std::string& path);
+  std::unique_ptr<InputStream> readLocalFile(const std::string& path);
 
   /**
    * Create a reader to the for the ORC file.
    * @param stream the stream to read
+   * @param options the options for reading the file
    */
-  Reader* createReader(InputStream* stream);
+  std::unique_ptr<Reader> createReader(std::unique_ptr<InputStream> stream,
+                                       const ReaderOptions& options);
 }
 
 #endif

@@ -43,10 +43,10 @@ namespace orc {
      * Read a number of values into the batch.
      * @param data the array to read into
      * @param numValues the number of values to read
-     * @param isNull If the pointer is null, all values are read. If the
-     *    pointer is not null, positions that are true are skipped.
+     * @param notNull If the pointer is null, all values are read. If the
+     *    pointer is not null, positions that are false are skipped.
      */
-    virtual void next(char* data, unsigned long numValues, char* isNull) = 0;
+    virtual void next(char* data, unsigned long numValues, char* notNull) = 0;
   };
 
   /**
@@ -58,6 +58,10 @@ namespace orc {
 
   /**
    * Create a boolean RLE decoder.
+   *
+   * Unlike the other RLE decoders, the boolean decoder sets the data to 0
+   * if the value is masked by notNull. This is required for the notNull stream
+   * processing to properly apply multiple masks from nested types.
    * @param input the input stream to read from
    */
   std::unique_ptr<ByteRleDecoder> createBooleanRleDecoder

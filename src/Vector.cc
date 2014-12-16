@@ -16,14 +16,18 @@
  * limitations under the License.
  */
 
+#include "Exceptions.hh"
 #include "orc/Vector.hh"
+
+#include <iostream>
+#include <sstream>
 
 namespace orc {
 
-  ColumnVectorBatch::ColumnVectorBatch(int cap) {
+  ColumnVectorBatch::ColumnVectorBatch(unsigned long cap
+                                       ): notNull(new char[cap]) {
     capacity = cap;
     numElements = 0;
-    isNull = 0;
     hasNulls = false;
   }
 
@@ -31,7 +35,27 @@ namespace orc {
     // PASS
   }
 
+  LongVectorBatch::LongVectorBatch(unsigned long capacity
+                                   ): ColumnVectorBatch(capacity),
+                                      data(std::unique_ptr<long[]>
+                                           (new long[capacity])){
+    // PASS
+  }
+
   LongVectorBatch::~LongVectorBatch() {
+    // PASS
+  }
+  
+  std::string LongVectorBatch::toString() const {
+    std::ostringstream buffer;
+    buffer << "Long vector <" << numElements << " of " << capacity << ">";
+    return buffer.str();
+  }
+
+  DoubleVectorBatch::DoubleVectorBatch(unsigned long capacity
+                                       ): ColumnVectorBatch(capacity),
+                                          data(std::unique_ptr<double[]>
+                                           (new double[capacity])){
     // PASS
   }
 
@@ -39,7 +63,33 @@ namespace orc {
     // PASS
   }
 
-  ByteVectorBatch::~ByteVectorBatch() {
+  std::string DoubleVectorBatch::toString() const {
+    std::ostringstream buffer;
+    buffer << "Double vector <" << numElements << " of " << capacity << ">";
+    return buffer.str();
+  }
+
+  StringVectorBatch::StringVectorBatch(unsigned long capacity
+                                       ): ColumnVectorBatch(capacity),
+                                          data(std::unique_ptr<char*[]>
+                                               (new char *[capacity])),
+                                          length(std::unique_ptr<long[]>
+                                                 (new long[capacity])) {
+    // PASS
+  }
+
+  StringVectorBatch::~StringVectorBatch() {
+    // PASS
+  }
+
+  std::string StringVectorBatch::toString() const {
+    std::ostringstream buffer;
+    buffer << "Byte vector <" << numElements << " of " << capacity << ">";
+    return buffer.str();
+  }
+
+  StructVectorBatch::StructVectorBatch(unsigned long capacity
+                                       ): ColumnVectorBatch(capacity) {
     // PASS
   }
 
@@ -47,29 +97,14 @@ namespace orc {
     // PASS
   }
 
-  LongVectorBatch::LongVectorBatch(int capacity
-                                   ): ColumnVectorBatch(capacity),
-                                      data(std::unique_ptr<long[]>
-                                           (new long[capacity])){
-    // PASS
-  }
-
-  DoubleVectorBatch::DoubleVectorBatch(int capacity
-                                       ): ColumnVectorBatch(capacity),
-                                          data(std::unique_ptr<double[]>
-                                           (new double[capacity])){
-    // PASS
-  }
-
-  ByteVectorBatch::ByteVectorBatch(int capacity
-                                   ): ColumnVectorBatch(capacity),
-                                      data(std::unique_ptr<ByteRange[]>
-                                           (new ByteRange[capacity])){
-    // PASS
-  }
-
-  StructVectorBatch::StructVectorBatch(int capacity
-                                       ): ColumnVectorBatch(capacity) {
-    // PASS
+  std::string StructVectorBatch::toString() const {
+    std::ostringstream buffer;
+    buffer << "Struct vector <" << numElements << " of " << capacity 
+           << "; ";
+    for(unsigned int i=0; i < numFields; ++i) {
+      buffer << fields[i]->toString() << "; ";
+    }
+    buffer << ">";
+    return buffer.str();
   }
 }

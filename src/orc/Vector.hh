@@ -20,12 +20,12 @@
 #define ORC_VECTOR_HH
 
 #include <array>
+#include <initializer_list>
 #include <list>
 #include <memory>
+#include <string>
 
 namespace orc {
-
-  class TypePrivate;
 
   enum TypeKind {
     BOOLEAN = 0,
@@ -49,68 +49,89 @@ namespace orc {
   };
 
   class Type {
-  private:
-    std::unique_ptr<TypePrivate> privateBits;
   public:
-    Type(TypeKind kind);
-    Type(TypeKind kind, int maximumLength, int scale);
-    Type(TypeKind kind, const std::list<Type>& subtypes);
-    Type(TypeKind kind, const std::list<Type>& subtypes,
-         const std::list<std::string>& fieldNames);
-
-    TypeKind getKind();
-    std::list<Type> getSubtypes();
-    std::list<std::string> getFieldNames();
-    int getMaximumLength();
-    int getScale();
+    virtual ~Type();
+    virtual int assignIds(int root) = 0;
+    virtual int getColumnId() const = 0;
+    virtual TypeKind getKind() const = 0;
+    virtual unsigned int getSubtypeCount() const = 0;
+    virtual const Type& getSubtype(unsigned int typeId) const = 0;
+    virtual const std::string& getFieldName(unsigned int fieldId) const = 0;
+    virtual unsigned int getMaximumLength() const = 0;
+    virtual unsigned int getPrecision() const = 0;
+    virtual unsigned int getScale() const = 0;
   };
 
+  const int DEFAULT_DECIMAL_SCALE = 18;
+  const int DEFAULT_DECIMAL_PRECISION = 38;
+
+  std::unique_ptr<Type> createPrimitiveType(TypeKind kind);
+  std::unique_ptr<Type> createCharType(bool isVarchar,
+                                       int maxLength);
+  std::unique_ptr<Type> 
+                createDecimalType(int precision=DEFAULT_DECIMAL_PRECISION,
+                                  int scale=DEFAULT_DECIMAL_SCALE);
+  std::unique_ptr<Type> 
+    createStructType(std::initializer_list<std::unique_ptr<Type> > types,
+                      std::initializer_list<std::string> fieldNames);
+  std::unique_ptr<Type> createListType(std::unique_ptr<Type> elements);
+  std::unique_ptr<Type> createMapType(std::unique_ptr<Type> key,
+                                      std::unique_ptr<Type> value);
+  std::unique_ptr<Type> 
+    createUnionType(std::initializer_list<std::unique_ptr<Type> > types);
+
   struct ColumnVectorBatch {
-    ColumnVectorBatch(int capacity);
+    ColumnVectorBatch(unsigned long capacity);
     virtual ~ColumnVectorBatch();
 
     // the number of slots available
-    int capacity;
+    unsigned long capacity;
     // the number of current occupied slots
-    int numElements;
-    // an array of capacity length marking null values
-    std::unique_ptr<bool[]> isNull;
+    unsigned long numElements;
+    // an array of capacity length marking non-null values
+    std::unique_ptr<char[]> notNull;
     // whether there are any null values
     bool hasNulls;
+
+    virtual std::string toString() const = 0;
   };
 
   struct LongVectorBatch: public ColumnVectorBatch {
-    LongVectorBatch(int capacity);
+    LongVectorBatch(unsigned long capacity);
     virtual ~LongVectorBatch();
     std::unique_ptr<long[]> data;
+    std::string toString() const;
   };
 
   struct DoubleVectorBatch: public ColumnVectorBatch {
-    DoubleVectorBatch(int capacity);
+    DoubleVectorBatch(unsigned long capacity);
     virtual ~DoubleVectorBatch();
+    std::string toString() const;
+
     std::unique_ptr<double[]> data;
   };
 
-  struct ByteRange {
-    char* data;
-    int length;
-  };
+  struct StringVectorBatch: public ColumnVectorBatch {
+    StringVectorBatch(unsigned long capacity);
+    virtual ~StringVectorBatch();
+    std::string toString() const;
 
-  struct ByteVectorBatch: public ColumnVectorBatch {
-    ByteVectorBatch(int capacity);
-    virtual ~ByteVectorBatch();
-    std::unique_ptr<ByteRange[]> data;
+    std::unique_ptr<char*([])> data;
+    std::unique_ptr<long[]> length;
   };
 
   struct StructVectorBatch: public ColumnVectorBatch {
-    StructVectorBatch(int capacity);
+    StructVectorBatch(unsigned long capacity);
     virtual ~StructVectorBatch();
-    std::list<std::unique_ptr<ColumnVectorBatch> > fields;
+    std::string toString() const;
+
+    unsigned long numFields;
+    std::unique_ptr<std::unique_ptr<ColumnVectorBatch>[]> fields;
   };
 
   struct Decimal {
-    long lower;
     long upper;
+    long lower;
   };
 }
 

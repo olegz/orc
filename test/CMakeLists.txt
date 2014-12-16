@@ -11,8 +11,8 @@
 # limitations under the License.
 
 include_directories(
-  ${CMAKE_BINARY_DIR}/include
-  ${CMAKE_SOURCE_DIR}/src
+  ${PROJECT_SOURCE_DIR}/src
+  ${PROJECT_BINARY_DIR}/src
   ${PROTOBUF_INCLUDE_DIRS}
   ${LZO_INCLUDE_DIRS}
   ${ZLIB_INCLUDE_DIR}
@@ -20,28 +20,30 @@ include_directories(
 
 set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g ${CXX11_FLAGS} ${WARN_FLAGS}")
 
-add_executable(test-orc
+add_executable (test-orc
   TestByteRle.cc
+  TestCompression.cc
   TestDriver.cc
+  TestReader.cc
   TestRle.cc
 )
 
-target_link_libraries(test-orc
-  ${CMAKE_BINARY_DIR}/src/liborc.a
-  ${PROTOBUF_LITE_LIBRARIES}
+target_link_libraries (test-orc
+  orc
+  ${PROTOBUF_LIBRARIES}
+  ${GMOCK_LIB}
   ${LZO_LIBRARIES}
   ${ZLIB_LIBRARIES}
-  ${GTEST_LIB}
 )
 
-add_test(test-orc test-orc)
+add_test (test-orc test-orc ${EXAMPLE_DIRECTORY})
 
 # Add another target called test-out that prints the results on failure
 if (CMAKE_CONFIGURATION_TYPES)
-  add_custom_target(test-out COMMAND ${CMAKE_CTEST_COMMAND}
+  add_custom_target (test-out COMMAND ${CMAKE_CTEST_COMMAND}
     --force-new-ctest-process --output-on-failure
     --build-config "$<CONFIGURATION>")
-else()
-  add_custom_target(test-out COMMAND ${CMAKE_CTEST_COMMAND}
+else (CMAKE_CONFIGURATION_TYPES)
+  add_custom_target (test-out COMMAND ${CMAKE_CTEST_COMMAND}
     --force-new-ctest-process --output-on-failure)
-endif()
+endif (CMAKE_CONFIGURATION_TYPES)

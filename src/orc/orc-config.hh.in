@@ -17,4 +17,9 @@
 
 #define ORC_VERSION "@ORC_VERSION@"
 
+namespace orc {
+  using uint64 = unsigned long;
+  using int64 = signed long;
+}
+
 #endif

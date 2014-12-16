@@ -16,34 +16,35 @@
  * limitations under the License.
  */
 
-#include <iostream>
-
+#include "Compression.hh"
 #include "RLE.hh"
+#include "RLEs.hh"
 #include "wrap/gtest-wrapper.h"
+
+#include <iostream>
+#include <vector>
 
 namespace orc {
 
-  TEST(RLEv1, simpleTest) {
-    SeekableInputStream* stream =
-      new SeekableArrayInputStream({0x61, 0xff, 0x64,
-            0xfb, 0x02, 0x03, 0x5, 0x7, 0xb});
-    std::unique_ptr<orc::RleDecoder> rle =
-      orc::createRleDecoder(std::move(std::unique_ptr<orc::SeekableInputStream>
-                                      (stream)),
-                            false, orc::VERSION_1);
-    long* data = new long[105];
-    rle->next(data, 105, 0);
+TEST(RLEv1, simpleTest) {
+  std::unique_ptr<RleDecoder> rle =
+      createRleDecoder(
+          std::unique_ptr<SeekableInputStream>(
+              new SeekableArrayInputStream(
+                  {0x61, 0xff, 0x64, 0xfb, 0x02, 0x03, 0x5, 0x7, 0xb})),
+          false, RleVersion_1);
+  std::vector<long> data(105);
+  rle->next(data.data(), 105, nullptr);
 
-    for(int i=0; i < 100; ++i) {
-      EXPECT_EQ(100 - i, data[i]) << "Output wrong at " << i;
-    }
-    EXPECT_EQ(2, data[100]);
-    EXPECT_EQ(3, data[101]);
-    EXPECT_EQ(5, data[102]);
-    EXPECT_EQ(7, data[103]);
-    EXPECT_EQ(11, data[104]);
-    delete[] data;
+  for (size_t i = 0; i < 100; ++i) {
+    EXPECT_EQ(100 - i, data[i]) << "Output wrong at " << i;
   }
+  EXPECT_EQ(2, data[100]);
+  EXPECT_EQ(3, data[101]);
+  EXPECT_EQ(5, data[102]);
+  EXPECT_EQ(7, data[103]);
+  EXPECT_EQ(11, data[104]);
+};
 
   TEST(Zlib, simpleTest) {
     std::ifstream t("../../examples/demo-12-zlib.orc");
@@ -56,171 +57,154 @@ namespace orc {
     zlib->decompress(buffer.str(), outstream);
   }
 
-  TEST(RLEv1, signedNullLiteralTest) {
-    SeekableInputStream* stream =
-      new SeekableArrayInputStream({0xf8, 0x0, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6,
-            0x7});
-    std::unique_ptr<orc::RleDecoder> rle =
-      orc::createRleDecoder(std::move(std::unique_ptr<orc::SeekableInputStream>
-                                      (stream)),
-                            true, orc::VERSION_1);
-    long* data = new long[8];
-    char* isNull = new char[8];
-    memset(isNull, 0, 8);
-    rle->next(data, 8, isNull);
+TEST(RLEv1, signedNullLiteralTest) {
+  std::unique_ptr<RleDecoder> rle =
+      createRleDecoder(
+          std::unique_ptr<SeekableInputStream>(
+              new SeekableArrayInputStream(
+                  {0xf8, 0x0, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7})),
+          true, RleVersion_1);
+  std::vector<long> data(8);
+  std::vector<char> notNull(8, 1);
+  rle->next(data.data(), 8, notNull.data());
 
-    for(int i=0; i < 8; ++i) {
-      if (i % 2 == 0) {
-        EXPECT_EQ(i/2, data[i]);
-      } else {
-        EXPECT_EQ(-((i+1)/2), data[i]);
-      }
-    }
-    delete[] isNull;
-    delete[] data;
+  for(size_t i = 0; i < 8; ++i) {
+    EXPECT_EQ(i % 2 == 0 ? i/2 : -((i+1)/2),
+              data[i]);
   }
+}
 
-  TEST(RLEv1, splitHeader) {
-    SeekableInputStream* stream =
-      new SeekableArrayInputStream({0x0, 0x00, 0xdc, 0xba, 0x98, 0x76}, 4);
-    std::unique_ptr<orc::RleDecoder> rle =
-      orc::createRleDecoder(std::move(std::unique_ptr<orc::SeekableInputStream>
-                                      (stream)),
-                            false, orc::VERSION_1);
-    long* data = new long[200];
-    rle->next(data, 3, 0);
+TEST(RLEv1, splitHeader) {
+  std::unique_ptr<RleDecoder> rle =
+      createRleDecoder(
+          std::unique_ptr<SeekableInputStream>(
+              new SeekableArrayInputStream({0x0, 0x00, 0xdc, 0xba, 0x98, 0x76}, 4)),
+  false, RleVersion_1);
+  std::vector<long> data(200);
+  rle->next(data.data(), 3, nullptr);
 
-    for(int i=0; i < 3; ++i) {
-      EXPECT_EQ(247864668, data[i]) << "Output wrong at " << i;
-    }
-    delete[] data;
+  for(size_t i = 0; i < 3; ++i) {
+    EXPECT_EQ(247864668, data[i]) << "Output wrong at " << i;
   }
+}
 
-  TEST(RLEv1, splitRuns) {
-    SeekableInputStream* stream =
+TEST(RLEv1, splitRuns) {
+  SeekableInputStream* stream =
       new SeekableArrayInputStream({0x7d, 0x01, 0xff, 0x01, 0xfb, 0x01,
-            0x02, 0x03, 0x04, 0x05});
-    std::unique_ptr<orc::RleDecoder> rle =
-      orc::createRleDecoder(std::move(std::unique_ptr<orc::SeekableInputStream>
-                                      (stream)),
-                            false, orc::VERSION_1);
-    long* data = new long[200];
-    for(int i=0; i < 42; ++i) {
-      rle->next(data, 3, 0);
-      for(int j=0; j < 3; ++j) {
-        EXPECT_EQ(255 + i * 3 + j, data[j]) << "Wrong output at " << i
-                                            << ", " << j;
-      }
-    }
-    rle->next(data, 3, 0);
-    EXPECT_EQ(381, data[0]);
-    EXPECT_EQ(382, data[1]);
-    EXPECT_EQ(1, data[2]);
-    rle->next(data, 3, 0);
-    EXPECT_EQ(2, data[0]);
-    EXPECT_EQ(3, data[1]);
-    EXPECT_EQ(4, data[2]);
-    rle->next(data, 1, 0);
-    EXPECT_EQ(5, data[0]);
-    delete[] data;
-  }
-
-  TEST(RLEv1, testSigned) {
-    SeekableInputStream* stream =
-      new SeekableArrayInputStream({0x7f, 0xff, 0x20});
-    std::unique_ptr<orc::RleDecoder> rle =
-      orc::createRleDecoder(std::move(std::unique_ptr<orc::SeekableInputStream>
-                                      (stream)),
-                            true, orc::VERSION_1);
-    long* data = new long[100];
-    rle->next(data, 100, 0);
-    for(int i=0; i < 100; ++i) {
-      EXPECT_EQ(16 - i, data[i]) << "Wrong output at " << i;
-    }
-    rle->next(data, 30, 0);
-    for(int i=0; i < 30; ++i) {
-      EXPECT_EQ(16 - 100 - i, data[i]) << "Wrong output at " << (i + 100);
-    }
-    delete[] data;
-  }
-
-  TEST(RLEv1, testNull) {
-    SeekableInputStream* stream =
-      new SeekableArrayInputStream({0x75, 0x02, 0x00});
-    std::unique_ptr<orc::RleDecoder> rle =
-      orc::createRleDecoder(std::move(std::unique_ptr<orc::SeekableInputStream>
-                                      (stream)),
-                            true, orc::VERSION_1);
-    long* data = new long[24];
-    char* isNull = new char[24];
-    for(int i=0; i < 24; ++i) {
-      isNull[i] = i % 2;
-    }
-    for(int i=0; i < 10; ++i) {
-      rle->next(data, 24, isNull);
-      for(int j=0; j < 24; ++j) {
-        EXPECT_EQ(j % 2, isNull[j]);
-        if (!isNull[j]) {
-          EXPECT_EQ(i * 24 + j, data[j]);
-        }
-      }
-    }
-    delete[] data;
-    delete[] isNull;
-  }
-
-  TEST(RLEv1, testAllNulls) {
-    SeekableInputStream* stream =
-      new SeekableArrayInputStream({0xf0,
-            0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
-            0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
-            0x3d, 0x00, 0x12});
-    std::unique_ptr<orc::RleDecoder> rle =
+                                    0x02, 0x03, 0x04, 0x05});
+  std::unique_ptr<RleDecoder> rle =
       createRleDecoder(std::move(std::unique_ptr<SeekableInputStream>
                                       (stream)),
-                            false, VERSION_1);
-    long* data = new long[16];
-    char* allNull = new char[16];
-    char* noNull = new char[16];
-    for(int i=0; i < 16; ++i) {
-      allNull[i] = 1;
-      noNull[i] = 0;
-      data[i] = -1;
+                            false, RleVersion_1);
+  std::vector<long> data(200);
+  for (size_t i = 0; i < 42; ++i) {
+    rle->next(data.data(), 3, nullptr);
+    for (size_t j = 0; j < 3; ++j) {
+      EXPECT_EQ(255 + i * 3 + j, data[j]) << "Wrong output at " << i
+          << ", " << j;
     }
-    rle->next(data, 16, allNull);
-    for(int i=0; i < 16; ++i) {
-      EXPECT_EQ(-1, data[i]) << "Output wrong at " << i;
+  }
+  rle->next(data.data(), 3, 0);
+  EXPECT_EQ(381, data[0]);
+  EXPECT_EQ(382, data[1]);
+  EXPECT_EQ(1, data[2]);
+  rle->next(data.data(), 3, 0);
+  EXPECT_EQ(2, data[0]);
+  EXPECT_EQ(3, data[1]);
+  EXPECT_EQ(4, data[2]);
+  rle->next(data.data(), 1, 0);
+  EXPECT_EQ(5, data[0]);
+}
+
+TEST(RLEv1, testSigned) {
+  SeekableInputStream* stream =
+      new SeekableArrayInputStream({0x7f, 0xff, 0x20});
+  std::unique_ptr<RleDecoder> rle =
+      createRleDecoder(std::move(std::unique_ptr<SeekableInputStream>
+                                     (stream)),
+                       true, RleVersion_1);
+  std::vector<long> data(100);
+  rle->next(data.data(), data.size(), nullptr);
+  for (size_t i = 0; i < data.size(); ++i) {
+    EXPECT_EQ(16 - i, data[i]) << "Wrong output at " << i;
+  }
+  rle->next(data.data(), 30, nullptr);
+  for(size_t i = 0; i < 30; ++i) {
+    EXPECT_EQ(16 - 100 - static_cast<long>(i), data[i]) 
+      << "Wrong output at " << (i + 100);
+  }
+}
+
+TEST(RLEv1, testNull) {
+  SeekableInputStream* stream =
+      new SeekableArrayInputStream({0x75, 0x02, 0x00});
+  std::unique_ptr<RleDecoder> rle =
+      createRleDecoder(std::move(std::unique_ptr<SeekableInputStream>
+                                     (stream)),
+                       true, RleVersion_1);
+  std::vector<long> data(24);
+  std::vector<char> notNull(24);
+  for (size_t i = 0; i < notNull.size(); ++i) {
+    notNull[i] = (i + 1) % 2;
+  }
+  for (size_t i = 0; i < 10; ++i) {
+    for(size_t j = 0; j < data.size(); ++j) {
+      data[j] = -1;
     }
-    rle->next(data, 16, noNull);
-    for(int i=0; i < 16; ++i) {
-      EXPECT_EQ(i, data[i]) << "Output wrong at " << i;
-      data[i] = -1;
-    }
-    rle->next(data, 16, allNull);
-    for(int i=0; i < 16; ++i) {
-      EXPECT_EQ(-1, data[i]) << "Output wrong at " << i;
-    }
-    for(int i=0; i < 4; ++i) {
-      rle->next(data, 16, noNull);
-      for(int j=0; j < 16; ++j) {
-        EXPECT_EQ(18, data[j]) << "Output wrong at " << i;
+    rle->next(data.data(), 24, notNull.data());
+    for (size_t j = 0; j < 24; ++j) {
+      if (notNull[j]) {
+        EXPECT_EQ(i * 24 + j, data[j]);
+      } else {
+        EXPECT_EQ(-1, data[j]);
       }
     }
-    rle->next(data, 16, allNull);
-    delete[] data;
-    delete[] allNull;
-    delete[] noNull;
   }
+}
 
-  TEST(RLEv1, skipTest) {
-    // Create the RLE stream from Java's TestRunLengthIntegerEncoding.testSkips
-    // for(int i=0; i < 1024; ++i)
-    //   out.write(i);
-    // for(int i=1024; i < 2048; ++i)
-    //   out.write(i * 256);
-    // This causes the first half to be delta encoded and the second half to
-    // be literal encoded.
-    SeekableInputStream* stream =
+TEST(RLEv1, testAllNulls) {
+  SeekableInputStream* stream =
+      new SeekableArrayInputStream({0xf0,
+                                       0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+                                       0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
+                                       0x3d, 0x00, 0x12});
+  std::unique_ptr<RleDecoder> rle =
+      createRleDecoder(std::move(std::unique_ptr<SeekableInputStream>(stream)),
+                       false, RleVersion_1);
+  std::vector<long> data(16, -1);
+  std::vector<char> allNull(16, 0);
+  std::vector<char> noNull(16, 1);
+  rle->next(data.data(), 16, allNull.data());
+  for (size_t i = 0; i < data.size(); ++i) {
+    EXPECT_EQ(-1, data[i]) << "Output wrong at " << i;
+  }
+  rle->next(data.data(), data.size(), noNull.data());
+  for (size_t i = 0; i < data.size(); ++i) {
+    EXPECT_EQ(i, data[i]) << "Output wrong at " << i;
+    data[i] = -1;
+  }
+  rle->next(data.data(), data.size(), allNull.data());
+  for (size_t i = 0; i < data.size(); ++i) {
+    EXPECT_EQ(-1, data[i]) << "Output wrong at " << i;
+  }
+  for (size_t i = 0; i < 4; ++i) {
+    rle->next(data.data(), data.size(), noNull.data());
+    for(size_t j = 0; j < data.size(); ++j) {
+      EXPECT_EQ(18, data[j]) << "Output wrong at " << i;
+    }
+  }
+  rle->next(data.data(), data.size(), allNull.data());
+}
+
+TEST(RLEv1, skipTest) {
+  // Create the RLE stream from Java's TestRunLengthIntegerEncoding.testSkips
+  // for (size_t i = 0; i < 1024; ++i)
+  //   out.write(i);
+  // for (size_t i = 1024; i < 2048; ++i)
+  //   out.write(i * 256);
+  // This causes the first half to be delta encoded and the second half to
+  // be literal encoded.
+  SeekableInputStream* const stream =
       new SeekableArrayInputStream({
 127,   1,   0, 127,   1, 132,   2, 127,   1, 136,   4, 127,   1, 140,   6, 127,
   1, 144,   8, 127,   1, 148,  10, 127,   1, 152,  12, 111,   1, 156,  14, 128,
@@ -417,38 +401,36 @@ namespace orc {
 128, 204,  63, 128, 208,  63, 128, 212,  63, 128, 216,  63, 128, 220,  63, 128,
 224,  63, 128, 228,  63, 128, 232,  63, 128, 236,  63, 128, 240,  63, 128, 244,
  63, 128, 248,  63, 128, 252,  63});
-    std::unique_ptr<orc::RleDecoder> rle =
-      orc::createRleDecoder(std::move(std::unique_ptr<orc::SeekableInputStream>
-                                      (stream)),
-                            true, orc::VERSION_1);
-    long* data = new long[1];
-    for(int i=0; i < 2048; i += 10) {
-      rle->next(data, 1, 0);
-      if (i < 1024) {
-        EXPECT_EQ(i, data[0]) << "Wrong output at " << i;
-      } else {
-        EXPECT_EQ(256 * i, data[0]) << "Wrong output at " << i;
-      }
-      if (i < 2038) {
-        rle->skip(9);
-      }
-      rle->skip(0);
+  std::unique_ptr<RleDecoder> rle =
+      createRleDecoder(std::move(std::unique_ptr<SeekableInputStream>(stream)),
+                       true, RleVersion_1);
+  std::vector<long> data(1);
+  for (size_t i = 0; i < 2048; i += 10) {
+    rle->next(data.data(), 1, nullptr);
+    if (i < 1024) {
+      EXPECT_EQ(i, data[0]) << "Wrong output at " << i;
+    } else {
+      EXPECT_EQ(256 * i, data[0]) << "Wrong output at " << i;
     }
-    delete[] data;
+    if (i < 2038) {
+      rle->skip(9);
+    }
+    rle->skip(0);
   }
+}
 
-  TEST(RLEv1, seekTest) {
-    // Create the RLE stream from Java's
-    // TestRunLengthIntegerEncoding.testUncompressedSeek
-    // for(int i=0; i < 1024; ++i)
-    //   out.write(i / 4);
-    // for(int i=1024; i < 2048; ++i)
-    //   out.write(2 * i);
-    // for(int i=0; i < 2048; ++i)
-    //   out.write(junk[i]);
-    // This causes the first half to be delta encoded and the second half to
-    // be literal encoded.
-    SeekableInputStream* stream =
+TEST(RLEv1, seekTest) {
+  // Create the RLE stream from Java's
+  // TestRunLengthIntegerEncoding.testUncompressedSeek
+  // for (size_t i = 0; i < 1024; ++i)
+  //   out.write(i / 4);
+  // for (size_t i = 1024; i < 2048; ++i)
+  //   out.write(2 * i);
+  // for (size_t i = 0; i < 2048; ++i)
+  //   out.write(junk[i]);
+  // This causes the first half to be delta encoded and the second half to
+  // be literal encoded.
+  SeekableInputStream* const stream =
       new SeekableArrayInputStream({
   1,   0,   0,   1,   0,   2,   1,   0,   4,   1,   0,   6,   1,   0,   8,   1,
   0,  10,   1,   0,  12,   1,   0,  14,   1,   0,  16,   1,   0,  18,   1,   0,
@@ -1145,7 +1127,7 @@ namespace orc {
 193, 190, 224, 143,   9, 129, 245, 133, 204,   8, 182, 209, 250, 178,   8, 148,
 139, 144, 193,  11, 230, 182, 245, 164,   7, 149, 204, 161, 226,  14, 175, 229,
 148, 166,  13, 148, 140, 189, 216,   3});
-    long junk[] = {
+    const long junk[] = {
 -1192035722,  1672896916,  1491444859, -1244121273,  -791680696,  1681943525,
  -571055948, -1744759283,  -998345856,   240559198,  1110691737, -1078127818,
  1478213963, -1999074977, -1236487259,  1081623627,  1461835677,  1591726278,
@@ -1488,7 +1470,7 @@ namespace orc {
  1165486207,    51714803,  1723701480,  -802521253,  2114265882,  1634942197,
 -1224478625, -1153482049,  1127175259,  1544684234,   978234803, -1982083851,
 -1784846680,   495428362};
-    unsigned long fileLoc[] = {
+  const unsigned long fileLoc[] = {
     0,     0,     0,     0,     0,     3,     3,     3,     3,     6,     6,
     6,     6,     9,     9,     9,     9,    12,    12,    12,    12,    15,
    15,    15,    15,    18,    18,    18,    18,    21,    21,    21,    21,
@@ -1862,7 +1844,7 @@ namespace orc {
 10478, 10478, 10478, 10478, 10478, 10478, 10478, 10478, 10478, 10478, 10478,
 10478, 10478, 10478, 10478, 10478, 10478, 10478, 10478, 10478, 10478, 10478,
 10478, 10478, 10478, 10478};
-    unsigned long rleLoc[] = {
+  const unsigned long rleLoc[] = {
   0,   1,   2,   3,   4,   1,   2,   3,   4,   1,   2,   3,   4,   1,   2,   3,
   4,   1,   2,   3,   4,   1,   2,   3,   4,   1,   2,   3,   4,   1,   2,   3,
   4,   1,   2,   3,   4,   1,   2,   3,   4,   1,   2,   3,   4,   1,   2,   3,
@@ -2119,33 +2101,34 @@ namespace orc {
  80,  81,  82,  83,  84,  85,  86,  87,  88,  89,  90,  91,  92,  93,  94,  95,
  96,  97,  98,  99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111,
 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127
-    };
-    std::list<unsigned long> (positions[4096]);
-    for(int i=0; i < 4096; ++i) {
-      positions[i].push_back(fileLoc[i]);
-      positions[i].push_back(rleLoc[i]);
+  };
+  std::list<unsigned long> positions[4096];
+  for (size_t i = 0; i < 4096; ++i) {
+    positions[i].push_back(fileLoc[i]);
+    positions[i].push_back(rleLoc[i]);
+  }
+  std::unique_ptr<RleDecoder> rle =
+      createRleDecoder(std::move(std::unique_ptr<SeekableInputStream>(stream)),
+                       true, RleVersion_1);
+  std::vector<long> data(2048);
+  rle->next(data.data(), data.size(), nullptr);
+  for (size_t i = 0; i < data.size(); ++i) {
+    if (i < 1024) {
+      EXPECT_EQ(i/4, data[i]) << "Wrong output at " << i;
+    } else {
+      EXPECT_EQ(2 * i, data[i]) << "Wrong output at " << i;
     }
-    std::unique_ptr<orc::RleDecoder> rle =
-      orc::createRleDecoder(std::move(std::unique_ptr<orc::SeekableInputStream>
-                                      (stream)),
-                            true, orc::VERSION_1);
-    long* data = new long[2048];
-    rle->next(data, 2048, 0);
-    for(int i=0; i < 2048; ++i) {
-      if (i < 1024) {
-        EXPECT_EQ(i/4, data[i]) << "Wrong output at " << i;
-      } else {
-        EXPECT_EQ(2 * i, data[i]) << "Wrong output at " << i;
-      }
-    }
-    rle->next(data, 2048, 0);
-    for(int i=0; i < 2048; ++i) {
-      EXPECT_EQ(junk[i], data[i]) << "Wrong output at " << i;
-    }
-    for(int i=4095; i >= 0; --i) {
-      PositionProvider location(positions[i]);
-      rle->seek(location);
-      rle->next(data, 1, 0);
+  }
+  rle->next(data.data(), data.size(), nullptr);
+  for (size_t i = 0; i < data.size(); ++i) {
+    EXPECT_EQ(junk[i], data[i]) << "Wrong output at " << i;
+  }
+  size_t i = 4096;
+  do {
+    --i;
+    PositionProvider location(positions[i]);
+    rle->seek(location);
+    rle->next(data.data(), 1, nullptr);
       if (i < 1024) {
         EXPECT_EQ(i/4, data[0]) << "Wrong output at " << i;
       } else if (i < 2048) {
@@ -2153,7 +2136,7 @@ namespace orc {
       } else {
         EXPECT_EQ(junk[i - 2048], data[0]) << "Wrong output at " << i;
       }
-    }
-    delete[] data;
-  }
+  } while (i != 0);
 }
+
+}  // namespace orc

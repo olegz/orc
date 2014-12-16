@@ -10,5 +10,5 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-add_subdirectory(gtest-${GTEST_VERSION})
+add_subdirectory(gmock-${GMOCK_VERSION})
 add_subdirectory(libuv-${LIBUV_VERSION})

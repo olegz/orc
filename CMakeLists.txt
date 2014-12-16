@@ -20,24 +20,22 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/Modules/")
 set (LIBUV_VERSION "0.11.29")
 include_directories(${CMAKE_SOURCE_DIR}/libs/libuv-${LIBUV_VERSION}/include)
 set (LIBUV_LIB "${CMAKE_BINARY_DIR}/libs/libuv-${LIBUV_VERSION}/libuv.a")
-if(NOT APPLE)
+if (NOT APPLE)
   list (APPEND LIBUV_LIB pthread rt)
-endif(NOT APPLE)
+endif (NOT APPLE)
 
-set (GTEST_VERSION "1.7.0")
-include_directories(${CMAKE_SOURCE_DIR}/libs/gtest-${GTEST_VERSION}/include)
-set (GTEST_LIB "${CMAKE_BINARY_DIR}/libs/gtest-${GTEST_VERSION}/libgtest.a")
+set (GMOCK_VERSION "1.7.0")
+include_directories(
+  ${CMAKE_SOURCE_DIR}/libs/gmock-${GMOCK_VERSION}/include
+  ${CMAKE_SOURCE_DIR}/libs/gmock-${GMOCK_VERSION}/gtest/include
+  )
+set (GMOCK_LIB "${CMAKE_BINARY_DIR}/libs/gmock-${GMOCK_VERSION}/libgmock_main.a")
 if(NOT APPLE)
-  list (APPEND GTEST_LIB pthread)
+  list (APPEND GMOCK_LIB pthread)
 endif(NOT APPLE)
 enable_testing()
 
-find_package(Protobuf REQUIRED)
-if( NOT PROTOBUF_FOUND)
-# hack: if can't find protobuf, set path explicitly ..
-set(PROTOBUF_INCLUDE_DIRS $ENV{PROTOBUF_INCLUDE_DIRS})
-set(PROTOBUF_LITE_LIBRARIES $ENV{PROTOBUF_LITE_LIBRARIES})
-endif( NOT PROTOBUF_FOUND)
+find_package (Protobuf REQUIRED)
 
 # TODO: FindLzo.cmake license?
 find_package(LZO REQUIRED)
@@ -61,14 +59,18 @@ MESSAGE( STATUS "ZLIB_LIBRARIES:         " ${ZLIB_LIBRARIES} )
 include_directories(${ZLIB_INCLUDE_DIR})
 
 set (CXX11_FLAGS "-std=gnu++11")
-if(APPLE)
+if (APPLE)
+  set (COVERAGE_FLAGS "--coverage -g -O0")
   set (CXX11_FLAGS "${CXX11_FLAGS} -stdlib=libc++")
   set (WARN_FLAGS "-Weverything -Wno-c++98-compat -Wno-missing-prototypes")
   set (WARN_FLAGS "${WARN_FLAGS} -Wno-c++98-compat-pedantic -Wno-padded")
-else(APPLE)
+  set (WARN_FLAGS "${WARN_FLAGS} -Wno-covered-switch-default")
+else (APPLE)
   set (WARN_FLAGS "-Wall")
-endif(APPLE)
-set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g")
+endif (APPLE)
+set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g ${COVERAGE_FLAGS}")
+
+set (EXAMPLE_DIRECTORY ${CMAKE_SOURCE_DIR}/examples)
 
 add_subdirectory(libs)
 add_subdirectory(src)

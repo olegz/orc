@@ -19,24 +19,24 @@
 #ifndef ORC_READER_HH
 #define ORC_READER_HH
 
-#include <list>
+#include "Vector.hh"
+
+#include <initializer_list>
 #include <memory>
 #include <string>
-
-#include "Vector.hh"
+#include <vector>
 
 namespace orc {
 
   // classes that hold data members so we can maintain binary compatibility
-  class StripeInformationPrivate;
   class ColumnStatisticsPrivate;
-  class ReaderOptionsPrivate;
+  struct ReaderOptionsPrivate;
 
   enum CompressionKind {
-    NONE = 0,
-    ZLIB = 1,
-    SNAPPY = 2,
-    LZO = 3
+    CompressionKind_NONE = 0,
+    CompressionKind_ZLIB = 1,
+    CompressionKind_SNAPPY = 2,
+    CompressionKind_LZO = 3
   };
 
   /**
@@ -244,9 +244,6 @@ namespace orc {
   };
 
   class StripeInformation {
-  private:
-    std::unique_ptr<StripeInformationPrivate> privateBits;
-
   public:
     virtual ~StripeInformation();
 
@@ -254,53 +251,70 @@ namespace orc {
      * Get the byte offset of the start of the stripe.
      * @return the bytes from the start of the file
      */
-    virtual long getOffset() = 0;
+    virtual unsigned long getOffset() const = 0;
 
     /**
      * Get the total length of the stripe in bytes.
      * @return the number of bytes in the stripe
      */
-    virtual long getLength() = 0;
+    virtual unsigned long getLength() const = 0;
 
     /**
      * Get the length of the stripe's indexes.
      * @return the number of bytes in the index
      */
-    virtual long getIndexLength() = 0;
+    virtual unsigned long getIndexLength() const = 0;
 
     /**
      * Get the length of the stripe's data.
      * @return the number of bytes in the stripe
      */
-    virtual long getDataLength() = 0;
+    virtual unsigned long getDataLength()const = 0;
 
     /**
      * Get the length of the stripe's tail section, which contains its index.
      * @return the number of bytes in the tail
      */
-    virtual long getFooterLength() = 0;
+    virtual unsigned long getFooterLength() const = 0;
 
     /**
      * Get the number of rows in the stripe.
      * @return a count of the number of rows
      */
-    virtual long getNumberOfRows() = 0;
+    virtual unsigned long getNumberOfRows() const = 0;
   };
 
   /**
-   * Options for creating a RecordReader.
+   * Options for creating a Reader.
    */
   class ReaderOptions {
   private:
     std::unique_ptr<ReaderOptionsPrivate> privateBits;
 
   public:
+    ReaderOptions();
+    ReaderOptions(const ReaderOptions&);
+    ReaderOptions(ReaderOptions&&);
+    ReaderOptions& operator=(const ReaderOptions&);
+    virtual ~ReaderOptions();
+
     /**
-     * Set the list of columns to read.
+     * Set the list of columns to read. All columns that are children of
+     * selected columns are automatically selected. The default value is
+     * {0}.
      * @param include a list of columns to read
      * @return this
      */
-    ReaderOptions& include(const std::list<bool>& include);
+    ReaderOptions& include(const std::list<int>& include);
+
+    /**
+     * Set the list of columns to read. All columns that are children of
+     * selected columns are automatically selected. The default value is
+     * {0}.
+     * @param include a list of columns to read
+     * @return this
+     */
+    ReaderOptions& include(std::initializer_list<int> include);
 
     /**
      * Set the section of the file to process.
@@ -308,55 +322,42 @@ namespace orc {
      * @param length the number of bytes to read
      * @return this
      */
-    ReaderOptions& range(long offset, long length);
+    ReaderOptions& range(unsigned long offset, unsigned long length);
 
     /**
      * Set the location of the tail as defined by the logical length of the
      * file.
      */
-    ReaderOptions& setTailLocation(long offset);
-
-    const std::list<bool>& getInclude() const;
-
-    long getOffset() const;
-
-    long getLength() const;
-
-    long getTailLocation() const;
-  };
-
-  class RecordReader {
-  public:
-    virtual ~RecordReader();
+    ReaderOptions& setTailLocation(unsigned long offset);
 
     /**
-     * Read the next row batch from the current position.
-     * Caller must look at numElements in the row batch to determine how
-     * many rows were read.
-     * @param data the row batch to read into.
-     * @return true if a non-zero number of rows were read or false if the
-     *   end of the file was reached.
+     * Get the list of selected columns to read. All children of the selected
+     * columns are also selected.
      */
-    virtual bool next(ColumnVectorBatch& data) = 0;
+    const std::list<int>& getInclude() const;
 
     /**
-     * Get the row number of the first row in the previously read batch.
-     * @return the row number of the previous batch.
+     * Get the start of the range for the data being processed.
+     * @return if not set, return 0
      */
-    virtual long getRowNumber() const = 0;
+    unsigned long getOffset() const;
 
     /**
-     * Seek to a given row.
-     * @param rowNumber the next row the reader should return
+     * Get the end of the range for the data being processed.
+     * @return if not set, return the maximum long
      */
-    virtual void seekToRow(long rowNumber) = 0;
+    unsigned long getLength() const;
+
+    /**
+     * Get the desired tail location.
+     * @return if not set, return the maximum long.
+     */
+    unsigned long getTailLocation() const;
   };
 
   /**
-   * The interface for reading ORC file meta information.
+   * The interface for reading ORC files.
    * This is an an abstract class that will subclassed as necessary.
-   *
-   * One Reader can support multiple concurrent RecordReader.
    */
   class Reader {
   public:
@@ -366,13 +367,7 @@ namespace orc {
      * Get the number of rows in the file.
      * @return the number of rows
      */
-    virtual long getNumberOfRows() const = 0;
-
-    /**
-     * Get the deserialized data size of the file
-     * @return raw data size
-     */
-    virtual long getRawDataSize() const = 0;
+    virtual unsigned long getNumberOfRows() const = 0;
 
     /**
      * Get the user metadata keys.
@@ -385,7 +380,7 @@ namespace orc {
      * @param key a key given by the user
      * @return the bytes associated with the given key
      */
-    virtual ByteRange getMetadataValue(const std::string& key) const = 0;
+    virtual std::string getMetadataValue(const std::string& key) const = 0;
 
     /**
      * Did the user set the given metadata value.
@@ -404,48 +399,86 @@ namespace orc {
      * Get the buffer size for the compression.
      * @return number of bytes to buffer for the compression codec.
      */
-    virtual int getCompressionSize() const = 0;
+    virtual unsigned long getCompressionSize() const = 0;
 
     /**
      * Get the number of rows per a entry in the row index.
      * @return the number of rows per an entry in the row index or 0 if there
      * is no row index.
      */
-    virtual int getRowIndexStride() const = 0;
+    virtual unsigned long getRowIndexStride() const = 0;
 
     /**
-     * Get the list of stripes.
-     * @return the information about the stripes in order
+     * Get the number of stripes in the file.
+     * @return the number of stripes
      */
-    virtual const std::list<StripeInformation>& getStripes() const = 0;
+    virtual unsigned long getNumberOfStripes() const = 0;
+
+    /**
+     * Get the information about a stripe.
+     * @param stripeIndex the stripe 0 to N-1 to get information about
+     * @return the information about that stripe
+     */
+    virtual std::unique_ptr<StripeInformation> 
+      getStripe(unsigned long stripeIndex) const = 0;
 
     /**
      * Get the length of the file.
      * @return the number of bytes in the file
      */
-    virtual long getContentLength() const = 0;
+    virtual unsigned long getContentLength() const = 0;
 
     /**
      * Get the statistics about the columns in the file.
      * @return the information about the column
      */
-    virtual const std::list<std::unique_ptr<ColumnStatistics> >&
-      getStatistics() = 0;
+    virtual std::list<ColumnStatistics*> getStatistics() const = 0;
 
     /**
      * Get the type of the rows in the file. The top level is always a struct.
      * @return the root type
      */
-    virtual const Type& getTypes() const = 0;
+    virtual const Type& getType() const = 0;
 
     /**
-     * Create a RecordReader that uses the options given.
-     * @param options the options to read with
-     * @return a new RecordReader
-     * @throws IOException
+     * Get the selected columns of the file.
      */
-    virtual std::unique_ptr<RecordReader> rows(const ReaderOptions& options
-                                               ) const = 0;
+    virtual const bool* getSelectedColumns() const = 0;
+
+    /**
+     * Create a row batch for reading the selected columns of this file.
+     * @param size the number of rows to read
+     * @return a new ColumnVectorBatch to read into
+     */
+    virtual std::unique_ptr<ColumnVectorBatch> createRowBatch
+      (unsigned long size) const = 0;
+
+    /**
+     * Read the next row batch from the current position.
+     * Caller must look at numElements in the row batch to determine how
+     * many rows were read.
+     * @param data the row batch to read into.
+     * @return true if a non-zero number of rows were read or false if the
+     *   end of the file was reached.
+     */
+    virtual bool next(ColumnVectorBatch& data) = 0;
+
+    /**
+     * Get the row number of the first row in the previously read batch.
+     * @return the row number of the previous batch.
+     */
+    virtual unsigned long getRowNumber() const = 0;
+
+    /**
+     * Seek to a given row.
+     * @param rowNumber the next row the reader should return
+     */
+    virtual void seekToRow(unsigned long rowNumber) = 0;
+
+    /**
+     * Get the name of the input stream.
+     */
+    virtual const std::string& getStreamName() const = 0;
   };
 }
 

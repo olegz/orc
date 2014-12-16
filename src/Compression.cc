@@ -16,12 +16,33 @@
  * limitations under the License.
  */
 
-#include <algorithm>
-#include <iostream>
-
 #include "Compression.hh"
+#include "Exceptions.hh"
+
+#include <algorithm>
+#include <iomanip>
+#include <iostream>
+#include <sstream>
 
 namespace orc {
+
+  void printBuffer(std::ostream& out,
+                   const char *buffer,
+                   unsigned long length) {
+    const unsigned long width = 24;
+    out << std::hex;
+    for(unsigned long line = 0; line < (length + width - 1) / width; ++line) {
+      out << std::setfill('0') << std::setw(7) << (line * width);
+      for(unsigned long byte = 0;
+          byte < width && line * width + byte < length; ++byte) {
+        out << " " << std::setfill('0') << std::setw(2)
+                  << static_cast<unsigned int>(0xff & buffer[line * width +
+                                                             byte]);
+      }
+      out << "\n";
+    }
+    out << std::dec;
+  }
 
   PositionProvider::PositionProvider(const std::list<unsigned long>& posns) {
     position = posns.cbegin();
@@ -43,10 +64,9 @@ namespace orc {
 
   SeekableArrayInputStream::SeekableArrayInputStream
      (std::initializer_list<unsigned char> values,
-      long blkSize) {
+      long blkSize): ownedData(values.size()), data(0) {
     length = values.size();
-    data = std::unique_ptr<char[]>(new char[length]);
-    char *ptr = data.get();
+    char *ptr = ownedData.data();
     for(unsigned char ch: values) {
       *(ptr++) = static_cast<char>(ch);
     }
@@ -54,15 +74,25 @@ namespace orc {
     blockSize = blkSize == -1 ? length : static_cast<unsigned long>(blkSize);
   }
 
-  // return as much data as possible (returned size in size var), stream still owns buffer
+  SeekableArrayInputStream::SeekableArrayInputStream(char* values, 
+                                                     unsigned long size,
+                                                     long blkSize
+                                                     ): ownedData(0),
+                                                        data(values) {
+    length = size;
+    position = 0;
+    blockSize = blkSize == -1 ? length : static_cast<unsigned long>(blkSize);
+  }
+
   bool SeekableArrayInputStream::Next(const void** buffer, int*size) {
     unsigned long currentSize = std::min(length - position, blockSize);
     if (currentSize > 0) {
-      *buffer = data.get() + position;
+      *buffer = (data ? data : ownedData.data()) + position;
       *size = static_cast<int>(currentSize);
       position += currentSize;
       return true;
     }
+    *size = 0;
     return false;
   }
 
@@ -71,6 +101,8 @@ namespace orc {
       unsigned long unsignedCount = static_cast<unsigned long>(count);
       if (unsignedCount <= blockSize && unsignedCount <= position) {
         position -= unsignedCount;
+      } else {
+        throw std::logic_error("Can't backup that much!");
       }
     }
   }
@@ -81,6 +113,8 @@ namespace orc {
       if (unsignedCount + position <= length) {
         position += unsignedCount;
         return true;
+      } else {
+        position = length;
       }
     }
     return false;
@@ -120,5 +154,115 @@ namespace orc {
     inflateInit(&infstream);
     inflate(&infstream, Z_NO_FLUSH);
     inflateEnd(&infstream);
+  }
+
+  std::string SeekableArrayInputStream::getName() const {
+    std::ostringstream result;
+    result << "memory from " << std::hex << (data ? data : ownedData.data())
+           << std::dec << " for " << length;
+    return result.str();
+  }
+
+  SeekableFileInputStream::SeekableFileInputStream(InputStream* _input,
+                                                   unsigned long _offset,
+                                                   unsigned long _length,
+                                                   long _blockSize) {
+    input = _input;
+    offset = _offset;
+    length = _length;
+    position = 0;
+    blockSize = std::min(length,
+                         static_cast<unsigned long>(_blockSize < 0 ? 
+                                                    256 * 1024 : _blockSize));
+    buffer.reset(new char[blockSize]);
+    remainder = 0;
+  }
+
+  SeekableFileInputStream::~SeekableFileInputStream() {
+    // PASS
+  }
+
+  bool SeekableFileInputStream::Next(const void** data, int*size) {
+    unsigned long bytesRead = std::min(length - position, blockSize);
+    if (bytesRead > 0) {
+      *data = buffer.get();
+      // read from the file, skipping over the remainder
+      input->read(buffer.get() + remainder, offset + position + remainder, 
+                  bytesRead - remainder);
+      position += bytesRead;
+      remainder = 0;
+    }
+    *size = static_cast<int>(bytesRead);
+    return bytesRead != 0;
+  }
+
+  void SeekableFileInputStream::BackUp(int count) {
+    if (position == 0 || remainder > 0) {
+      throw std::logic_error("can't backup unless we just called Next");
+    }
+    if (static_cast<unsigned long>(count) > blockSize) {
+      throw std::logic_error("can't backup that far");
+    }
+    remainder = static_cast<unsigned long>(count);
+    position -= remainder;
+    memmove(buffer.get(), 
+            buffer.get() + blockSize - static_cast<size_t>(count), 
+            static_cast<size_t>(count));
+  }
+
+  bool SeekableFileInputStream::Skip(int _count) {
+    if (_count < 0) {
+      return false;
+    }
+    unsigned long count = static_cast<unsigned long>(_count);
+    position += count;
+    if (position > length) {
+      position = length;
+      remainder = 0;
+      return false;
+    }
+    if (remainder > count) {
+      remainder -= count;
+      memmove(buffer.get(), buffer.get() + count, remainder);
+    } else {
+      remainder = 0;
+    }
+    return true;
+  }
+  
+  google::protobuf::int64 SeekableFileInputStream::ByteCount() const {
+    return static_cast<google::protobuf::int64>(position);
+  }
+
+  void SeekableFileInputStream::seek(PositionProvider& location) {
+    position = location.next();
+    if (position > length) {
+      position = length;
+      throw std::logic_error("seek too far");
+    }
+    remainder = 0;
+  }
+
+  std::string SeekableFileInputStream::getName() const {
+    std::ostringstream result;
+    result << input->getName() << " from " << offset << " for "
+           << length;
+    return result.str();
+  }
+
+  std::unique_ptr<SeekableInputStream> 
+     createCodec(CompressionKind kind,
+                 std::unique_ptr<SeekableInputStream> input,
+                 unsigned long) {
+    switch (kind) {
+    case CompressionKind_NONE:
+      return std::move(input);
+    case CompressionKind_LZO:
+    case CompressionKind_SNAPPY:
+    case CompressionKind_ZLIB: {
+      // PASS
+    }
+    }
+    throw NotImplementedYet("compression codec");
   }
 }

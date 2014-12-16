@@ -11,38 +11,45 @@
 # limitations under the License.
 
 configure_file (
-  "${CMAKE_CURRENT_SOURCE_DIR}/orc/orc-config.hh.in"
-  "${CMAKE_BINARY_DIR}/include/orc/orc-config.hh"
-)
-include_directories(${CMAKE_BINARY_DIR}/include)
+  "orc/orc-config.hh.in"
+  "orc/orc-config.hh"
+  )
 
-include_directories(${PROTOBUF_INCLUDE_DIRS})
+include_directories (
+  ${CMAKE_CURRENT_BINARY_DIR}
+  ${PROTOBUF_INCLUDE_DIRS}
+  )
 
-include_directories(${LZO_INCLUDE_DIR})
-
-include_directories(${ZLIB_INCLUDE_DIR})
-
-set(PROTOC_GENERATED ${CMAKE_BINARY_DIR}/generated)
-
-file(MAKE_DIRECTORY ${PROTOC_GENERATED})
-
-add_custom_command(
-  OUTPUT ${CMAKE_BINARY_DIR}/generated/orc_proto.pb.h
-  COMMAND protoc -I ${CMAKE_CURRENT_SOURCE_DIR}
-                 --cpp_out=${CMAKE_BINARY_DIR}/generated
-                 ${CMAKE_CURRENT_SOURCE_DIR}/orc_proto.proto
-  DEPENDS ${PROTOC_GENERATED}
-)
-include_directories(${PROTOC_GENERATED})
+protobuf_generate_cpp(PROTO_SRCS PROTO_HDRS orc_proto.proto)
 
 set (CMAKE_CXX_FLAGS "-O0 ${CMAKE_CXX_FLAGS} -g ${CXX11_FLAGS} ${WARN_FLAGS}")
 
-add_library(orc STATIC
-  ${PROTOC_GENERATED}/orc_proto.pb.h
-  ByteRLE.cc
-  Compression.cc
-  Reader.cc
-  RLE.cc
-  Vector.cc
+add_library (orc STATIC
+  ${PROTO_HDRS}
   wrap/orc-proto-wrapper.cc
-)
+  ByteRLE.cc
+  ColumnReader.cc
+  Compression.cc
+  Exceptions.cc
+  OrcFile.cc
+  Reader.cc
+  RLEv1.cc
+  RLEs.cc
+  TypeImpl.cc
+  Vector.cc
+  ColumnPrinter.cc
+  )
+
+target_link_libraries (orc
+  ${PROTOBUF_LITE_LIBRARIES}
+  ${ZLIB_LIBRARIES}
+  )
+
+add_executable (dump-file
+  LocalFileReader.cc
+  )
+
+target_link_libraries (dump-file
+  orc
+  ${PROTOBUF_LIBRARIES}
+  )

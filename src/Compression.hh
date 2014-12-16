@@ -19,6 +19,9 @@
 #ifndef ORC_COMPRESSION_HH
 #define ORC_COMPRESSION_HH
 
+#include "orc/OrcFile.hh"
+#include "wrap/zero-copy-stream-wrapper.h"
+
 #include <initializer_list>
 #include <list>
 #include <vector>
@@ -26,15 +29,15 @@
 #include <sstream>
 #include <memory>
 
-#include "wrap/zero-copy-stream-wrapper.h"
-
 #include "zlib.h"
-#include "lzo/lzo1x.h"
-#include "lzo/lzo_asm.h"
 
 using namespace std;
 
 namespace orc {
+
+  void printBuffer(std::ostream& out,
+                   const char *buffer,
+                   unsigned long length);
 
   class PositionProvider {
   private:
@@ -53,6 +56,7 @@ namespace orc {
   public:
     virtual ~SeekableInputStream();
     virtual void seek(PositionProvider& position) = 0;
+    virtual std::string getName() const = 0;
   };
 
   /**
@@ -60,7 +64,8 @@ namespace orc {
    */
   class SeekableArrayInputStream: public SeekableInputStream {
   private:
-    std::unique_ptr<char[]> data;
+    std::vector<char> ownedData;
+    char* data;
     unsigned long length;
     unsigned long position;
     unsigned long blockSize;
@@ -68,12 +73,44 @@ namespace orc {
   public:
     SeekableArrayInputStream(std::initializer_list<unsigned char> list,
                              long block_size = -1);
+    SeekableArrayInputStream(char* list,
+                             unsigned long length,
+                             long block_size = -1);
     virtual ~SeekableArrayInputStream();
-    virtual bool Next(const void** data, int*size);
-    virtual void BackUp(int count);
-    virtual bool Skip(int count);
-    virtual google::protobuf::int64 ByteCount() const;
-    virtual void seek(PositionProvider& position);
+    virtual bool Next(const void** data, int*size) override;
+    virtual void BackUp(int count) override;
+    virtual bool Skip(int count) override;
+    virtual google::protobuf::int64 ByteCount() const override;
+    virtual void seek(PositionProvider& position) override;
+    virtual std::string getName() const override;
+  };
+
+  /**
+   * Create a seekable input stream based on an input stream.
+   */
+  class SeekableFileInputStream: public SeekableInputStream {
+  private:
+    InputStream* input;
+    std::unique_ptr<char[]> buffer;
+    unsigned long offset;
+    unsigned long length;
+    unsigned long position;
+    unsigned long blockSize;
+    unsigned long remainder;
+
+  public:
+    SeekableFileInputStream(InputStream* input,
+                            unsigned long offset,
+                            unsigned long length,
+                            long blockSize = -1);
+    virtual ~SeekableFileInputStream();
+
+    virtual bool Next(const void** data, int*size) override;
+    virtual void BackUp(int count) override;
+    virtual bool Skip(int count) override;
+    virtual google::protobuf::int64 ByteCount() const override;
+    virtual void seek(PositionProvider& position) override;
+    virtual std::string getName() const override;
   };
 
   /** 
@@ -133,6 +170,16 @@ namespace orc {
   };
   */
 
+  /**
+   * Create a codec for the given compression kind.
+   * @param kind the compression type to implement
+   * @param input the input stream that is the underlying source
+   * @param bufferSize the maximum size of the buffer
+   */
+  std::unique_ptr<SeekableInputStream> 
+     createCodec(CompressionKind kind,
+                 std::unique_ptr<SeekableInputStream> input,
+                 unsigned long bufferSize);
 }
 
 #endif
