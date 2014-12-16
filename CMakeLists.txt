@@ -15,8 +15,6 @@ cmake_minimum_required (VERSION 2.6)
 project(ORC)
 set (ORC_VERSION "1.0.0")
 
-set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/Modules/")
-
 set (LIBUV_VERSION "0.11.29")
 include_directories(${CMAKE_SOURCE_DIR}/libs/libuv-${LIBUV_VERSION}/include)
 set (LIBUV_LIB "${CMAKE_BINARY_DIR}/libs/libuv-${LIBUV_VERSION}/libuv.a")

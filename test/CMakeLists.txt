@@ -14,7 +14,6 @@ include_directories(
   ${PROJECT_SOURCE_DIR}/src
   ${PROJECT_BINARY_DIR}/src
   ${PROTOBUF_INCLUDE_DIRS}
-  ${LZO_INCLUDE_DIRS}
   ${ZLIB_INCLUDE_DIR}
 )
 
@@ -32,7 +31,6 @@ target_link_libraries (test-orc
   orc
   ${PROTOBUF_LIBRARIES}
   ${GMOCK_LIB}
-  ${LZO_LIBRARIES}
   ${ZLIB_LIBRARIES}
 )
 
