@@ -37,20 +37,9 @@ enable_testing()
 
 find_package (Protobuf REQUIRED)
 
-# TODO: FindLzo.cmake license?
-find_package(LZO REQUIRED)
-#if (NOT LZO_FOUND)
-# hack: if can't find lzo, or want to share common third-party lib, set path explicitly
-    set(LZO_INCLUDE_DIR $ENV{LZO_INCLUDE_DIR})
-    set(LZO_LIBRARIES $ENV{LZO_LIBRARIES})
-    #endif(NOT LZO_FOUND)
-MESSAGE( STATUS "LZO_INCLUDE_DIR:         " ${LZO_INCLUDE_DIR} )
-MESSAGE( STATUS "LZO_LIBRARIES:         " ${LZO_LIBRARIES} )
-include_directories(${LZO_INCLUDE_DIRS})
-
 find_package(ZLIB REQUIRED)
 if (NOT ZLIB_FOUND)
-    # hack: if can't find lzo, or want to share common third-party lib, set path explicitly
+    # hack: if can't find zlib, or want to share common third-party lib, set path explicitly
     set(ZLIB_INCLUDE_DIR $ENV{ZLIB_INCLUDE_DIR})
     set(ZLIB_LIBRARIES $ENV{ZLIB_LIBRARIES})
 endif(NOT ZLIB_FOUND)

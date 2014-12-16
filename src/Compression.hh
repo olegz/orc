@@ -156,21 +156,6 @@ namespace orc {
   };
 
   /**
-   * LZO codec
-   */
-
-  /*
-  class LzoCodec: public CompressionCodec {
-
-      // TODO: ctor
-
-      bool compress(SeekableInputStream& in, SeekableInputStream& out);
-
-      void decompress(SeekableInputStream& in, SeekableInputStream& out);
-  };
-  */
-
-  /**
    * Create a codec for the given compression kind.
    * @param kind the compression type to implement
    * @param input the input stream that is the underlying source
