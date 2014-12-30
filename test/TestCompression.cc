@@ -283,13 +283,13 @@ namespace orc {
     EXPECT_EQ(20, len);
     EXPECT_EQ(20, stream.ByteCount());
     {
-      std::list<unsigned long> offsets({100});
+      std::list<unsigned long> offsets {100};
       PositionProvider posn(offsets);
       stream.seek(posn);
     }
     EXPECT_EQ(100, stream.ByteCount());
     {
-      std::list<unsigned long> offsets({5});
+      std::list<unsigned long> offsets {5};
       PositionProvider posn(offsets);
       stream.seek(posn);
     }
@@ -298,7 +298,7 @@ namespace orc {
     checkBytes(static_cast<const char*>(ptr), len, 5);
     EXPECT_EQ(20, len);
     {
-      std::list<unsigned long> offsets({201});
+      std::list<unsigned long> offsets {201};
       PositionProvider posn(offsets);
       EXPECT_THROW(stream.seek(posn), std::logic_error);
       EXPECT_EQ(200, stream.ByteCount());

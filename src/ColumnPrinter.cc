@@ -25,7 +25,7 @@ namespace orc {
     const long* data;
   public:
     LongColumnPrinter(const ColumnVectorBatch& batch);
-    ~LongColumnPrinter() = default;
+    ~LongColumnPrinter() {}
     void printRow(unsigned long rowId) override;
     void reset(const ColumnVectorBatch& batch) override;
   };
@@ -35,7 +35,7 @@ namespace orc {
     const double* data;
   public:
     DoubleColumnPrinter(const ColumnVectorBatch& batch);
-    virtual ~DoubleColumnPrinter() = default;
+    virtual ~DoubleColumnPrinter() {}
     void printRow(unsigned long rowId) override;
     void reset(const ColumnVectorBatch& batch) override;
   };
@@ -46,7 +46,7 @@ namespace orc {
     const long* length;
   public:
     StringColumnPrinter(const ColumnVectorBatch& batch);
-    virtual ~StringColumnPrinter() = default;
+    virtual ~StringColumnPrinter() {}
     void printRow(unsigned long rowId) override;
     void reset(const ColumnVectorBatch& batch) override;
   };

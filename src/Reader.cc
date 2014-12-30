@@ -83,17 +83,15 @@ namespace orc {
 
   ReaderOptions& ReaderOptions::include(const std::list<int>& include) {
     privateBits->includedColumns.clear();
-    for(int columnId: include) {
-      privateBits->includedColumns.push_back(columnId);
-    }
+    std::copy(include.begin(), include.end(),
+              privateBits->includedColumns.end());
     return *this;
   }
 
   ReaderOptions& ReaderOptions::include(std::initializer_list<int> include) {
     privateBits->includedColumns.clear();
-    for(int columnId: include) {
-      privateBits->includedColumns.push_back(columnId);
-    }
+    std::copy(include.begin(), include.end(),
+              privateBits->includedColumns.end());
     return *this;
   }
 
@@ -258,13 +256,15 @@ namespace orc {
     selectedColumns.reset(new bool[footer.types_size()]);
     memset(selectedColumns.get(), 0, 
            static_cast<std::size_t>(footer.types_size()));
-    for(int columnId: options.getInclude()) {
-      selectTypeParent(columnId);
-      selectTypeChildren(columnId);
+    const std::list<int>& included = options.getInclude();
+    for(std::list<int>::const_iterator columnId = included.begin();
+        columnId != included.end(); ++columnId) {
+      selectTypeParent(*columnId);
+      selectTypeChildren(*columnId);
     }
     schema = convertType(footer.types(0), footer);
     schema->assignIds(0);
-    previousRow = std::numeric_limits<unsigned long>::max();
+    previousRow = (std::numeric_limits<unsigned long>::max)();
   }
                          
   CompressionKind ReaderImpl::getCompression() const { 
@@ -330,7 +330,9 @@ namespace orc {
   void ReaderImpl::selectTypeParent(int columnId) {
     bool* selectedColumnArray = selectedColumns.get();
     for(int parent=0; parent < columnId; ++parent) {
-      for(unsigned int child: footer.types(parent).subtypes()) {
+      const proto::Type& parentType = footer.types(parent);
+      for(int idx=0; idx < parentType.subtypes_size(); ++idx) {
+        unsigned int child = parentType.subtypes(idx);
         if (static_cast<int>(child) == columnId) {
           if (!selectedColumnArray[parent]) {
             selectedColumnArray[parent] = true;
@@ -346,7 +348,9 @@ namespace orc {
     bool* selectedColumnArray = selectedColumns.get();
     if (!selectedColumnArray[columnId]) {
       selectedColumnArray[columnId] = true;
-      for(unsigned int child: footer.types(columnId).subtypes()) {
+      const proto::Type& parentType = footer.types(columnId);
+      for(int idx=0; idx < parentType.subtypes_size(); ++idx) {
+        unsigned int child = parentType.subtypes(idx);
         selectTypeChildren(static_cast<int>(child));
       }
     }

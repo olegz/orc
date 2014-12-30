@@ -126,7 +126,7 @@ namespace orc {
       if (remainingValues == 0) {
         readHeader();
       }
-      size_t count = std::min(numValues, remainingValues);
+      size_t count = std::min(static_cast<size_t>(numValues), remainingValues);
       remainingValues -= count;
       numValues -= count;
       // for literals we need to skip over count bytes, which may involve
@@ -137,8 +137,9 @@ namespace orc {
           if (bufferStart == bufferEnd) {
             nextBuffer();
           }
-          unsigned long skipSize = std::min(consumedBytes,
-                          static_cast<unsigned long>(bufferEnd - bufferStart));
+          size_t skipSize = std::min(static_cast<size_t>(consumedBytes),
+                                     static_cast<size_t>(bufferEnd -
+                                                         bufferStart));
           bufferStart += skipSize;
           consumedBytes -= skipSize;
         }
@@ -159,7 +160,8 @@ namespace orc {
         readHeader();
       }
       // how many do we read out of this block?
-      unsigned long count = std::min(numValues - position, remainingValues);
+      size_t count = std::min(static_cast<size_t>(numValues - position),
+                              remainingValues);
       unsigned long consumed = 0;
       if (repeating) {
         if (notNull) {
@@ -187,7 +189,8 @@ namespace orc {
             if (bufferStart == bufferEnd) {
               nextBuffer();
             }
-            unsigned long copyBytes = std::min(count,
+            unsigned long copyBytes =
+              std::min(static_cast<unsigned long>(count),
                        static_cast<unsigned long>(bufferEnd - bufferStart));
             memcpy(data + position + i, bufferStart, copyBytes);
             bufferStart += copyBytes;
@@ -207,8 +210,8 @@ namespace orc {
 
   std::unique_ptr<ByteRleDecoder> createByteRleDecoder
                                  (std::unique_ptr<SeekableInputStream> input) {
-    return std::unique_ptr<ByteRleDecoder>
-      (new ByteRleDecoderImpl(std::move(input)));
+    return std::unique_ptr<ByteRleDecoder>(new ByteRleDecoderImpl
+                                           (std::move(input)));
   }
 
   class BooleanRleDecoderImpl: public ByteRleDecoderImpl {

@@ -30,6 +30,11 @@ namespace orc {
     // PASS
   }
 
+  NotImplementedYet::NotImplementedYet(const NotImplementedYet& error
+                                       ): logic_error(error) {
+    // PASS
+  }
+
   NotImplementedYet::~NotImplementedYet() {
     // PASS
   }
@@ -41,6 +46,10 @@ namespace orc {
 
   ParseError::ParseError(const char* what_arg
                          ): runtime_error(what_arg) {
+    // PASS
+  }
+
+  ParseError::ParseError(const ParseError& error): runtime_error(error) {
     // PASS
   }
 

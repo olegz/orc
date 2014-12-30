@@ -27,25 +27,40 @@ include_directories(
   ${CMAKE_SOURCE_DIR}/libs/gmock-${GMOCK_VERSION}/include
   ${CMAKE_SOURCE_DIR}/libs/gmock-${GMOCK_VERSION}/gtest/include
   )
-set (GMOCK_LIB "${CMAKE_BINARY_DIR}/libs/gmock-${GMOCK_VERSION}/libgmock_main.a")
-if(NOT APPLE)
+
+if (MSVC)
+  set (GMOCK_LIB "${CMAKE_BINARY_DIR}/libs/gmock-${GMOCK_VERSION}/gmock_main")
+else(MSVC)
+  set (GMOCK_LIB "${CMAKE_BINARY_DIR}/libs/gmock-${GMOCK_VERSION}/libgmock_main.a")
+endif(MSVC)
+
+if(NOT APPLE AND NOT MSVC)
   list (APPEND GMOCK_LIB pthread)
-endif(NOT APPLE)
+endif(NOT APPLE AND NOT MSVC)
 enable_testing()
 
 find_package (Protobuf REQUIRED)
 
-set (CXX11_FLAGS "-std=c++11")
+if(NOT MSVC)
+  # Visual studio enables C++11 support by default.
+  set (CXX11_FLAGS "-std=c++11")
+endif(NOT MSVC)
+
 if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
-  #  -stdlib=libc++
   set (COVERAGE_FLAGS "--coverage -g -O0")
   set (CXX11_FLAGS "${CXX11_FLAGS}")
   set (WARN_FLAGS "-Weverything -Wno-c++98-compat -Wno-missing-prototypes")
   set (WARN_FLAGS "${WARN_FLAGS} -Wno-c++98-compat-pedantic -Wno-padded")
   set (WARN_FLAGS "${WARN_FLAGS} -Wno-covered-switch-default")
+  set (WARN_FLAGS "${WARN_FLAGS} -Wno-missing-noreturn")
 elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
   set (WARN_FLAGS "-Wall")
 endif ()
+
+if(MSVC)
+  set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /MTd")
+endif(MSVC)
+
 set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g")
 #set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${COVERAGE_FLAGS}")
 

@@ -62,11 +62,14 @@ namespace orc {
       // page through the values that we want to skip
       // and count how many are non-null
       const size_t MAX_BUFFER_SIZE = 32768;
-      unsigned long bufferSize = std::min(MAX_BUFFER_SIZE, numValues);
+      size_t bufferSize = std::min(MAX_BUFFER_SIZE,
+                                   static_cast<size_t>(numValues));
       char buffer[MAX_BUFFER_SIZE];
       unsigned long remaining = numValues;
       while (remaining > 0) {
-        unsigned long chunkSize = std::min(remaining, bufferSize);
+        unsigned long chunkSize =
+          std::min(remaining,
+                   static_cast<unsigned long>(bufferSize));
         decoder->next(buffer, chunkSize, 0);
         remaining -= chunkSize;
         for(unsigned long i=0; i < chunkSize; ++i) {
@@ -400,7 +403,8 @@ namespace orc {
     size_t totalBytes = 0;
     // read the lengths, so we know haw many bytes to skip
     while (done < numValues) {
-      unsigned long step = std::min(BUFFER_SIZE, numValues - done);
+      unsigned long step = std::min(BUFFER_SIZE,
+                                    static_cast<size_t>(numValues - done));
       lengthRle->next(buffer, step, 0);
       totalBytes += computeSize(buffer, 0, step);
       done += step;

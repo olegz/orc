@@ -89,8 +89,6 @@ namespace orc {
    */
   struct ColumnVectorBatch {
     ColumnVectorBatch(unsigned long capacity);
-    ColumnVectorBatch(const ColumnVectorBatch&) = delete;
-    ColumnVectorBatch& operator=(const ColumnVectorBatch&) = delete;
     virtual ~ColumnVectorBatch();
 
     // the number of slots available
@@ -112,6 +110,10 @@ namespace orc {
      * This function is not recursive into subtypes.
      */
     virtual void resize(unsigned long capacity);
+
+  private:
+    ColumnVectorBatch(const ColumnVectorBatch&);
+    ColumnVectorBatch& operator=(const ColumnVectorBatch&);
   };
 
   struct LongVectorBatch: public ColumnVectorBatch {

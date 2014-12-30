@@ -28,16 +28,20 @@ namespace orc {
   public:
     explicit NotImplementedYet(const std::string& what_arg);
     explicit NotImplementedYet(const char* what_arg);
-    NotImplementedYet(const NotImplementedYet&) = default;
     virtual ~NotImplementedYet();
+    NotImplementedYet(const NotImplementedYet&);
+  private:
+    NotImplementedYet& operator=(const NotImplementedYet&);
   };
 
   class ParseError: public std::runtime_error {
   public:
     explicit ParseError(const std::string& what_arg);
     explicit ParseError(const char* what_arg);
-    ParseError(const ParseError&) = default;
     virtual ~ParseError();
+    ParseError(const ParseError&);
+  private:
+    ParseError& operator=(const ParseError&);
   };
 }
 

@@ -42,6 +42,14 @@ namespace orc {
     }
   }
 
+  ColumnVectorBatch::ColumnVectorBatch(const ColumnVectorBatch&) {
+    throw NotImplementedYet("should not call");
+  }
+
+  ColumnVectorBatch& ColumnVectorBatch::operator=(const ColumnVectorBatch&) {
+    throw NotImplementedYet("should not call");
+  }
+
   LongVectorBatch::LongVectorBatch(unsigned long capacity
                                    ): ColumnVectorBatch(capacity),
                                       data(capacity) {

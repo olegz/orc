@@ -66,10 +66,7 @@ namespace orc {
      (std::initializer_list<unsigned char> values,
       long blkSize): ownedData(values.size()), data(0) {
     length = values.size();
-    char *ptr = ownedData.data();
-    for(unsigned char ch: values) {
-      *(ptr++) = static_cast<char>(ch);
-    }
+    memcpy(ownedData.data(), values.begin(), values.size());
     position = 0;
     blockSize = blkSize == -1 ? length : static_cast<unsigned long>(blkSize);
   }
