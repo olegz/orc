@@ -58,7 +58,7 @@ namespace orc {
   class SeekableArrayInputStream: public SeekableInputStream {
   private:
     std::vector<char> ownedData;
-    char* data;
+    const char* data;
     unsigned long length;
     unsigned long position;
     unsigned long blockSize;
@@ -66,7 +66,7 @@ namespace orc {
   public:
     SeekableArrayInputStream(std::initializer_list<unsigned char> list,
                              long block_size = -1);
-    SeekableArrayInputStream(char* list,
+    SeekableArrayInputStream(const char* list,
                              unsigned long length,
                              long block_size = -1);
     virtual ~SeekableArrayInputStream();
