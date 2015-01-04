@@ -52,3 +52,13 @@ target_link_libraries (dump-file
   orc
   ${PROTOBUF_LIBRARIES}
   )
+
+add_executable (file-scan
+  FileScan.cc
+  )
+
+target_link_libraries (file-scan
+  orc
+  ${PROTOBUF_LIBRARIES}
+  )
+
