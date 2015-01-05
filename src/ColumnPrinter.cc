@@ -97,16 +97,16 @@ namespace orc {
       dynamic_cast<const StructVectorBatch&>(batch);
     for(auto ptr=structBatch.fields.cbegin();
         ptr != structBatch.fields.cend(); ++ptr) {
-      if (typeid(*ptr) == typeid(LongVectorBatch)) {
+      if (typeid(*(ptr->get())) == typeid(LongVectorBatch)) {
         fields.push_back(std::unique_ptr<ColumnPrinter>
                          (new LongColumnPrinter(*(ptr->get()))));
-      } else if (typeid(*ptr) == typeid(DoubleVectorBatch)) {
+      } else if (typeid(*(ptr->get())) == typeid(DoubleVectorBatch)) {
         fields.push_back(std::unique_ptr<ColumnPrinter>
                          (new DoubleColumnPrinter(*(ptr->get()))));
-      } else if (typeid(*ptr) == typeid(StringVectorBatch)) {
+      } else if (typeid(*(ptr->get())) == typeid(StringVectorBatch)) {
         fields.push_back(std::unique_ptr<ColumnPrinter>
                          (new StringColumnPrinter(*(ptr->get()))));
-      } else if (typeid(*ptr) == typeid(StructVectorBatch)) {
+      } else if (typeid(*(ptr->get())) == typeid(StructVectorBatch)) {
         fields.push_back(std::unique_ptr<ColumnPrinter>
                          (new StructColumnPrinter(*(ptr->get()))));
       } else {
