@@ -21,6 +21,8 @@
 #include "Exceptions.hh"
 #include "RLEs.hh"
 
+#include <iostream>
+
 namespace orc {
 
   StripeStreams::~StripeStreams() {
@@ -94,6 +96,64 @@ namespace orc {
       }
     }
     rowBatch.hasNulls = false;
+  }
+
+  class ByteColumnReader: public ColumnReader {
+  private:
+    std::unique_ptr<orc::ByteRleDecoder> rle;
+
+  public:
+    ByteColumnReader(const Type& type, StripeStreams& stipe);
+    ~ByteColumnReader();
+
+    unsigned long skip(unsigned long numValues) override;
+
+    void next(ColumnVectorBatch& rowBatch,
+              unsigned long numValues,
+              char* notNull) override;
+  };
+
+  ByteColumnReader::ByteColumnReader(const Type& type,
+                                           StripeStreams& stripe
+                                           ): ColumnReader(type, stripe) {
+    rle = createByteRleDecoder(stripe.getStream(columnId,
+                                                proto::Stream_Kind_DATA));
+  }
+
+  ByteColumnReader::~ByteColumnReader() {
+    // PASS
+  }
+
+  unsigned long ByteColumnReader::skip(unsigned long numValues) {
+    numValues = ColumnReader::skip(numValues);
+    rle->skip(numValues);
+    return numValues;
+  }
+
+  /**
+   * Expand an array of bytes in place to the corresponding array of longs.
+   * Has to work backwards so that they data isn't clobbered during the
+   * expansion.
+   * @param buffer the array of chars and array of longs that need to be
+   *        expanded
+   * @param numValues the number of bytes to convert to longs
+   */
+  void expandBytesToLongs(long* buffer, unsigned long numValues) {
+    for(size_t i=numValues - 1; i < numValues; --i) {
+      buffer[i] = reinterpret_cast<char *>(buffer)[i];
+    }
+  }
+
+  void ByteColumnReader::next(ColumnVectorBatch& rowBatch,
+                              unsigned long numValues,
+                              char *notNull) {
+    ColumnReader::next(rowBatch, numValues, notNull);
+    // Since the byte rle places the output in a char* instead of long*,
+    // we cheat here and use the long* and then expand it in a second pass.
+    long *ptr = dynamic_cast<LongVectorBatch&>(rowBatch).data.data();
+    rle->next(reinterpret_cast<char*>(ptr),
+              numValues, rowBatch.hasNulls ? rowBatch.notNull.data() : 0);
+    expandBytesToLongs(ptr, numValues);
   }
 
   class IntegerColumnReader: public ColumnReader {
@@ -489,7 +549,6 @@ namespace orc {
   std::unique_ptr<ColumnReader> buildReader(const Type& type,
                                             StripeStreams& stripe) {
     switch (type.getKind()) {
-    case BYTE:
     case SHORT:
     case INT:
     case LONG:
@@ -515,6 +574,9 @@ namespace orc {
     case STRUCT:
       return std::unique_ptr<ColumnReader>(new StructColumnReader(type,
                                                                   stripe));
+    case BYTE:
+      return std::unique_ptr<ColumnReader>(new ByteColumnReader(type, stripe));
+
     case FLOAT:
     case DOUBLE:
     case BOOLEAN:
