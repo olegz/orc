@@ -17,23 +17,33 @@
  */
 
 #include "orc/OrcFile.hh"
+#include "Exceptions.hh"
 
-#include <fstream>
+#include <fcntl.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <unistd.h>
 
 namespace orc {
 
   class FileInputStream : public InputStream {
   private:
     std::string filename ;
-    std::ifstream file;
-    long totalLength;
+    int file;
+    off_t totalLength;
 
   public:
     FileInputStream(std::string _filename) {
       filename = _filename ;
-      file.open(filename.c_str(), std::ios::in | std::ios::binary);
-      file.seekg(0,file.end);
-      totalLength = file.tellg();
+      file = open(filename.c_str(), O_RDONLY);
+      if (file == -1) {
+        throw ParseError("Can't open " + filename);
+      }
+      struct stat fileStat;
+      if (fstat(file, &fileStat) == -1) {
+        throw ParseError("Can't stat " + filename);
+      }
+      totalLength = fileStat.st_size;
     }
 
     ~FileInputStream();
@@ -44,9 +54,14 @@ namespace orc {
 
     void read(void* buffer, unsigned long offset,
               unsigned long length) override {
-      file.seekg(static_cast<std::streamoff>(offset));
-      file.read(static_cast<char*>(buffer), 
-                static_cast<std::streamsize>(length));
+      ssize_t bytesRead = pread(file, buffer, length,
+                                static_cast<off_t>(offset));
+      if (bytesRead == -1) {
+        throw ParseError("Bad read of " + filename);
+      }
+      if (static_cast<unsigned long>(bytesRead) != length) {
+        throw ParseError("Short read of " + filename);
+      }
     }
 
     const std::string& getName() const override { 
@@ -55,7 +70,7 @@ namespace orc {
   };
 
   FileInputStream::~FileInputStream() { 
-    file.close();
+    close(file);
   }
 
   std::unique_ptr<InputStream> readLocalFile(const std::string& path) {
