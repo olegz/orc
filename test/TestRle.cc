@@ -26,6 +26,113 @@
 
 namespace orc {
 
+TEST(RLEv2, 0to2Repeat1Direct) {
+  std::unique_ptr<RleDecoder> rle =
+      createRleDecoder(
+          std::unique_ptr<SeekableInputStream>(
+              new SeekableArrayInputStream(
+                  {0x46, 0x02, 0x02, 0x40})),
+          true, RleVersion_2);
+  std::vector<long> data(3);
+  rle->next(data.data(), 3, nullptr);
+
+  for (size_t i = 0; i < data.size(); ++i) {
+    EXPECT_EQ(i, data[i]) << "Output wrong at " << i;
+  }
+};
+
+std::vector<long> decodeRLEv2(const char *bytes,
+                              unsigned long l,
+                              size_t n,
+                              size_t count) {
+  std::unique_ptr<RleDecoder> rle =
+    createRleDecoder(
+        std::unique_ptr<SeekableInputStream>(
+            new SeekableArrayInputStream(bytes,l)), true, RleVersion_2);
+  std::vector<long> results;
+  for (size_t i = 0; i < count; i+=n) {
+    size_t remaining = count - i;
+    size_t nread = std::min(n, remaining);
+    std::vector<long> data(nread);
+    rle->next(data.data(), nread, nullptr);
+    results.insert(results.end(), data.begin(), data.end());
+  }
+
+  return results;
+}
+
+TEST(RLEv2, bitSize2Direct) {
+  std::vector<long> data;
+  // 0,1 repeated 10 times (signed ints)
+  const size_t count = 20;
+  const long values[] = {0, 1};
+  // Read 1 at a time, then 3 at a time, etc.
+  const char bytes[] = {0x42, 0x13, 0x22, 0x22, 0x22, 0x22, 0x22};
+  unsigned long l = sizeof(bytes) / sizeof(unsigned char);
+  data = decodeRLEv2(bytes, l, 1, count);
+  for (size_t i = 0; i < count; ++i) {
+    EXPECT_EQ(values[i % 2], data[i]) << "Output wrong at " << i << ", n=" << 1;
+  }
+  data = decodeRLEv2(bytes, l, 3, count);
+  for (size_t i = 0; i < count; ++i) {
+    EXPECT_EQ(values[i % 2], data[i]) << "Output wrong at " << i << ", n=" << 1;
+  }
+  data = decodeRLEv2(bytes, l, 7, count);
+  for (size_t i = 0; i < count; ++i) {
+    EXPECT_EQ(values[i % 2], data[i]) << "Output wrong at " << i << ", n=" << 1;
+  }
+  data = decodeRLEv2(bytes, l, count, count);
+  for (size_t i = 0; i < count; ++i) {
+    EXPECT_EQ(values[i % 2], data[i]) << "Output wrong at " << i << ", n=" << 1;
+  }
+};
+
+TEST(RLEv2, bitSize4Direct) {
+  std::vector<long> data;
+  // 0,2 repeated 10 times (signed ints)
+  const size_t count = 20;
+  const long values[] = {0, 2};
+  // Read 1 at a time, then 3 at a time, etc.
+  const char bytes[] = {0x46,0x13,0x04,0x04,0x04,0x04,0x04,0x04,0x04,0x04,0x04,0x04 };
+  unsigned long l = sizeof(bytes) / sizeof(unsigned char);
+  data = decodeRLEv2(bytes, l, 1, count);
+  for (size_t i = 0; i < count; ++i) {
+    EXPECT_EQ(values[i % 2], data[i]) << "Output wrong at " << i << ", n=" << 1;
+  }
+  data = decodeRLEv2(bytes, l, 3, count);
+  for (size_t i = 0; i < count; ++i) {
+    EXPECT_EQ(values[i % 2], data[i]) << "Output wrong at " << i << ", n=" << 1;
+  }
+  data = decodeRLEv2(bytes, l, 7, count);
+  for (size_t i = 0; i < count; ++i) {
+    EXPECT_EQ(values[i % 2], data[i]) << "Output wrong at " << i << ", n=" << 1;
+  }
+  data = decodeRLEv2(bytes, l, count, count);
+  for (size_t i = 0; i < count; ++i) {
+    EXPECT_EQ(values[i % 2], data[i]) << "Output wrong at " << i << ", n=" << 1;
+  }
+};
+
+TEST(RLEv2, largeNegativesDirect) {
+  std::unique_ptr<RleDecoder> rle =
+      createRleDecoder(
+          std::unique_ptr<SeekableInputStream>(
+             new SeekableArrayInputStream(
+                 {0x7e,0x04,0xcf,0xca,0xcc,0x91,0xba,0x38,0x93,0xab,0x00,0x00,
+                  0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+                  0x00,0x02,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x02,0x99,0xa5,
+                  0xcc,0x28,0x03,0xf7,0xe0,0xff})),
+          true, RleVersion_2);
+  std::vector<long> data(5);
+  rle->next(data.data(), 5, nullptr);
+
+  EXPECT_EQ(-7486502418706614742, data[0]) << "Output wrong at " << 0;
+  EXPECT_EQ(0, data[1]) << "Output wrong at " << 1;
+  EXPECT_EQ(1, data[2]) << "Output wrong at " << 2;
+  EXPECT_EQ(1, data[3]) << "Output wrong at " << 3;
+  EXPECT_EQ(-5535739865598783616, data[4]) << "Output wrong at " << 4;
+};
+
 TEST(RLEv1, simpleTest) {
   std::unique_ptr<RleDecoder> rle =
       createRleDecoder(

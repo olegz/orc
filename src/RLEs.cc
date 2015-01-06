@@ -18,6 +18,7 @@
 
 #include "RLEs.hh"
 #include "RLEv1.hh"
+#include "RLEv2.hh"
 #include "Exceptions.hh"
 
 namespace orc {
@@ -36,6 +37,8 @@ std::unique_ptr<RleDecoder> createRleDecoder(
       return std::unique_ptr<RleDecoder>(new RleDecoderV1(std::move(input), 
                                                           isSigned));
     case RleVersion_2:
+      return std::unique_ptr<RleDecoder>(new RleDecoderV2(std::move(input),
+                                                          isSigned));
     default:
       throw NotImplementedYet("Not implemented yet");
   }
