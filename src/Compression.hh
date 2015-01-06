@@ -66,6 +66,9 @@ namespace orc {
   public:
     SeekableArrayInputStream(std::initializer_list<unsigned char> list,
                              long block_size = -1);
+    SeekableArrayInputStream(const unsigned char* list,
+                             unsigned long length,
+                             long block_size = -1);
     SeekableArrayInputStream(const char* list,
                              unsigned long length,
                              long block_size = -1);

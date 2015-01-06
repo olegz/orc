@@ -26,6 +26,418 @@
 
 namespace orc {
 
+std::vector<long> decodeRLEv2(const unsigned char *bytes,
+                              unsigned long l,
+                              size_t n,
+                              size_t count,
+                              const char* notNull = nullptr) {
+  std::unique_ptr<RleDecoder> rle =
+    createRleDecoder(
+        std::unique_ptr<SeekableInputStream>(
+            new SeekableArrayInputStream(bytes,l)), true, RleVersion_2);
+  std::vector<long> results;
+  for (size_t i = 0; i < count; i+=n) {
+    size_t remaining = count - i;
+    size_t nread = std::min(n, remaining);
+    std::vector<long> data(nread);
+    rle->next(data.data(), nread, notNull);
+    if (notNull) {
+      notNull += nread;
+    }
+    results.insert(results.end(), data.begin(), data.end());
+  }
+
+  return results;
+}
+
+void checkResults(const std::vector<long> &e, const std::vector<long> &a,
+                  int n, const char* notNull = nullptr) {
+  EXPECT_EQ(e.size(), a.size()) << "vectors differ in size";
+  for (size_t i = 0; i < e.size(); ++i) {
+    if (!notNull || notNull[i]) {
+      EXPECT_EQ(e[i], a[i]) << "Output wrong at " << i << ", n=" << n;
+    }
+  }
+}
+
+TEST(RLEv2, basicDelta0) {
+  const size_t count = 20;
+  std::vector<long> values;
+  for (size_t i = 0; i < count; ++i) {
+    values.push_back(i);
+  }
+
+  const unsigned char bytes[] = {0xc0,0x13,0x00,0x02};
+  unsigned long l = sizeof(bytes) / sizeof(char);
+  // Read 1 at a time, then 3 at a time, etc.
+  checkResults(values, decodeRLEv2(bytes, l, 1, count), 1);
+  checkResults(values, decodeRLEv2(bytes, l, 3, count), 3);
+  checkResults(values, decodeRLEv2(bytes, l, 7, count), 7);
+  checkResults(values, decodeRLEv2(bytes, l, count, count), count);
+};
+
+TEST(RLEv2, basicDelta1) {
+  std::vector<long> values(5);
+  values[0] = -500;
+  values[1] = -400;
+  values[2] = -350;
+  values[3] = -325;
+  values[4] = -310;
+
+  const unsigned char bytes[] = {0xce,0x04,0xe7,0x07,0xc8,0x01,0x32,0x19,0x0f};
+  unsigned long l = sizeof(bytes) / sizeof(char);
+  // Read 1 at a time, then 3 at a time, etc.
+  checkResults(values, decodeRLEv2(bytes, l, 1, values.size()), 1);
+  checkResults(values, decodeRLEv2(bytes, l, 3, values.size()), 3);
+  checkResults(values, decodeRLEv2(bytes, l, 7, values.size()), 7);
+  checkResults(values, decodeRLEv2(bytes, l, values.size(), values.size()),
+               values.size());
+};
+
+TEST(RLEv2, basicDelta2) {
+  std::vector<long> values(5);
+  values[0] = -500;
+  values[1] = -600;
+  values[2] = -650;
+  values[3] = -675;
+  values[4] = -710;
+
+  const unsigned char bytes[] = {0xce,0x04,0xe7,0x07,0xc7,0x01,0x32,0x19,0x23};
+  unsigned long l = sizeof(bytes) / sizeof(char);
+  // Read 1 at a time, then 3 at a time, etc.
+  checkResults(values, decodeRLEv2(bytes, l, 1, values.size()), 1);
+  checkResults(values, decodeRLEv2(bytes, l, 3, values.size()), 3);
+  checkResults(values, decodeRLEv2(bytes, l, 7, values.size()), 7);
+  checkResults(values, decodeRLEv2(bytes, l, values.size(), values.size()),
+               values.size());
+};
+
+TEST(RLEv2, basicDelta3) {
+  std::vector<long> values(5);
+  values[0] = 500;
+  values[1] = 400;
+  values[2] = 350;
+  values[3] = 325;
+  values[4] = 310;
+
+  const unsigned char bytes[] = {0xce,0x04,0xe8,0x07,0xc7,0x01,0x32,0x19,0x0f};
+  unsigned long l = sizeof(bytes) / sizeof(char);
+  // Read 1 at a time, then 3 at a time, etc.
+  checkResults(values, decodeRLEv2(bytes, l, 1, values.size()), 1);
+  checkResults(values, decodeRLEv2(bytes, l, 3, values.size()), 3);
+  checkResults(values, decodeRLEv2(bytes, l, 7, values.size()), 7);
+  checkResults(values, decodeRLEv2(bytes, l, values.size(), values.size()),
+               values.size());
+};
+
+TEST(RLEv2, basicDelta4) {
+  std::vector<long> values(5);
+  values[0] = 500;
+  values[1] = 600;
+  values[2] = 650;
+  values[3] = 675;
+  values[4] = 710;
+
+  const unsigned char bytes[] = {0xce,0x04,0xe8,0x07,0xc8,0x01,0x32,0x19,0x23};
+  unsigned long l = sizeof(bytes) / sizeof(char);
+  // Read 1 at a time, then 3 at a time, etc.
+  checkResults(values, decodeRLEv2(bytes, l, 1, values.size()), 1);
+  checkResults(values, decodeRLEv2(bytes, l, 3, values.size()), 3);
+  checkResults(values, decodeRLEv2(bytes, l, 7, values.size()), 7);
+  checkResults(values, decodeRLEv2(bytes, l, values.size(), values.size()),
+               values.size());
+};
+
+TEST(RLEv2, basicDelta0WithNulls) {
+  std::vector<long> values;
+  std::vector<char> notNull;
+  for (size_t i = 0; i < 20; ++i) {
+    values.push_back(i);
+    notNull.push_back(true);
+    // throw in a null every third value
+    bool addNull = (i % 3 == 0);
+    if (addNull) {
+      values.push_back(-1);
+      notNull.push_back(false);
+    }
+  }
+
+  const unsigned char bytes[] = {0xc0,0x13,0x00,0x02};
+  unsigned long l = sizeof(bytes) / sizeof(char);
+  const size_t count = values.size();
+  // Read 1 at a time, then 3 at a time, etc.
+  checkResults(values, decodeRLEv2(bytes, l, 1, count, notNull.data()),
+               1, notNull.data());
+  checkResults(values, decodeRLEv2(bytes, l, 3, count, notNull.data()),
+               3, notNull.data());
+  checkResults(values, decodeRLEv2(bytes, l, 7, count, notNull.data()),
+               7, notNull.data());
+  checkResults(values, decodeRLEv2(bytes, l, count, count, notNull.data()),
+               count, notNull.data());
+};
+
+TEST(RLEv2, shortRepeats) {
+  const size_t runLength = 7;
+  const size_t nVals = 10;
+  const size_t count = nVals * runLength;
+  std::vector<long> values;
+  for (size_t i = 0; i < nVals; ++i) {
+    for (size_t j = 0; j < runLength; ++j) {
+      values.push_back(i);
+    }
+  }
+
+  const unsigned char bytes[] = {0x04,0x00,0x04,0x02,0x04,0x04,0x04,
+                                 0x06,0x04,0x08,0x04,0x0a,0x04,0x0c,
+                                 0x04,0x0e,0x04,0x10,0x04,0x12};
+  unsigned long l = sizeof(bytes) / sizeof(char);
+  // Read 1 at a time, then 3 at a time, etc.
+  checkResults(values, decodeRLEv2(bytes, l, 1, count), 1);
+  checkResults(values, decodeRLEv2(bytes, l, 3, count), 3);
+  checkResults(values, decodeRLEv2(bytes, l, 7, count), 7);
+  checkResults(values, decodeRLEv2(bytes, l, count, count), count);
+};
+
+TEST(RLEv2, multiByteShortRepeats) {
+  const size_t runLength = 7;
+  const size_t nVals = 3;
+  const size_t count = nVals * runLength;
+  std::vector<long> values;
+  for (size_t i = 0; i < nVals; ++i) {
+    for (size_t j = 0; j < runLength; ++j) {
+      values.push_back(i+(1L<<62));
+    }
+  }
+
+  const unsigned char bytes[] = {0x3c,0x80,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+                                 0x3c,0x80,0x00,0x00,0x00,0x00,0x00,0x00,0x02,
+                                 0x3c,0x80,0x00,0x00,0x00,0x00,0x00,0x00,0x04};
+  unsigned long l = sizeof(bytes) / sizeof(char);
+  // Read 1 at a time, then 3 at a time, etc.
+  checkResults(values, decodeRLEv2(bytes, l, 1, count), 1);
+  checkResults(values, decodeRLEv2(bytes, l, 3, count), 3);
+  checkResults(values, decodeRLEv2(bytes, l, 7, count), 7);
+  checkResults(values, decodeRLEv2(bytes, l, count, count), count);
+};
+
+TEST(RLEv2, 0to2Repeat1Direct) {
+  std::unique_ptr<RleDecoder> rle =
+      createRleDecoder(
+          std::unique_ptr<SeekableInputStream>(
+              new SeekableArrayInputStream(
+                  {0x46, 0x02, 0x02, 0x40})),
+          true, RleVersion_2);
+  std::vector<long> data(3);
+  rle->next(data.data(), 3, nullptr);
+
+  for (size_t i = 0; i < data.size(); ++i) {
+    EXPECT_EQ(i, data[i]) << "Output wrong at " << i;
+  }
+};
+
+TEST(RLEv2, bitSize2Direct) {
+  // 0,1 repeated 10 times (signed ints)
+  const size_t count = 20;
+  std::vector<long> values;
+  for (size_t i = 0; i < count; ++i) {
+      values.push_back(i%2);
+  }
+
+  const unsigned char bytes[] = {0x42, 0x13, 0x22, 0x22, 0x22, 0x22, 0x22};
+  unsigned long l = sizeof(bytes) / sizeof(char);
+  // Read 1 at a time, then 3 at a time, etc.
+  checkResults(values, decodeRLEv2(bytes, l, 1, count), 1);
+  checkResults(values, decodeRLEv2(bytes, l, 3, count), 3);
+  checkResults(values, decodeRLEv2(bytes, l, 7, count), 7);
+  checkResults(values, decodeRLEv2(bytes, l, count, count), count);
+};
+
+TEST(RLEv2, bitSize4Direct) {
+  // 0,2 repeated 10 times (signed ints)
+  const size_t count = 20;
+  std::vector<long> values;
+  for (size_t i = 0; i < count; ++i) {
+      values.push_back((i%2)*2);
+  }
+
+  const unsigned char bytes[] = {0x46,0x13,0x04,0x04,0x04,0x04,
+                                 0x04,0x04,0x04,0x04,0x04,0x04};
+  unsigned long l = sizeof(bytes) / sizeof(char);
+
+  // Read 1 at a time, then 3 at a time, etc.
+  checkResults(values, decodeRLEv2(bytes, l, 1, count), 1);
+  checkResults(values, decodeRLEv2(bytes, l, 3, count), 3);
+  checkResults(values, decodeRLEv2(bytes, l, 7, count), 7);
+  checkResults(values, decodeRLEv2(bytes, l, count, count), count);
+};
+
+TEST(RLEv2, multipleRunsDirect) {
+  std::vector<long> values;
+  // 0,1 repeated 10 times (signed ints)
+  for (size_t i = 0; i < 20; ++i) {
+      values.push_back(i%2);
+  }
+  // 0,2 repeated 10 times (signed ints)
+  for (size_t i = 0; i < 20; ++i) {
+      values.push_back((i%2)*2);
+  }
+
+  const unsigned char bytes[] = {0x42,0x13,0x22,0x22,0x22,0x22,0x22,
+                                 0x46,0x13,0x04,0x04,0x04,0x04,0x04,
+                                 0x04,0x04,0x04,0x04,0x04};
+  unsigned long l = sizeof(bytes) / sizeof(char);
+
+  // Read 1 at a time, then 3 at a time, etc.
+  checkResults(values, decodeRLEv2(bytes, l, 1, values.size()), 1);
+  checkResults(values, decodeRLEv2(bytes, l, 3, values.size()), 3);
+  checkResults(values, decodeRLEv2(bytes, l, 7, values.size()), 7);
+  checkResults(values, decodeRLEv2(bytes, l, values.size(), values.size()),
+               values.size());
+};
+
+TEST(RLEv2, largeNegativesDirect) {
+  std::unique_ptr<RleDecoder> rle =
+      createRleDecoder(
+          std::unique_ptr<SeekableInputStream>(
+             new SeekableArrayInputStream(
+                 {0x7e,0x04,0xcf,0xca,0xcc,0x91,0xba,0x38,0x93,0xab,0x00,0x00,
+                  0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+                  0x00,0x02,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x02,0x99,0xa5,
+                  0xcc,0x28,0x03,0xf7,0xe0,0xff})),
+          true, RleVersion_2);
+  std::vector<long> data(5);
+  rle->next(data.data(), 5, nullptr);
+
+  EXPECT_EQ(-7486502418706614742, data[0]) << "Output wrong at " << 0;
+  EXPECT_EQ(0, data[1]) << "Output wrong at " << 1;
+  EXPECT_EQ(1, data[2]) << "Output wrong at " << 2;
+  EXPECT_EQ(1, data[3]) << "Output wrong at " << 3;
+  EXPECT_EQ(-5535739865598783616, data[4]) << "Output wrong at " << 4;
+};
+
+TEST(RLEv2, overflowDirect) {
+  std::vector<long> values(4);
+  values[0] = 4513343538618202719l;
+  values[1] = 4513343538618202711l;
+  values[2] = 2911390882471569739l;
+  values[3] = -9181829309989854913l;
+
+  const unsigned char bytes[] = {0x7e,0x03,0x7d,0x45,0x3c,0x12,0x41,0x48,0xf4,
+                                 0xbe,0x7d,0x45,0x3c,0x12,0x41,0x48,0xf4,0xae,
+                                 0x50,0xce,0xad,0x2a,0x30,0x0e,0xd2,0x96,0xfe,
+                                 0xd8,0xd2,0x38,0x54,0x6e,0x3d,0x81};
+  unsigned long l = sizeof(bytes) / sizeof(char);
+  // Read 1 at a time, then 3 at a time, etc.
+  checkResults(values, decodeRLEv2(bytes, l, 1, values.size()), 1);
+  checkResults(values, decodeRLEv2(bytes, l, 3, values.size()), 3);
+  checkResults(values, decodeRLEv2(bytes, l, 7, values.size()), 7);
+  checkResults(values, decodeRLEv2(bytes, l, values.size(), values.size()),
+               values.size());
+};
+
+TEST(RLEv2, basicPatched0) {
+  long v[] = {2030,2000,2020,1000000,2040,2050,2060,2070,2080,2090};
+  std::vector<long> values;
+  for (size_t i = 0; i < sizeof(v) / sizeof(long); ++i) {
+      values.push_back(v[i]);
+  }
+
+  const unsigned char bytes[] = {0x8e,0x09,0x2b,0x21,0x07,0xd0,0x1e,0x00,0x14,
+                                 0x70,0x28,0x32,0x3c,0x46,0x50,0x5a,0xfc,0xe8};
+  unsigned long l = sizeof(bytes) / sizeof(char);
+  // Read 1 at a time, then 3 at a time, etc.
+  checkResults(values, decodeRLEv2(bytes, l, 1, values.size()), 1);
+  checkResults(values, decodeRLEv2(bytes, l, 3, values.size()), 3);
+  checkResults(values, decodeRLEv2(bytes, l, 7, values.size()), 7);
+  checkResults(values, decodeRLEv2(bytes, l, values.size(), values.size()),
+               values.size());
+};
+
+TEST(RLEv2, basicPatched1) {
+  long v[] = {20, 2, 3, 2, 1, 3, 17, 71, 35, 2, 1, 139, 2, 2, 3, 1783, 475, 2,
+              1, 1, 3, 1, 3, 2, 32, 1, 2, 3, 1, 8, 30, 1, 3, 414, 1, 1, 135, 3,
+              3, 1, 414, 2, 1, 2, 2, 594, 2, 5, 6, 4, 11, 1, 2, 2, 1, 1, 52, 4,
+              1, 2, 7, 1, 17, 334, 1, 2, 1, 2, 2, 6, 1, 266, 1, 2, 217, 2, 6, 2,
+              13, 2, 2, 1, 2, 3, 5, 1, 2, 1, 7244, 11813, 1, 33, 2, -13, 1, 2, 3,
+              13, 1, 92, 3, 13, 5, 14, 9, 141, 12, 6, 15, 25};
+  std::vector<long> values;
+  for (size_t i = 0; i < sizeof(v) / sizeof(long); ++i) {
+    values.push_back(v[i]);
+  }
+
+  const unsigned char bytes[] = {0x90,0x6d,0x04,0xa4,0x8d,0x10,0x83,0xc2,0x00,
+                                 0xf0,0x70,0x40,0x3c,0x54,0x18,0x03,0xc1,0xc9,
+                                 0x80,0x78,0x3c,0x21,0x04,0xf4,0x03,0xc1,0xc0,
+                                 0xe0,0x80,0x38,0x20,0x0f,0x16,0x83,0x81,0xe1,
+                                 0x00,0x70,0x54,0x56,0x0e,0x08,0x6a,0xc1,0xc0,
+                                 0xe4,0xa0,0x40,0x20,0x0e,0xd5,0x83,0xc1,0xc0,
+                                 0xf0,0x79,0x7c,0x1e,0x12,0x09,0x84,0x43,0x00,
+                                 0xe0,0x78,0x3c,0x1c,0x0e,0x20,0x84,0x41,0xc0,
+                                 0xf0,0xa0,0x38,0x3d,0x5b,0x07,0x03,0xc1,0xc0,
+                                 0xf0,0x78,0x4c,0x1d,0x17,0x07,0x03,0xdc,0xc0,
+                                 0xf0,0x98,0x3c,0x34,0x0f,0x07,0x83,0x81,0xe1,
+                                 0x00,0x90,0x38,0x1e,0x0e,0x2c,0x8c,0x81,0xc2,
+                                 0xe0,0x78,0x00,0x1c,0x0f,0x08,0x06,0x81,0xc6,
+                                 0x90,0x80,0x68,0x24,0x1b,0x0b,0x26,0x83,0x21,
+                                 0x30,0xe0,0x98,0x3c,0x6f,0x06,0xb7,0x03,0x70};
+  unsigned long l = sizeof(bytes) / sizeof(char);
+  // Read 1 at a time, then 3 at a time, etc.
+  checkResults(values, decodeRLEv2(bytes, l, 1, values.size()), 1);
+  checkResults(values, decodeRLEv2(bytes, l, 3, values.size()), 3);
+  checkResults(values, decodeRLEv2(bytes, l, 7, values.size()), 7);
+  checkResults(values, decodeRLEv2(bytes, l, values.size(), values.size()),
+               values.size());
+};
+
+TEST(RLEv2, mixedPatchedAndShortRepeats) {
+  long v[] = {20, 2, 3, 2, 1, 3, 17, 71, 35, 2, 1, 139, 2, 2, 3, 1783, 475, 2, 1, 1, 3, 1, 3, 2, 32, 1, 2, 3, 1, 8, 30, 1, 3, 414, 1, 1, 135, 3, 3, 1, 414, 2, 1, 2, 2, 594, 2, 5, 6, 4, 11, 1, 2, 2, 1, 1, 52, 4, 1, 2, 7, 1, 17, 334, 1, 2, 1, 2, 2, 6, 1, 266, 1, 2, 217, 2, 6, 2, 13, 2, 2, 1, 2, 3, 5, 1, 2, 1, 7244, 11813, 1, 33, 2, -13, 1, 2, 3, 13, 1, 92, 3, 13, 5, 14, 9, 141, 12, 6, 15, 25, 1, 1, 1, 46, 2, 1, 1, 141, 3, 1, 1, 1, 1, 2, 1, 4, 34, 5, 78, 8, 1, 2, 2, 1, 9, 10, 2, 1, 4, 13, 1, 5, 4, 4, 19, 5, 1, 1, 1, 68, 33, 399, 1, 1885, 25, 5, 2, 4, 1, 1, 2, 16, 1, 2966, 3, 1, 1, 25501, 1, 1, 1, 66, 1, 3, 8, 131, 14, 5, 1, 2, 2, 1, 1, 8, 1, 1, 2, 1, 5, 9, 2, 3, 112, 13, 2, 2, 1, 5, 10, 3, 1, 1, 13, 2, 3, 4, 1, 3, 1, 1, 2, 1, 1, 2, 4, 2, 207, 1, 1, 2, 4, 3, 3, 2, 2, 16};
+  std::vector<long> values;
+  for (size_t i = 0; i < sizeof(v) / sizeof(long); ++i) {
+    values.push_back(v[i]);
+  }
+
+  const unsigned char bytes[] = {0x90,0x6d,0x04,0xa4,0x8d,0x10,0x83,0xc2,0x00,0xf0,0x70,0x40,0x3c,0x54,0x18,0x03,0xc1,0xc9,0x80,0x78,0x3c,0x21,0x04,0xf4,0x03,0xc1,0xc0,0xe0,0x80,0x38,0x20,0x0f,0x16,0x83,0x81,0xe1,0x00,0x70,0x54,0x56,0x0e,0x08,0x6a,0xc1,0xc0,0xe4,0xa0,0x40,0x20,0x0e,0xd5,0x83,0xc1,0xc0,0xf0,0x79,0x7c,0x1e,0x12,0x09,0x84,0x43,0x00,0xe0,0x78,0x3c,0x1c,0x0e,0x20,0x84,0x41,0xc0,0xf0,0xa0,0x38,0x3d,0x5b,0x07,0x03,0xc1,0xc0,0xf0,0x78,0x4c,0x1d,0x17,0x07,0x03,0xdc,0xc0,0xf0,0x98,0x3c,0x34,0x0f,0x07,0x83,0x81,0xe1,0x00,0x90,0x38,0x1e,0x0e,0x2c,0x8c,0x81,0xc2,0xe0,0x78,0x00,0x1c,0x0f,0x08,0x06,0x81,0xc6,0x90,0x80,0x68,0x24,0x1b,0x0b,0x26,0x83,0x21,0x30,0xe0,0x98,0x3c,0x6f,0x06,0xb7,0x03,0x70,0x00,0x02,0x5e,0x05,0x00,0x5c,0x00,0x04,0x00,0x02,0x00,0x02,0x01,0x1a,0x00,0x06,0x01,0x02,0x8a,0x16,0x00,0x41,0x01,0x04,0x00,0xe1,0x10,0xd1,0xc0,0x04,0x10,0x08,0x24,0x10,0x03,0x30,0x01,0x03,0x0d,0x21,0x00,0xb0,0x00,0x02,0x5e,0x12,0x00,0x88,0x00,0x42,0x03,0x1e,0x00,0x02,0x0e,0xba,0x00,0x32,0x00,0x0a,0x00,0x04,0x00,0x08,0x00,0x02,0x00,0x02,0x00,0x04,0x00,0x20,0x00,0x02,0x17,0x2c,0x00,0x06,0x00,0x02,0x00,0x02,0xc7,0x3a,0x00,0x02,0x8c,0x36,0x00,0xa2,0x01,0x82,0x00,0x10,0x70,0x43,0x42,0x00,0x02,0x04,0x00,0x00,0xe0,0x00,0x01,0x00,0x10,0x40,0x10,0x5b,0xc6,0x01,0x02,0x00,0x20,0x90,0x40,0x00,0x0c,0x02,0x08,0x18,0x00,0x40,0x00,0x01,0x00,0x00,0x08,0x30,0x33,0x80,0x00,0x02,0x0c,0x10,0x20,0x20,0x47,0x80,0x13,0x4c};
+  unsigned long l = sizeof(bytes) / sizeof(char);
+  // Read 1 at a time, then 3 at a time, etc.
+  checkResults(values, decodeRLEv2(bytes, l, 1, values.size()), 1);
+  checkResults(values, decodeRLEv2(bytes, l, 3, values.size()), 3);
+  checkResults(values, decodeRLEv2(bytes, l, 7, values.size()), 7);
+  checkResults(values, decodeRLEv2(bytes, l, values.size(), values.size()),
+               values.size());
+};
+
+TEST(RLEv2, basicDirectSeek) {
+  // 0,1 repeated 10 times (signed ints) followed by
+  // 0,2 repeated 10 times (signed ints)
+  const unsigned char bytes[] = {0x42,0x13,0x22,0x22,0x22,0x22,0x22,
+                                 0x46,0x13,0x04,0x04,0x04,0x04,0x04,
+                                 0x04,0x04,0x04,0x04,0x04};
+  unsigned long l = sizeof(bytes) / sizeof(char);
+
+  std::unique_ptr<RleDecoder> rle =
+    createRleDecoder(
+        std::unique_ptr<SeekableInputStream>(
+            new SeekableArrayInputStream(bytes,l)), true, RleVersion_2);
+  std::list<unsigned long> position;
+  position.push_back(7); // byte position; skip first 20 [0 to 19]
+  position.push_back(13); // value position; skip 13 more [20 to 32]
+
+  PositionProvider location(position);
+  rle->seek(location);
+  std::vector<long> data(3);
+  rle->next(data.data(), 3, nullptr);
+  EXPECT_EQ(2, data[0]);
+  EXPECT_EQ(0, data[1]);
+  EXPECT_EQ(2, data[2]);
+  rle->next(data.data(), 3, nullptr);
+  EXPECT_EQ(0, data[0]);
+  EXPECT_EQ(2, data[1]);
+  EXPECT_EQ(0, data[2]);
+  rle->next(data.data(), 1, nullptr);
+  EXPECT_EQ(2, data[0]);
+};
+
+
 TEST(RLEv1, simpleTest) {
   std::unique_ptr<RleDecoder> rle =
       createRleDecoder(
