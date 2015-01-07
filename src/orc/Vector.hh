@@ -164,8 +164,26 @@ namespace orc {
      * The offset of the first element of each list.
      * The length of list i is startOffset[i+1] - startOffset[i].
      */
-    std::vector<long> startOffset;
+    std::vector<long> offsets;
 
+    // the concatenated elements
+    std::unique_ptr<ColumnVectorBatch> elements;
+  };
+
+  struct MapVectorBatch: public ColumnVectorBatch {
+    MapVectorBatch(unsigned long capacity);
+    virtual ~MapVectorBatch();
+    std::string toString() const;
+    void resize(unsigned long capacity);
+
+    /**
+     * The offset of the first element of each list.
+     * The length of list i is startOffset[i+1] - startOffset[i].
+     */
+    std::vector<long> offsets;
+
+    // the concatenated keys
+    std::unique_ptr<ColumnVectorBatch> keys;
     // the concatenated elements
     std::unique_ptr<ColumnVectorBatch> elements;
   };

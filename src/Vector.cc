@@ -148,7 +148,7 @@ namespace orc {
 
   ListVectorBatch::ListVectorBatch(unsigned long cap
                                    ): ColumnVectorBatch(cap),
-                                      startOffset(cap+1) {
+                                      offsets(cap+1) {
     // PASS
   }
 
@@ -166,7 +166,32 @@ namespace orc {
   void ListVectorBatch::resize(unsigned long cap) {
     if (capacity < cap) {
       ColumnVectorBatch::resize(cap);
-      startOffset.resize(cap + 1);
+      offsets.resize(cap + 1);
+    }
+  }
+
+  MapVectorBatch::MapVectorBatch(unsigned long cap
+                                 ): ColumnVectorBatch(cap),
+                                    offsets(cap+1) {
+    // PASS
+  }
+
+  MapVectorBatch::~MapVectorBatch() {
+    // PASS
+  }
+
+  std::string MapVectorBatch::toString() const {
+    std::ostringstream buffer;
+    buffer << "Map vector <" << keys->toString() << ", "
+           << elements->toString() << " with "
+           << numElements << " of " << capacity << ">";
+    return buffer.str();
+  }
+
+  void MapVectorBatch::resize(unsigned long cap) {
+    if (capacity < cap) {
+      ColumnVectorBatch::resize(cap);
+      offsets.resize(cap + 1);
     }
   }
 }

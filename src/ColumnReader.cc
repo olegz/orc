@@ -657,7 +657,7 @@ namespace orc {
                               char *notNull) {
     ColumnReader::next(rowBatch, numValues, notNull);
     ListVectorBatch &listBatch = dynamic_cast<ListVectorBatch&>(rowBatch);
-    long* offsets = listBatch.startOffset.data();
+    long* offsets = listBatch.offsets.data();
     if (listBatch.hasNulls) {
       notNull = listBatch.notNull.data();
     } else {
@@ -686,6 +686,116 @@ namespace orc {
     ColumnReader *childReader = child.get();
     if (childReader) {
       childReader->next(*(listBatch.elements.get()), totalChildren, 0);
+    }
+  }
+
+  class MapColumnReader: public ColumnReader {
+  private:
+    std::unique_ptr<ColumnReader> keyReader;
+    std::unique_ptr<ColumnReader> elementReader;
+    std::unique_ptr<RleDecoder> rle;
+
+  public:
+    MapColumnReader(const Type& type, StripeStreams& stipe);
+    ~MapColumnReader();
+
+    unsigned long skip(unsigned long numValues) override;
+
+    void next(ColumnVectorBatch& rowBatch,
+              unsigned long numValues,
+              char *notNull) override;
+  };
+
+  MapColumnReader::MapColumnReader(const Type& type,
+                                     StripeStreams& stripe
+                                     ): ColumnReader(type, stripe) {
+    // count the number of selected sub-columns
+    const bool *selectedColumns = stripe.getSelectedColumns();
+    RleVersion vers = convertRleVersion(stripe.getEncoding(columnId).kind());
+    rle = createRleDecoder(stripe.getStream(columnId,
+                                            proto::Stream_Kind_LENGTH),
+                           false, vers);
+    const Type& keyType = type.getSubtype(0);
+    if (selectedColumns[keyType.getColumnId()]) {
+      keyReader = buildReader(keyType, stripe);
+    }
+    const Type& elementType = type.getSubtype(1);
+    if (selectedColumns[elementType.getColumnId()]) {
+      elementReader = buildReader(elementType, stripe);
+    }
+  }
+
+  MapColumnReader::~MapColumnReader() {
+    // PASS
+  }
+
+  unsigned long MapColumnReader::skip(unsigned long numValues) {
+    numValues = ColumnReader::skip(numValues);
+    ColumnReader *rawKeyReader = keyReader.get();
+    ColumnReader *rawElementReader = elementReader.get();
+    if (rawKeyReader || rawElementReader) {
+      const unsigned long BUFFER_SIZE = 1024;
+      long buffer[BUFFER_SIZE];
+      unsigned long childrenElements = 0;
+      unsigned long lengthsRead = 0;
+      while (lengthsRead < numValues) {
+        unsigned long chunk = std::min(numValues - lengthsRead, BUFFER_SIZE);
+        rle->next(buffer, chunk, 0);
+        for(size_t i=0; i < chunk; ++i) {
+          childrenElements += static_cast<size_t>(buffer[i]);
+        }
+        lengthsRead += chunk;
+      }
+      if (rawKeyReader) {
+        rawKeyReader->skip(childrenElements);
+      }
+      if (rawElementReader) {
+        rawElementReader->skip(childrenElements);
+      }
+    } else {
+      rle->skip(numValues);
+    }
+    return numValues;
+  }
+
+  void MapColumnReader::next(ColumnVectorBatch& rowBatch,
+                             unsigned long numValues,
+                             char *notNull) {
+    ColumnReader::next(rowBatch, numValues, notNull);
+    MapVectorBatch &mapBatch = dynamic_cast<MapVectorBatch&>(rowBatch);
+    long* offsets = mapBatch.offsets.data();
+    if (mapBatch.hasNulls) {
+      notNull = mapBatch.notNull.data();
+    } else {
+      notNull = 0;
+    }
+    rle->next(offsets, numValues, notNull);
+    unsigned long totalChildren = 0;
+    if (notNull) {
+      for(size_t i=0; i < numValues; ++i) {
+        if (notNull[i]) {
+          unsigned long tmp = static_cast<unsigned long>(offsets[i]);
+          offsets[i] = static_cast<long>(totalChildren);
+          totalChildren += tmp;
+        } else {
+          offsets[i] = static_cast<long>(totalChildren);
+        }
+      }
+    } else {
+      for(size_t i=0; i < numValues; ++i) {
+        unsigned long tmp = static_cast<unsigned long>(offsets[i]);
+        offsets[i] = static_cast<long>(totalChildren);
+        totalChildren += tmp;
+      }
+    }
+    offsets[numValues] = static_cast<long>(totalChildren);
+    ColumnReader *rawKeyReader = keyReader.get();
+    if (rawKeyReader) {
+      rawKeyReader->next(*(mapBatch.keys.get()), totalChildren, 0);
+    }
+    ColumnReader *rawElementReader = elementReader.get();
+    if (rawElementReader) {
+      rawElementReader->next(*(mapBatch.elements.get()), totalChildren, 0);
     }
   }
 
@@ -725,8 +835,10 @@ namespace orc {
       return std::unique_ptr<ColumnReader>(new ByteColumnReader(type, stripe));
 
     case LIST:
-      return std::unique_ptr<ColumnReader>(new ListColumnReader(type,
-                                                                stripe));
+      return std::unique_ptr<ColumnReader>(new ListColumnReader(type, stripe));
+
+    case MAP:
+      return std::unique_ptr<ColumnReader>(new MapColumnReader(type, stripe));
 
     case STRUCT:
       return std::unique_ptr<ColumnReader>(new StructColumnReader(type,
@@ -735,7 +847,6 @@ namespace orc {
     case FLOAT:
     case DOUBLE:
     case TIMESTAMP:
-    case MAP:
     case UNION:
     case DECIMAL:
     case DATE:
