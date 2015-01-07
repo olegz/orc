@@ -20,6 +20,8 @@
 #include "Compression.hh"
 #include "Exceptions.hh"
 
+#define MIN_REPEAT 3
+
 namespace orc {
 
 inline long unZigZag(unsigned long value) {
@@ -97,6 +99,17 @@ signed char RleDecoderV2::readByte() {
   return prevByte;
 }
 
+long RleDecoderV2::readLongBE() {
+  long ret = 0, val;
+  int n = byteSize;
+  while (n > 0) {
+    n--;
+    val = readByte();
+    ret |= (val << (n * 8));
+  }
+  return ret;
+}
+
 RleDecoderV2::RleDecoderV2(std::unique_ptr<SeekableInputStream> input,
                            bool isSigned)
   : inputStream(std::move(input)),
@@ -107,6 +120,8 @@ RleDecoderV2::RleDecoderV2(std::unique_ptr<SeekableInputStream> input,
     runRead(0),
     bufferStart(nullptr),
     bufferEnd(bufferStart),
+    byteSize(0),
+    value(0),
     bitSize(0),
     bitsLeft(0),
     current(0) {
@@ -130,14 +145,16 @@ void RleDecoderV2::next(long* const data,
       firstByte = readByte();
     }
 
+    unsigned long offset = nRead, length = numValues - nRead;
+
     EncodingType enc = static_cast<EncodingType>
         ((((unsigned char) firstByte) >> 6) & 0x03);
     switch(enc) {
     case SHORT_REPEAT:
-      throw ParseError("SHORT_REPEAT encoding is not yet supported");
+      nRead += nextShortRepeats(data, offset, length, notNull);
       break;
     case DIRECT:
-      nRead += nextDirect(data, nRead, numValues, notNull);
+      nRead += nextDirect(data, offset, length, notNull);
       break;
     case PATCHED_BASE:
       throw ParseError("PATCHED_BASE encoding is not yet supported");
@@ -149,6 +166,37 @@ void RleDecoderV2::next(long* const data,
       throw ParseError("unknown encoding");
     }
   }
+}
+
+unsigned long RleDecoderV2::nextShortRepeats(long* const data,
+                                             const unsigned long offset,
+                                             const unsigned long numValues,
+                                             const char* const notNull) {
+  if (runRead == runLength) {
+    // extract the number of fixed bytes
+    byteSize = ((static_cast<unsigned char>(firstByte)) >> 3) & 0x07;
+    byteSize += 1;
+
+    runLength = firstByte & 0x07;
+    // run lengths values are stored only after MIN_REPEAT value is met
+    runLength += MIN_REPEAT;
+    runRead = 0;
+
+    // read the repeated value which is store using fixed bytes
+    value = readLongBE();
+
+    if (isSigned) {
+      value = unZigZag(value);
+    }
+  }
+
+  unsigned long nRead = std::min(runLength - runRead, numValues);
+  for(unsigned long pos = offset; pos < offset + nRead; ++pos) {
+    data[pos] = value;
+  }
+
+  runRead += nRead;
+  return nRead;
 }
 
 unsigned long RleDecoderV2::nextDirect(long* const data,
@@ -174,12 +222,13 @@ unsigned long RleDecoderV2::nextDirect(long* const data,
 
   readInts(data, offset, nRead);
   if (isSigned) { 
-   // write the unpacked values and zigzag decode to result buffer
-   for(unsigned long pos = offset; pos < offset + nRead; ++pos) {
+    // write the unpacked values and zigzag decode to result buffer
+    for(unsigned long pos = offset; pos < offset + nRead; ++pos) {
       data[pos] = unZigZag(data[pos]);
     }
   }
 
+  runRead += nRead;
   return nRead;
 }
 

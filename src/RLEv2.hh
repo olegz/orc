@@ -50,6 +50,10 @@ public:
 private:
 
   signed char readByte();
+  unsigned long nextShortRepeats(long* data, unsigned long offset,
+                                 unsigned long numValues,
+                                 const char* notNull);
+  long readLongBE();
   unsigned long nextDirect(long* data, unsigned long offset,
                            unsigned long numValues,
                            const char* notNull);
@@ -64,6 +68,8 @@ private:
   unsigned long runRead;
   const char *bufferStart;
   const char *bufferEnd;
+  int byteSize; // Used by SHORT_REPEAT
+  long value; // Used by SHORT_REPEAT
   int bitSize; // Used by DIRECT
   int bitsLeft; // Used by DIRECT
   int current; // Used by DIRECT

@@ -26,21 +26,6 @@
 
 namespace orc {
 
-TEST(RLEv2, 0to2Repeat1Direct) {
-  std::unique_ptr<RleDecoder> rle =
-      createRleDecoder(
-          std::unique_ptr<SeekableInputStream>(
-              new SeekableArrayInputStream(
-                  {0x46, 0x02, 0x02, 0x40})),
-          true, RleVersion_2);
-  std::vector<long> data(3);
-  rle->next(data.data(), 3, nullptr);
-
-  for (size_t i = 0; i < data.size(); ++i) {
-    EXPECT_EQ(i, data[i]) << "Output wrong at " << i;
-  }
-};
-
 std::vector<long> decodeRLEv2(const char *bytes,
                               unsigned long l,
                               size_t n,
@@ -61,13 +46,72 @@ std::vector<long> decodeRLEv2(const char *bytes,
   return results;
 }
 
-void checkResults(const std::vector<long> &e, const std::vector<long> &a) {
-
+void checkResults(const std::vector<long> &e, const std::vector<long> &a,
+                  int n) {
   EXPECT_EQ(e.size(), a.size()) << "vectors differ in size";
   for (size_t i = 0; i < e.size(); ++i) {
-    EXPECT_EQ(e[i], a[i]) << "Output wrong at " << i << ", n=" << 1;
+    EXPECT_EQ(e[i], a[i]) << "Output wrong at " << i << ", n=" << n;
   }
 }
+
+TEST(RLEv2, shortRepeats) {
+  const size_t runLength = 7;
+  const size_t nVals = 10;
+  const size_t count = nVals * runLength;
+  std::vector<long> values;
+  for (size_t i = 0; i < nVals; ++i) {
+    for (size_t j = 0; j < runLength; ++j) {
+      values.push_back(i);
+    }
+  }
+
+  const char bytes[] = {0x04,0x00,0x04,0x02,0x04,0x04,0x04,0x06,0x04,0x08,
+                        0x04,0x0a,0x04,0x0c,0x04,0x0e,0x04,0x10,0x04,0x12};
+  unsigned long l = sizeof(bytes) / sizeof(char);
+  // Read 1 at a time, then 3 at a time, etc.
+  checkResults(values, decodeRLEv2(bytes, l, 1, count), 1);
+  checkResults(values, decodeRLEv2(bytes, l, 3, count), 3);
+  checkResults(values, decodeRLEv2(bytes, l, 7, count), 7);
+  checkResults(values, decodeRLEv2(bytes, l, count, count), count);
+};
+
+TEST(RLEv2, multiByteShortRepeats) {
+  const size_t runLength = 7;
+  const size_t nVals = 3;
+  const size_t count = nVals * runLength;
+  std::vector<long> values;
+  for (size_t i = 0; i < nVals; ++i) {
+    for (size_t j = 0; j < runLength; ++j) {
+      values.push_back(i+(1L<<62));
+    }
+  }
+
+  const char b80 = 0x80;
+  const char bytes[] = {0x3c,b80,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x3c,b80,
+                        0x00,0x00,0x00,0x00,0x00,0x00,0x02,0x3c,b80,0x00,0x00,
+                        0x00,0x00,0x00,0x00,0x04};
+  unsigned long l = sizeof(bytes) / sizeof(char);
+  // Read 1 at a time, then 3 at a time, etc.
+  checkResults(values, decodeRLEv2(bytes, l, 1, count), 1);
+  checkResults(values, decodeRLEv2(bytes, l, 3, count), 3);
+  checkResults(values, decodeRLEv2(bytes, l, 7, count), 7);
+  checkResults(values, decodeRLEv2(bytes, l, count, count), count);
+};
+
+TEST(RLEv2, 0to2Repeat1Direct) {
+  std::unique_ptr<RleDecoder> rle =
+      createRleDecoder(
+          std::unique_ptr<SeekableInputStream>(
+              new SeekableArrayInputStream(
+                  {0x46, 0x02, 0x02, 0x40})),
+          true, RleVersion_2);
+  std::vector<long> data(3);
+  rle->next(data.data(), 3, nullptr);
+
+  for (size_t i = 0; i < data.size(); ++i) {
+    EXPECT_EQ(i, data[i]) << "Output wrong at " << i;
+  }
+};
 
 TEST(RLEv2, bitSize2Direct) {
   // 0,1 repeated 10 times (signed ints)
@@ -78,12 +122,12 @@ TEST(RLEv2, bitSize2Direct) {
   }
 
   const char bytes[] = {0x42, 0x13, 0x22, 0x22, 0x22, 0x22, 0x22};
-  unsigned long l = sizeof(bytes) / sizeof(unsigned char);
+  unsigned long l = sizeof(bytes) / sizeof(char);
   // Read 1 at a time, then 3 at a time, etc.
-  checkResults(values, decodeRLEv2(bytes, l, 1, count));
-  checkResults(values, decodeRLEv2(bytes, l, 3, count));
-  checkResults(values, decodeRLEv2(bytes, l, 7, count));
-  checkResults(values, decodeRLEv2(bytes, l, count, count));
+  checkResults(values, decodeRLEv2(bytes, l, 1, count), 1);
+  checkResults(values, decodeRLEv2(bytes, l, 3, count), 3);
+  checkResults(values, decodeRLEv2(bytes, l, 7, count), 7);
+  checkResults(values, decodeRLEv2(bytes, l, count, count), count);
 };
 
 TEST(RLEv2, bitSize4Direct) {
@@ -95,13 +139,13 @@ TEST(RLEv2, bitSize4Direct) {
   }
 
   const char bytes[] = {0x46,0x13,0x04,0x04,0x04,0x04,0x04,0x04,0x04,0x04,0x04,0x04 };
-  unsigned long l = sizeof(bytes) / sizeof(unsigned char);
+  unsigned long l = sizeof(bytes) / sizeof(char);
 
   // Read 1 at a time, then 3 at a time, etc.
-  checkResults(values, decodeRLEv2(bytes, l, 1, count));
-  checkResults(values, decodeRLEv2(bytes, l, 3, count));
-  checkResults(values, decodeRLEv2(bytes, l, 7, count));
-  checkResults(values, decodeRLEv2(bytes, l, count, count));
+  checkResults(values, decodeRLEv2(bytes, l, 1, count), 1);
+  checkResults(values, decodeRLEv2(bytes, l, 3, count), 3);
+  checkResults(values, decodeRLEv2(bytes, l, 7, count), 7);
+  checkResults(values, decodeRLEv2(bytes, l, count, count), count);
 };
 
 TEST(RLEv2, largeNegativesDirect) {
