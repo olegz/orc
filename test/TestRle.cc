@@ -61,56 +61,47 @@ std::vector<long> decodeRLEv2(const char *bytes,
   return results;
 }
 
+void checkResults(const std::vector<long> &e, const std::vector<long> &a) {
+
+  EXPECT_EQ(e.size(), a.size()) << "vectors differ in size";
+  for (size_t i = 0; i < e.size(); ++i) {
+    EXPECT_EQ(e[i], a[i]) << "Output wrong at " << i << ", n=" << 1;
+  }
+}
+
 TEST(RLEv2, bitSize2Direct) {
-  std::vector<long> data;
   // 0,1 repeated 10 times (signed ints)
   const size_t count = 20;
-  const long values[] = {0, 1};
-  // Read 1 at a time, then 3 at a time, etc.
+  std::vector<long> values;
+  for (size_t i = 0; i < count; ++i) {
+      values.push_back(i%2);
+  }
+
   const char bytes[] = {0x42, 0x13, 0x22, 0x22, 0x22, 0x22, 0x22};
   unsigned long l = sizeof(bytes) / sizeof(unsigned char);
-  data = decodeRLEv2(bytes, l, 1, count);
-  for (size_t i = 0; i < count; ++i) {
-    EXPECT_EQ(values[i % 2], data[i]) << "Output wrong at " << i << ", n=" << 1;
-  }
-  data = decodeRLEv2(bytes, l, 3, count);
-  for (size_t i = 0; i < count; ++i) {
-    EXPECT_EQ(values[i % 2], data[i]) << "Output wrong at " << i << ", n=" << 1;
-  }
-  data = decodeRLEv2(bytes, l, 7, count);
-  for (size_t i = 0; i < count; ++i) {
-    EXPECT_EQ(values[i % 2], data[i]) << "Output wrong at " << i << ", n=" << 1;
-  }
-  data = decodeRLEv2(bytes, l, count, count);
-  for (size_t i = 0; i < count; ++i) {
-    EXPECT_EQ(values[i % 2], data[i]) << "Output wrong at " << i << ", n=" << 1;
-  }
+  // Read 1 at a time, then 3 at a time, etc.
+  checkResults(values, decodeRLEv2(bytes, l, 1, count));
+  checkResults(values, decodeRLEv2(bytes, l, 3, count));
+  checkResults(values, decodeRLEv2(bytes, l, 7, count));
+  checkResults(values, decodeRLEv2(bytes, l, count, count));
 };
 
 TEST(RLEv2, bitSize4Direct) {
-  std::vector<long> data;
   // 0,2 repeated 10 times (signed ints)
   const size_t count = 20;
-  const long values[] = {0, 2};
-  // Read 1 at a time, then 3 at a time, etc.
+  std::vector<long> values;
+  for (size_t i = 0; i < count; ++i) {
+      values.push_back((i%2)*2);
+  }
+
   const char bytes[] = {0x46,0x13,0x04,0x04,0x04,0x04,0x04,0x04,0x04,0x04,0x04,0x04 };
   unsigned long l = sizeof(bytes) / sizeof(unsigned char);
-  data = decodeRLEv2(bytes, l, 1, count);
-  for (size_t i = 0; i < count; ++i) {
-    EXPECT_EQ(values[i % 2], data[i]) << "Output wrong at " << i << ", n=" << 1;
-  }
-  data = decodeRLEv2(bytes, l, 3, count);
-  for (size_t i = 0; i < count; ++i) {
-    EXPECT_EQ(values[i % 2], data[i]) << "Output wrong at " << i << ", n=" << 1;
-  }
-  data = decodeRLEv2(bytes, l, 7, count);
-  for (size_t i = 0; i < count; ++i) {
-    EXPECT_EQ(values[i % 2], data[i]) << "Output wrong at " << i << ", n=" << 1;
-  }
-  data = decodeRLEv2(bytes, l, count, count);
-  for (size_t i = 0; i < count; ++i) {
-    EXPECT_EQ(values[i % 2], data[i]) << "Output wrong at " << i << ", n=" << 1;
-  }
+
+  // Read 1 at a time, then 3 at a time, etc.
+  checkResults(values, decodeRLEv2(bytes, l, 1, count));
+  checkResults(values, decodeRLEv2(bytes, l, 3, count));
+  checkResults(values, decodeRLEv2(bytes, l, 7, count));
+  checkResults(values, decodeRLEv2(bytes, l, count, count));
 };
 
 TEST(RLEv2, largeNegativesDirect) {
