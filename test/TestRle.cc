@@ -148,6 +148,30 @@ TEST(RLEv2, bitSize4Direct) {
   checkResults(values, decodeRLEv2(bytes, l, count, count), count);
 };
 
+TEST(RLEv2, multipleRunsDirect) {
+  std::vector<long> values;
+  // 0,1 repeated 10 times (signed ints)
+  for (size_t i = 0; i < 20; ++i) {
+      values.push_back(i%2);
+  }
+  // 0,2 repeated 10 times (signed ints)
+  for (size_t i = 0; i < 20; ++i) {
+      values.push_back((i%2)*2);
+  }
+
+  const char bytes[] = {0x42,0x13,0x22,0x22,0x22,0x22,0x22,
+                        0x46,0x13,0x04,0x04,0x04,0x04,0x04,
+                        0x04,0x04,0x04,0x04,0x04};
+  unsigned long l = sizeof(bytes) / sizeof(char);
+
+  // Read 1 at a time, then 3 at a time, etc.
+  checkResults(values, decodeRLEv2(bytes, l, 1, values.size()), 1);
+  checkResults(values, decodeRLEv2(bytes, l, 3, values.size()), 3);
+  checkResults(values, decodeRLEv2(bytes, l, 7, values.size()), 7);
+  checkResults(values, decodeRLEv2(bytes, l, values.size(), values.size()),
+               values.size());
+};
+
 TEST(RLEv2, largeNegativesDirect) {
   std::unique_ptr<RleDecoder> rle =
       createRleDecoder(
