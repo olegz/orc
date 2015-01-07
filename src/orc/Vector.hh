@@ -82,6 +82,11 @@ namespace orc {
   std::unique_ptr<Type>
     createUnionType(std::initializer_list<std::unique_ptr<Type> > types);
 
+  /**
+   * The base class for each of the column vectors. This class handles
+   * the generic attributes such as number of elements, capacity, and
+   * notNull vector.
+   */
   struct ColumnVectorBatch {
     ColumnVectorBatch(unsigned long capacity);
     ColumnVectorBatch(const ColumnVectorBatch&) = delete;
@@ -97,7 +102,16 @@ namespace orc {
     // whether there are any null values
     bool hasNulls;
 
+    /**
+     * Generate a description of this vector as a string.
+     */
     virtual std::string toString() const = 0;
+
+    /**
+     * Change the number of slots to at least the given capacity.
+     * This function is not recursive into subtypes.
+     */
+    virtual void resize(unsigned long capacity);
   };
 
   struct LongVectorBatch: public ColumnVectorBatch {
@@ -105,12 +119,14 @@ namespace orc {
     virtual ~LongVectorBatch();
     std::vector<long> data;
     std::string toString() const;
+    void resize(unsigned long capacity);
   };
 
   struct DoubleVectorBatch: public ColumnVectorBatch {
     DoubleVectorBatch(unsigned long capacity);
     virtual ~DoubleVectorBatch();
     std::string toString() const;
+    void resize(unsigned long capacity);
 
     std::vector<double> data;
   };
@@ -119,6 +135,7 @@ namespace orc {
     StringVectorBatch(unsigned long capacity);
     virtual ~StringVectorBatch();
     std::string toString() const;
+    void resize(unsigned long capacity);
 
     // pointers to the start of each string
     std::vector<char*> data;
@@ -130,8 +147,25 @@ namespace orc {
     StructVectorBatch(unsigned long capacity);
     virtual ~StructVectorBatch();
     std::string toString() const;
+    void resize(unsigned long capacity);
 
     std::vector<std::unique_ptr<ColumnVectorBatch> > fields;
+  };
+
+  struct ListVectorBatch: public ColumnVectorBatch {
+    ListVectorBatch(unsigned long capacity);
+    virtual ~ListVectorBatch();
+    std::string toString() const;
+    void resize(unsigned long capacity);
+
+    /**
+     * The offset of the first element of each list.
+     * The length of list i is startOffset[i+1] - startOffset[i].
+     */
+    std::vector<long> startOffset;
+
+    // the concatenated elements
+    std::unique_ptr<ColumnVectorBatch> elements;
   };
 
   struct Decimal {

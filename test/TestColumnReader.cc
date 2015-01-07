@@ -1179,6 +1179,432 @@ namespace orc {
     }
   }
 
+  TEST(TestColumnReader, testList) {
+    MockStripeStreams streams;
+
+    // set getSelectedColumns()
+    bool selectedColumns[] = {true, true, true};
+    EXPECT_CALL(streams, getSelectedColumns())
+      .WillRepeatedly(testing::Return(selectedColumns));
+
+    // set getEncoding
+    proto::ColumnEncoding directEncoding;
+    directEncoding.set_kind(proto::ColumnEncoding_Kind_DIRECT);
+    EXPECT_CALL(streams, getEncoding(testing::_))
+      .WillRepeatedly(testing::Return(directEncoding));
+
+    // set getStream
+    EXPECT_CALL(streams, getStreamProxy(testing::_,
+                                        proto::Stream_Kind_PRESENT))
+      .WillRepeatedly(testing::Return(nullptr));
+
+    // [2 for x in range(600)]
+    EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_LENGTH))
+      .WillRepeatedly(testing::Return(new SeekableArrayInputStream
+                                      ({0x7f, 0x00, 0x02,
+                                          0x7f, 0x00, 0x02,
+                                          0x7f, 0x00, 0x02,
+                                          0x7f, 0x00, 0x02,
+                                          0x4d, 0x00, 0x02})));
+
+    // range(1200)
+    EXPECT_CALL(streams, getStreamProxy(2, proto::Stream_Kind_DATA))
+      .WillRepeatedly(testing::Return(new SeekableArrayInputStream
+                                      ({0x7f, 0x01, 0x00,
+                                          0x7f, 0x01, 0x84, 0x02,
+                                          0x7f, 0x01, 0x88, 0x04,
+                                          0x7f, 0x01, 0x8c, 0x06,
+                                          0x7f, 0x01, 0x90, 0x08,
+                                          0x7f, 0x01, 0x94, 0x0a,
+                                          0x7f, 0x01, 0x98, 0x0c,
+                                          0x7f, 0x01, 0x9c, 0x0e,
+                                          0x7f, 0x01, 0xa0, 0x10,
+                                          0x1b, 0x01, 0xa4, 0x12})));
+
+    // create the row type
+    std::unique_ptr<Type> rowType =
+      createStructType({createListType(createPrimitiveType(LONG))}, {"col0"});
+    rowType->assignIds(0);
+
+    std::unique_ptr<ColumnReader> reader = buildReader(*rowType, streams);
+
+    StructVectorBatch batch(512);
+    ListVectorBatch *lists = new ListVectorBatch(512);
+    LongVectorBatch *longs = new LongVectorBatch(512);
+    batch.fields.push_back(std::unique_ptr<ColumnVectorBatch>(lists));
+    lists->elements = std::unique_ptr<ColumnVectorBatch>(longs);
+    reader->next(batch, 512, 0);
+    ASSERT_EQ(512, batch.numElements);
+    ASSERT_EQ(false, batch.hasNulls);
+    ASSERT_EQ(512, lists->numElements);
+    ASSERT_EQ(false, lists->hasNulls);
+    ASSERT_EQ(1024, longs->numElements);
+    ASSERT_EQ(false, longs->hasNulls);
+    for(size_t i=0; i <= batch.numElements; ++i) {
+      EXPECT_EQ(2*i, lists->startOffset[i]);
+    }
+    for(size_t i=0; i < longs->numElements; ++i) {
+      EXPECT_EQ(i, longs->data[i]);
+    }
+  }
+
+  TEST(TestColumnReader, testListWithNulls) {
+    MockStripeStreams streams;
+
+    // set getSelectedColumns()
+    bool selectedColumns[] = {true, true, true};
+    EXPECT_CALL(streams, getSelectedColumns())
+      .WillRepeatedly(testing::Return(selectedColumns));
+
+    // set getEncoding
+    proto::ColumnEncoding directEncoding;
+    directEncoding.set_kind(proto::ColumnEncoding_Kind_DIRECT);
+    EXPECT_CALL(streams, getEncoding(testing::_))
+      .WillRepeatedly(testing::Return(directEncoding));
+
+    // set getStream
+    EXPECT_CALL(streams, getStreamProxy(0, proto::Stream_Kind_PRESENT))
+      .WillRepeatedly(testing::Return(nullptr));
+
+    // [0xaa for x in range(2048/8)]
+    EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_PRESENT))
+      .WillRepeatedly(testing::Return(new SeekableArrayInputStream
+                                      ({0x7f, 0xaa, 0x7b, 0xaa})));
+
+    EXPECT_CALL(streams, getStreamProxy(2, proto::Stream_Kind_PRESENT))
+      .WillRepeatedly(testing::Return(nullptr));
+
+    // [1 for x in range(260)] +
+    // [4 for x in range(260)] +
+    // [0 for x in range(260)] +
+    // [3 for x in range(243)] +
+    // [19]
+    EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_LENGTH))
+      .WillRepeatedly(testing::Return(new SeekableArrayInputStream
+                                      ({0x7f, 0x00, 0x01,
+                                          0x7f, 0x00, 0x01,
+                                          0x7f, 0x00, 0x04,
+                                          0x7f, 0x00, 0x04,
+                                          0x7f, 0x00, 0x00,
+                                          0x7f, 0x00, 0x00,
+                                          0x7f, 0x00, 0x03,
+                                          0x6e, 0x00, 0x03,
+                                          0xff, 0x13})));
+
+    // range(2048)
+    EXPECT_CALL(streams, getStreamProxy(2, proto::Stream_Kind_DATA))
+      .WillRepeatedly(testing::Return(new SeekableArrayInputStream
+                                      ({0x7f, 0x01, 0x00,
+                                          0x7f, 0x01, 0x84, 0x02,
+                                          0x7f, 0x01, 0x88, 0x04,
+                                          0x7f, 0x01, 0x8c, 0x06,
+                                          0x7f, 0x01, 0x90, 0x08,
+                                          0x7f, 0x01, 0x94, 0x0a,
+                                          0x7f, 0x01, 0x98, 0x0c,
+                                          0x7f, 0x01, 0x9c, 0x0e,
+                                          0x7f, 0x01, 0xa0, 0x10,
+                                          0x7f, 0x01, 0xa4, 0x12,
+                                          0x7f, 0x01, 0xa8, 0x14,
+                                          0x7f, 0x01, 0xac, 0x16,
+                                          0x7f, 0x01, 0xb0, 0x18,
+                                          0x7f, 0x01, 0xb4, 0x1a,
+                                          0x7f, 0x01, 0xb8, 0x1c,
+                                          0x5f, 0x01, 0xbc, 0x1e})));
+
+    // create the row type
+    std::unique_ptr<Type> rowType =
+      createStructType({createListType(createPrimitiveType(LONG))}, {"col0"});
+    rowType->assignIds(0);
+
+    std::unique_ptr<ColumnReader> reader = buildReader(*rowType, streams);
+
+    StructVectorBatch batch(512);
+    ListVectorBatch *lists = new ListVectorBatch(512);
+    LongVectorBatch *longs = new LongVectorBatch(512);
+    batch.fields.push_back(std::unique_ptr<ColumnVectorBatch>(lists));
+    lists->elements = std::unique_ptr<ColumnVectorBatch>(longs);
+    reader->next(batch, 512, 0);
+    ASSERT_EQ(512, batch.numElements);
+    ASSERT_EQ(false, batch.hasNulls);
+    ASSERT_EQ(512, lists->numElements);
+    ASSERT_EQ(true, lists->hasNulls);
+    ASSERT_EQ(256, longs->numElements);
+    ASSERT_EQ(false, longs->hasNulls);
+    for(size_t i=0; i < batch.numElements; ++i) {
+      EXPECT_EQ(i % 2 == 0, lists->notNull[i]) << "Wrong value at " << i;
+      EXPECT_EQ((i + 1) / 2, lists->startOffset[i]) << "Wrong value at " << i;
+    }
+    EXPECT_EQ(256, lists->startOffset[512]);
+    for(size_t i=0; i < longs->numElements; ++i) {
+      EXPECT_EQ(i, longs->data[i]);
+    }
+
+    reader->next(batch, 512, 0);
+    ASSERT_EQ(512, batch.numElements);
+    ASSERT_EQ(false, batch.hasNulls);
+    ASSERT_EQ(512, lists->numElements);
+    ASSERT_EQ(true, lists->hasNulls);
+    ASSERT_EQ(1012, longs->numElements);
+    ASSERT_EQ(false, longs->hasNulls);
+    for(size_t i=0; i < batch.numElements; ++i) {
+      EXPECT_EQ(i % 2 == 0, lists->notNull[i]) << "Wrong value at " << i;
+      if (i < 8) {
+        EXPECT_EQ((i + 1) / 2, lists->startOffset[i])
+          << "Wrong value at " << i;
+      } else {
+        EXPECT_EQ(4 * ((i + 1) / 2) - 12, lists->startOffset[i])
+          << "Wrong value at " << i;
+      }
+    }
+    EXPECT_EQ(1012, lists->startOffset[512]);
+    for(size_t i=0; i < longs->numElements; ++i) {
+      EXPECT_EQ(256 + i, longs->data[i]);
+    }
+
+    reader->next(batch, 512, 0);
+    ASSERT_EQ(512, batch.numElements);
+    ASSERT_EQ(false, batch.hasNulls);
+    ASSERT_EQ(512, lists->numElements);
+    ASSERT_EQ(true, lists->hasNulls);
+    ASSERT_EQ(32, longs->numElements);
+    ASSERT_EQ(false, longs->hasNulls);
+    for(size_t i=0; i < batch.numElements; ++i) {
+      EXPECT_EQ(i % 2 == 0, lists->notNull[i]) << "Wrong value at " << i;
+      if (i < 16) {
+        EXPECT_EQ(4 * ((i + 1) / 2), lists->startOffset[i])
+          << "Wrong value at " << i;
+      } else {
+        EXPECT_EQ(32, lists->startOffset[i]) << "Wrong value at " << i;
+      }
+    }
+    EXPECT_EQ(32, lists->startOffset[512]);
+    for(size_t i=0; i < longs->numElements; ++i) {
+      EXPECT_EQ(1268 + i, longs->data[i]);
+    }
+
+    reader->next(batch, 512, 0);
+    ASSERT_EQ(512, batch.numElements);
+    ASSERT_EQ(false, batch.hasNulls);
+    ASSERT_EQ(512, lists->numElements);
+    ASSERT_EQ(true, lists->hasNulls);
+    ASSERT_EQ(748, longs->numElements);
+    ASSERT_EQ(false, longs->hasNulls);
+    for(size_t i=0; i < batch.numElements; ++i) {
+      EXPECT_EQ(i % 2 == 0, lists->notNull[i]) << "Wrong value at " << i;
+      if (i < 24) {
+        EXPECT_EQ(0, lists->startOffset[i]) << "Wrong value at " << i;
+      } else if (i < 510) {
+        EXPECT_EQ(3 * ((i - 23) / 2), lists->startOffset[i])
+          << "Wrong value at " << i;
+      } else {
+      }
+    }
+    EXPECT_EQ(748, lists->startOffset[512]);
+    for(size_t i=0; i < longs->numElements; ++i) {
+      EXPECT_EQ(1300 + i, longs->data[i]);
+    }
+  }
+
+  TEST(TestColumnReader, testListSkipWithNulls) {
+    MockStripeStreams streams;
+
+    // set getSelectedColumns()
+    bool selectedColumns[] = {true, true, true};
+    EXPECT_CALL(streams, getSelectedColumns())
+      .WillRepeatedly(testing::Return(selectedColumns));
+
+    // set getEncoding
+    proto::ColumnEncoding directEncoding;
+    directEncoding.set_kind(proto::ColumnEncoding_Kind_DIRECT);
+    EXPECT_CALL(streams, getEncoding(testing::_))
+      .WillRepeatedly(testing::Return(directEncoding));
+
+    // set getStream
+    EXPECT_CALL(streams, getStreamProxy(0, proto::Stream_Kind_PRESENT))
+      .WillRepeatedly(testing::Return(nullptr));
+
+    // [0xaa for x in range(2048/8)]
+    EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_PRESENT))
+      .WillRepeatedly(testing::Return(new SeekableArrayInputStream
+                                      ({0x7f, 0xaa, 0x7b, 0xaa})));
+
+    EXPECT_CALL(streams, getStreamProxy(2, proto::Stream_Kind_PRESENT))
+      .WillRepeatedly(testing::Return(nullptr));
+
+    // [1 for x in range(260)] +
+    // [4 for x in range(260)] +
+    // [0 for x in range(260)] +
+    // [3 for x in range(243)] +
+    // [19]
+    EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_LENGTH))
+      .WillRepeatedly(testing::Return(new SeekableArrayInputStream
+                                      ({0x7f, 0x00, 0x01,
+                                          0x7f, 0x00, 0x01,
+                                          0x7f, 0x00, 0x04,
+                                          0x7f, 0x00, 0x04,
+                                          0x7f, 0x00, 0x00,
+                                          0x7f, 0x00, 0x00,
+                                          0x7f, 0x00, 0x03,
+                                          0x6e, 0x00, 0x03,
+                                          0xff, 0x13})));
+
+    // range(2048)
+    EXPECT_CALL(streams, getStreamProxy(2, proto::Stream_Kind_DATA))
+      .WillRepeatedly(testing::Return(new SeekableArrayInputStream
+                                      ({0x7f, 0x01, 0x00,
+                                          0x7f, 0x01, 0x84, 0x02,
+                                          0x7f, 0x01, 0x88, 0x04,
+                                          0x7f, 0x01, 0x8c, 0x06,
+                                          0x7f, 0x01, 0x90, 0x08,
+                                          0x7f, 0x01, 0x94, 0x0a,
+                                          0x7f, 0x01, 0x98, 0x0c,
+                                          0x7f, 0x01, 0x9c, 0x0e,
+                                          0x7f, 0x01, 0xa0, 0x10,
+                                          0x7f, 0x01, 0xa4, 0x12,
+                                          0x7f, 0x01, 0xa8, 0x14,
+                                          0x7f, 0x01, 0xac, 0x16,
+                                          0x7f, 0x01, 0xb0, 0x18,
+                                          0x7f, 0x01, 0xb4, 0x1a,
+                                          0x7f, 0x01, 0xb8, 0x1c,
+                                          0x5f, 0x01, 0xbc, 0x1e})));
+
+    // create the row type
+    std::unique_ptr<Type> rowType =
+      createStructType({createListType(createPrimitiveType(LONG))}, {"col0"});
+    rowType->assignIds(0);
+
+    std::unique_ptr<ColumnReader> reader = buildReader(*rowType, streams);
+
+    StructVectorBatch batch(1);
+    ListVectorBatch *lists = new ListVectorBatch(1);
+    LongVectorBatch *longs = new LongVectorBatch(1);
+    batch.fields.push_back(std::unique_ptr<ColumnVectorBatch>(lists));
+    lists->elements = std::unique_ptr<ColumnVectorBatch>(longs);
+
+    reader->next(batch, 1, 0);
+    ASSERT_EQ(1, batch.numElements);
+    ASSERT_EQ(false, batch.hasNulls);
+    ASSERT_EQ(1, lists->numElements);
+    ASSERT_EQ(false, lists->hasNulls);
+    ASSERT_EQ(1, longs->numElements);
+    ASSERT_EQ(false, longs->hasNulls);
+    EXPECT_EQ(0, lists->startOffset[0]);
+    EXPECT_EQ(1, lists->startOffset[1]);
+    EXPECT_EQ(0, longs->data[0]);
+
+    reader->skip(13);
+    reader->next(batch, 1, 0);
+    ASSERT_EQ(1, batch.numElements);
+    ASSERT_EQ(false, batch.hasNulls);
+    ASSERT_EQ(1, lists->numElements);
+    ASSERT_EQ(false, lists->hasNulls);
+    ASSERT_EQ(1, longs->numElements);
+    ASSERT_EQ(false, longs->hasNulls);
+    EXPECT_EQ(0, lists->startOffset[0]);
+    EXPECT_EQ(1, lists->startOffset[1]);
+    EXPECT_EQ(7, longs->data[0]);
+
+    reader->skip(2031);
+    reader->next(batch, 2, 0);
+    ASSERT_EQ(2, batch.numElements);
+    ASSERT_EQ(false, batch.hasNulls);
+    ASSERT_EQ(2, lists->numElements);
+    ASSERT_EQ(true, lists->hasNulls);
+    ASSERT_EQ(19, longs->numElements);
+    ASSERT_EQ(false, longs->hasNulls);
+    EXPECT_EQ(0, lists->startOffset[0]);
+    EXPECT_EQ(19, lists->startOffset[1]);
+    EXPECT_EQ(19, lists->startOffset[2]);
+    for(size_t i=0; i < longs->numElements; ++i) {
+      EXPECT_EQ(2029 + i, longs->data[i]);
+    }
+  }
+
+  TEST(TestColumnReader, testListSkipWithNullsNoData) {
+    MockStripeStreams streams;
+
+    // set getSelectedColumns()
+    bool selectedColumns[] = {true, true, false};
+    EXPECT_CALL(streams, getSelectedColumns())
+      .WillRepeatedly(testing::Return(selectedColumns));
+
+    // set getEncoding
+    proto::ColumnEncoding directEncoding;
+    directEncoding.set_kind(proto::ColumnEncoding_Kind_DIRECT);
+    EXPECT_CALL(streams, getEncoding(testing::_))
+      .WillRepeatedly(testing::Return(directEncoding));
+
+    // set getStream
+    EXPECT_CALL(streams, getStreamProxy(0, proto::Stream_Kind_PRESENT))
+      .WillRepeatedly(testing::Return(nullptr));
+
+    // [0xaa for x in range(2048/8)]
+    EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_PRESENT))
+      .WillRepeatedly(testing::Return(new SeekableArrayInputStream
+                                      ({0x7f, 0xaa, 0x7b, 0xaa})));
+
+    EXPECT_CALL(streams, getStreamProxy(2, proto::Stream_Kind_PRESENT))
+      .WillRepeatedly(testing::Return(nullptr));
+
+    // [1 for x in range(260)] +
+    // [4 for x in range(260)] +
+    // [0 for x in range(260)] +
+    // [3 for x in range(243)] +
+    // [19]
+    EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_LENGTH))
+      .WillRepeatedly(testing::Return(new SeekableArrayInputStream
+                                      ({0x7f, 0x00, 0x01,
+                                          0x7f, 0x00, 0x01,
+                                          0x7f, 0x00, 0x04,
+                                          0x7f, 0x00, 0x04,
+                                          0x7f, 0x00, 0x00,
+                                          0x7f, 0x00, 0x00,
+                                          0x7f, 0x00, 0x03,
+                                          0x6e, 0x00, 0x03,
+                                          0xff, 0x13})));
+
+    EXPECT_CALL(streams, getStreamProxy(2, proto::Stream_Kind_DATA))
+      .WillRepeatedly(testing::Return(nullptr));
+
+    // create the row type
+    std::unique_ptr<Type> rowType =
+      createStructType({createListType(createPrimitiveType(LONG))}, {"col0"});
+    rowType->assignIds(0);
+
+    std::unique_ptr<ColumnReader> reader = buildReader(*rowType, streams);
+
+    StructVectorBatch batch(1);
+    ListVectorBatch *lists = new ListVectorBatch(1);
+    batch.fields.push_back(std::unique_ptr<ColumnVectorBatch>(lists));
+
+    reader->next(batch, 1, 0);
+    ASSERT_EQ(1, batch.numElements);
+    ASSERT_EQ(false, batch.hasNulls);
+    ASSERT_EQ(1, lists->numElements);
+    ASSERT_EQ(false, lists->hasNulls);
+    EXPECT_EQ(0, lists->startOffset[0]);
+    EXPECT_EQ(1, lists->startOffset[1]);
+
+    reader->skip(13);
+    reader->next(batch, 1, 0);
+    ASSERT_EQ(1, batch.numElements);
+    ASSERT_EQ(false, batch.hasNulls);
+    ASSERT_EQ(1, lists->numElements);
+    ASSERT_EQ(false, lists->hasNulls);
+    EXPECT_EQ(0, lists->startOffset[0]);
+    EXPECT_EQ(1, lists->startOffset[1]);
+
+    reader->skip(2031);
+    reader->next(batch, 2, 0);
+    ASSERT_EQ(2, batch.numElements);
+    ASSERT_EQ(false, batch.hasNulls);
+    ASSERT_EQ(2, lists->numElements);
+    ASSERT_EQ(true, lists->hasNulls);
+    EXPECT_EQ(0, lists->startOffset[0]);
+    EXPECT_EQ(19, lists->startOffset[1]);
+    EXPECT_EQ(19, lists->startOffset[2]);
+  }
+
   TEST(TestColumnReader, testUnimplementedTypes) {
     MockStripeStreams streams;
 
@@ -1210,10 +1636,6 @@ namespace orc {
     EXPECT_THROW(buildReader(*rowType, streams), NotImplementedYet);
 
     rowType = createStructType({createPrimitiveType(TIMESTAMP)}, {"col0"});
-    rowType->assignIds(0);
-    EXPECT_THROW(buildReader(*rowType, streams), NotImplementedYet);
-
-    rowType = createStructType({createPrimitiveType(LIST)}, {"col0"});
     rowType->assignIds(0);
     EXPECT_THROW(buildReader(*rowType, streams), NotImplementedYet);
 

@@ -82,6 +82,9 @@ namespace orc {
   void ColumnReader::next(ColumnVectorBatch& rowBatch,
                           unsigned long numValues,
                           char* incomingMask) {
+    if (numValues > rowBatch.capacity) {
+      rowBatch.resize(numValues);
+    }
     rowBatch.numElements = numValues;
     ByteRleDecoder* decoder = notNullDecoder.get();
     if (decoder) {
@@ -587,6 +590,101 @@ namespace orc {
     }
   }
 
+  class ListColumnReader: public ColumnReader {
+  private:
+    std::unique_ptr<ColumnReader> child;
+    std::unique_ptr<RleDecoder> rle;
+
+  public:
+    ListColumnReader(const Type& type, StripeStreams& stipe);
+    ~ListColumnReader();
+
+    unsigned long skip(unsigned long numValues) override;
+
+    void next(ColumnVectorBatch& rowBatch,
+              unsigned long numValues,
+              char *notNull) override;
+  };
+
+  ListColumnReader::ListColumnReader(const Type& type,
+                                     StripeStreams& stripe
+                                     ): ColumnReader(type, stripe) {
+    // count the number of selected sub-columns
+    const bool *selectedColumns = stripe.getSelectedColumns();
+    RleVersion vers = convertRleVersion(stripe.getEncoding(columnId).kind());
+    rle = createRleDecoder(stripe.getStream(columnId,
+                                            proto::Stream_Kind_LENGTH),
+                           false, vers);
+    const Type& childType = type.getSubtype(0);
+    if (selectedColumns[childType.getColumnId()]) {
+      child = buildReader(childType, stripe);
+    }
+  }
+
+  ListColumnReader::~ListColumnReader() {
+    // PASS
+  }
+
+  unsigned long ListColumnReader::skip(unsigned long numValues) {
+    numValues = ColumnReader::skip(numValues);
+    ColumnReader *childReader = child.get();
+    if (childReader) {
+      const unsigned long BUFFER_SIZE = 1024;
+      long buffer[BUFFER_SIZE];
+      unsigned long childrenElements = 0;
+      unsigned long lengthsRead = 0;
+      while (lengthsRead < numValues) {
+        unsigned long chunk = std::min(numValues - lengthsRead, BUFFER_SIZE);
+        rle->next(buffer, chunk, 0);
+        for(size_t i=0; i < chunk; ++i) {
+          childrenElements += static_cast<size_t>(buffer[i]);
+        }
+        lengthsRead += chunk;
+      }
+      childReader->skip(childrenElements);
+    } else {
+      rle->skip(numValues);
+    }
+    return numValues;
+  }
+
+  void ListColumnReader::next(ColumnVectorBatch& rowBatch,
+                              unsigned long numValues,
+                              char *notNull) {
+    ColumnReader::next(rowBatch, numValues, notNull);
+    ListVectorBatch &listBatch = dynamic_cast<ListVectorBatch&>(rowBatch);
+    long* offsets = listBatch.startOffset.data();
+    if (listBatch.hasNulls) {
+      notNull = listBatch.notNull.data();
+    } else {
+      notNull = 0;
+    }
+    rle->next(offsets, numValues, notNull);
+    unsigned long totalChildren = 0;
+    if (notNull) {
+      for(size_t i=0; i < numValues; ++i) {
+        if (notNull[i]) {
+          unsigned long tmp = static_cast<unsigned long>(offsets[i]);
+          offsets[i] = static_cast<long>(totalChildren);
+          totalChildren += tmp;
+        } else {
+          offsets[i] = static_cast<long>(totalChildren);
+        }
+      }
+    } else {
+      for(size_t i=0; i < numValues; ++i) {
+        unsigned long tmp = static_cast<unsigned long>(offsets[i]);
+        offsets[i] = static_cast<long>(totalChildren);
+        totalChildren += tmp;
+      }
+    }
+    offsets[numValues] = static_cast<long>(totalChildren);
+    ColumnReader *childReader = child.get();
+    if (childReader) {
+      childReader->next(*(listBatch.elements.get()), totalChildren, 0);
+    }
+  }
+
   /**
    * Create a reader for the given stripe.
    */
@@ -615,20 +713,24 @@ namespace orc {
         throw NotImplementedYet("buildReader unhandled string encoding");
       }
 
-    case STRUCT:
-      return std::unique_ptr<ColumnReader>(new StructColumnReader(type,
-                                                                  stripe));
-    case BYTE:
-      return std::unique_ptr<ColumnReader>(new ByteColumnReader(type, stripe));
-
     case BOOLEAN:
       return std::unique_ptr<ColumnReader>(new BooleanColumnReader(type, 
                                                                    stripe));
 
+    case BYTE:
+      return std::unique_ptr<ColumnReader>(new ByteColumnReader(type, stripe));
+
+    case LIST:
+      return std::unique_ptr<ColumnReader>(new ListColumnReader(type,
+                                                                stripe));
+
+    case STRUCT:
+      return std::unique_ptr<ColumnReader>(new StructColumnReader(type,
+                                                                  stripe));
+
     case FLOAT:
     case DOUBLE:
     case TIMESTAMP:
-    case LIST:
     case MAP:
     case UNION:
     case DECIMAL:

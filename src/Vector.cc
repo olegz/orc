@@ -35,6 +35,13 @@ namespace orc {
     // PASS
   }
 
+  void ColumnVectorBatch::resize(unsigned long cap) {
+    if (capacity < cap) {
+      capacity = cap;
+      notNull.resize(cap);
+    }
+  }
+
   LongVectorBatch::LongVectorBatch(unsigned long capacity
                                    ): ColumnVectorBatch(capacity),
                                       data(capacity) {
@@ -49,6 +56,13 @@ namespace orc {
     std::ostringstream buffer;
     buffer << "Long vector <" << numElements << " of " << capacity << ">";
     return buffer.str();
+  }
+
+  void LongVectorBatch::resize(unsigned long cap) {
+    if (capacity < cap) {
+      ColumnVectorBatch::resize(cap);
+      data.resize(cap);
+    }
   }
 
   DoubleVectorBatch::DoubleVectorBatch(unsigned long capacity
@@ -67,6 +81,13 @@ namespace orc {
     return buffer.str();
   }
 
+  void DoubleVectorBatch::resize(unsigned long cap) {
+    if (capacity < cap) {
+      ColumnVectorBatch::resize(cap);
+      data.resize(cap);
+    }
+  }
+
   StringVectorBatch::StringVectorBatch(unsigned long capacity
                                        ): ColumnVectorBatch(capacity),
                                           data(capacity),
@@ -82,6 +103,14 @@ namespace orc {
     std::ostringstream buffer;
     buffer << "Byte vector <" << numElements << " of " << capacity << ">";
     return buffer.str();
+  }
+
+  void StringVectorBatch::resize(unsigned long cap) {
+    if (capacity < cap) {
+      ColumnVectorBatch::resize(cap);
+      data.resize(cap);
+      length.resize(cap);
+    }
   }
 
   StructVectorBatch::StructVectorBatch(unsigned long capacity
@@ -102,5 +131,34 @@ namespace orc {
     }
     buffer << ">";
     return buffer.str();
+  }
+
+
+  void StructVectorBatch::resize(unsigned long cap) {
+    ColumnVectorBatch::resize(cap);
+  }
+
+  ListVectorBatch::ListVectorBatch(unsigned long cap
+                                   ): ColumnVectorBatch(cap),
+                                      startOffset(cap+1) {
+    // PASS
+  }
+
+  ListVectorBatch::~ListVectorBatch() {
+    // PASS
+  }
+
+  std::string ListVectorBatch::toString() const {
+    std::ostringstream buffer;
+    buffer << "List vector <" << elements->toString() << " with "
+           << numElements << " of " << capacity << ">";
+    return buffer.str();
+  }
+
+  void ListVectorBatch::resize(unsigned long cap) {
+    if (capacity < cap) {
+      ColumnVectorBatch::resize(cap);
+      startOffset.resize(cap + 1);
+    }
   }
 }
