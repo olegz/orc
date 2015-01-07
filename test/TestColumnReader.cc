@@ -2170,10 +2170,6 @@ namespace orc {
     rowType = createStructType({createPrimitiveType(DECIMAL)}, {"col0"});
     rowType->assignIds(0);
     EXPECT_THROW(buildReader(*rowType, streams), NotImplementedYet);
-
-    rowType = createStructType({createPrimitiveType(DATE)}, {"col0"});
-    rowType->assignIds(0);
-    EXPECT_THROW(buildReader(*rowType, streams), NotImplementedYet);
   }
 
 }  // namespace orc

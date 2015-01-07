@@ -805,9 +805,10 @@ namespace orc {
   std::unique_ptr<ColumnReader> buildReader(const Type& type,
                                             StripeStreams& stripe) {
     switch (type.getKind()) {
-    case SHORT:
+    case DATE:
     case INT:
     case LONG:
+    case SHORT:
       return std::unique_ptr<ColumnReader>(new IntegerColumnReader(type,
                                                                    stripe));
     case BINARY:
@@ -849,7 +850,6 @@ namespace orc {
     case TIMESTAMP:
     case UNION:
     case DECIMAL:
-    case DATE:
     default:
       throw NotImplementedYet("buildReader unhandled type");
     }
