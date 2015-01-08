@@ -54,7 +54,7 @@ void checkResults(const std::vector<long> &e, const std::vector<long> &a,
   }
 }
 
-TEST(RLEv2, simpleDelta1) {
+TEST(RLEv2, basicDelta0) {
   const size_t count = 20;
   std::vector<long> values;
   for (size_t i = 0; i < count; ++i) {
@@ -71,7 +71,7 @@ TEST(RLEv2, simpleDelta1) {
   checkResults(values, decodeRLEv2(bytes, l, count, count), count);
 };
 
-TEST(RLEv2, simpleDelta2) {
+TEST(RLEv2, basicDelta1) {
   std::vector<long> values(5);
   values[0] = -500;
   values[1] = -400;
@@ -81,6 +81,63 @@ TEST(RLEv2, simpleDelta2) {
 
   const char bce = 0xce, be7 = 0xe7, bc8 = 0xc8;
   const char bytes[] = {bce,0x04,be7,0x07,bc8,0x01,0x32,0x19,0x0f};
+  unsigned long l = sizeof(bytes) / sizeof(char);
+  // Read 1 at a time, then 3 at a time, etc.
+  checkResults(values, decodeRLEv2(bytes, l, 1, values.size()), 1);
+  checkResults(values, decodeRLEv2(bytes, l, 3, values.size()), 3);
+  checkResults(values, decodeRLEv2(bytes, l, 7, values.size()), 7);
+  checkResults(values, decodeRLEv2(bytes, l, values.size(), values.size()),
+               values.size());
+};
+
+TEST(RLEv2, basicDelta2) {
+  std::vector<long> values(5);
+  values[0] = -500;
+  values[1] = -600;
+  values[2] = -650;
+  values[3] = -675;
+  values[4] = -710;
+
+  const char bce = 0xce, be7 = 0xe7, bc7 = 0xc7;
+  const char bytes[] = {bce,0x04,be7,0x07,bc7,0x01,0x32,0x19,0x23};
+  unsigned long l = sizeof(bytes) / sizeof(char);
+  // Read 1 at a time, then 3 at a time, etc.
+  checkResults(values, decodeRLEv2(bytes, l, 1, values.size()), 1);
+  checkResults(values, decodeRLEv2(bytes, l, 3, values.size()), 3);
+  checkResults(values, decodeRLEv2(bytes, l, 7, values.size()), 7);
+  checkResults(values, decodeRLEv2(bytes, l, values.size(), values.size()),
+               values.size());
+};
+
+TEST(RLEv2, basicDelta3) {
+  std::vector<long> values(5);
+  values[0] = 500;
+  values[1] = 400;
+  values[2] = 350;
+  values[3] = 325;
+  values[4] = 310;
+
+  const char bce = 0xce, be8 = 0xe8, bc7 = 0xc7;
+  const char bytes[] = {bce,0x04,be8,0x07,bc7,0x01,0x32,0x19,0x0f};
+  unsigned long l = sizeof(bytes) / sizeof(char);
+  // Read 1 at a time, then 3 at a time, etc.
+  checkResults(values, decodeRLEv2(bytes, l, 1, values.size()), 1);
+  checkResults(values, decodeRLEv2(bytes, l, 3, values.size()), 3);
+  checkResults(values, decodeRLEv2(bytes, l, 7, values.size()), 7);
+  checkResults(values, decodeRLEv2(bytes, l, values.size(), values.size()),
+               values.size());
+};
+
+TEST(RLEv2, basicDelta4) {
+  std::vector<long> values(5);
+  values[0] = 500;
+  values[1] = 600;
+  values[2] = 650;
+  values[3] = 675;
+  values[4] = 710;
+
+  const char bce = 0xce, be8 = 0xe8, bc8 = 0xc8;
+  const char bytes[] = {bce,0x04,be8,0x07,bc8,0x01,0x32,0x19,0x23};
   unsigned long l = sizeof(bytes) / sizeof(char);
   // Read 1 at a time, then 3 at a time, etc.
   checkResults(values, decodeRLEv2(bytes, l, 1, values.size()), 1);
