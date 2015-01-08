@@ -49,7 +49,7 @@ public:
 
 private:
 
-  signed char readByte();
+  unsigned char readByte();
   unsigned long readLongBE();
   unsigned long readVslong();
   unsigned long readVulong();
@@ -68,8 +68,8 @@ private:
   const std::unique_ptr<SeekableInputStream> inputStream;
   const bool isSigned;
 
-  signed char firstByte;
-  signed char prevByte;
+  unsigned char firstByte;
+  unsigned char prevByte;
   unsigned long runLength;
   unsigned long runRead;
   const char *bufferStart;

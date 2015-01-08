@@ -63,7 +63,7 @@ inline int decodeBitWidth(int n) {
 void RleDecoderV2::readLongs(long *data, unsigned long offset, unsigned len) {
   // TODO: unroll to improve performance
   for(unsigned long i = offset; i < (offset + len); i++) {
-      long result = 0;
+      unsigned long result = 0;
       int bitsLeftToRead = bitSize;
       while (bitsLeftToRead > bitsLeft) {
         result <<= bitsLeft;
@@ -79,11 +79,11 @@ void RleDecoderV2::readLongs(long *data, unsigned long offset, unsigned len) {
         bitsLeft -= bitsLeftToRead;
         result |= (curByte >> bitsLeft) & ((1 << bitsLeftToRead) - 1);
       }
-      data[i] = result;
+      data[i] = static_cast<long>(result);
   }
 }
 
-signed char RleDecoderV2::readByte() {
+unsigned char RleDecoderV2::readByte() {
   if (bufferStart == bufferEnd) {
     int bufferLength;
     const void* bufferPointer;
@@ -100,7 +100,7 @@ signed char RleDecoderV2::readByte() {
 }
 
 unsigned long RleDecoderV2::readLongBE() {
-  long ret = 0, val;
+  unsigned long ret = 0, val;
   int n = byteSize;
   while (n > 0) {
     n--;
