@@ -41,10 +41,10 @@ enable_testing()
 
 find_package (Protobuf REQUIRED)
 
-#if(NOT MSVC)
-#  # Visual studio enables C++11 support by default.
-#  set (CXX11_FLAGS "-std=c++11")
-#endif(NOT MSVC)
+if(NOT MSVC)
+  # Visual studio enables C++11 support by default.
+  set (CXX11_FLAGS "-std=c++11")
+endif(NOT MSVC)
 
 if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
   set (COVERAGE_FLAGS "--coverage -g -O0")

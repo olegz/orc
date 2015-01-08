@@ -151,7 +151,7 @@ namespace orc {
     std::string toString() const;
     void resize(unsigned long capacity);
 
-    std::vector<std::unique_ptr<ColumnVectorBatch> > fields;
+    std::vector<ColumnVectorBatch*> fields;
   };
 
   struct ListVectorBatch: public ColumnVectorBatch {
@@ -167,7 +167,7 @@ namespace orc {
     std::vector<long> offsets;
 
     // the concatenated elements
-    std::unique_ptr<ColumnVectorBatch> elements;
+    std::auto_ptr<ColumnVectorBatch> elements;
   };
 
   struct MapVectorBatch: public ColumnVectorBatch {
@@ -183,9 +183,9 @@ namespace orc {
     std::vector<long> offsets;
 
     // the concatenated keys
-    std::unique_ptr<ColumnVectorBatch> keys;
+    std::auto_ptr<ColumnVectorBatch> keys;
     // the concatenated elements
-    std::unique_ptr<ColumnVectorBatch> elements;
+    std::auto_ptr<ColumnVectorBatch> elements;
   };
 
   struct Decimal {

@@ -123,19 +123,20 @@ namespace orc {
 
   StructVectorBatch::StructVectorBatch(unsigned long capacity
                                        ): ColumnVectorBatch(capacity) {
-    // PASS
+    this->fields.reserve(capacity);
   }
 
   StructVectorBatch::~StructVectorBatch() {
-    // PASS
+    for (int i=0; i<this->fields.size(); i++)
+        delete this->fields[i];
   }
 
   std::string StructVectorBatch::toString() const {
     std::ostringstream buffer;
     buffer << "Struct vector <" << numElements << " of " << capacity 
            << "; ";
-    for(auto ptr=fields.cbegin(); ptr != fields.cend(); ++ptr) {
-      buffer << ptr->get()->toString() << "; ";
+    for (std::vector<ColumnVectorBatch*>::iterator ptr=fields.begin(); ptr != fields.end(); ++ptr) {
+        buffer << ptr->toString() << "; ";
     }
     buffer << ">";
     return buffer.str();

@@ -172,7 +172,7 @@ namespace orc {
     void checkOrcVersion();
     void selectTypeParent(int columnId);
     void selectTypeChildren(int columnId);
-    std::unique_ptr<ColumnVectorBatch> createRowBatch(const Type& type, 
+    std::auto_ptr<ColumnVectorBatch> createRowBatch(const Type& type,
                                                       unsigned long capacity
                                                       ) const;
 
@@ -185,43 +185,43 @@ namespace orc {
     ReaderImpl(std::unique_ptr<InputStream> stream, 
                const ReaderOptions& options);
 
-    CompressionKind getCompression() const override;
+    CompressionKind getCompression() const;
 
-    unsigned long getNumberOfRows() const override;
+    unsigned long getNumberOfRows() const;
 
-    unsigned long getRowIndexStride() const override;
+    unsigned long getRowIndexStride() const;
 
-    const std::string& getStreamName() const override;
+    const std::string& getStreamName() const;
     
-    std::list<std::string> getMetadataKeys() const override;
+    std::list<std::string> getMetadataKeys() const;
 
-    std::string getMetadataValue(const std::string& key) const override;
+    std::string getMetadataValue(const std::string& key) const;
 
-    bool hasMetadataValue(const std::string& key) const override;
+    bool hasMetadataValue(const std::string& key) const;
 
-    unsigned long getCompressionSize() const override;
+    unsigned long getCompressionSize() const;
 
-    unsigned long getNumberOfStripes() const override;
+    unsigned long getNumberOfStripes() const;
 
     std::unique_ptr<StripeInformation> getStripe(unsigned long
-                                                 ) const override;
+                                                 ) const;
 
-    unsigned long getContentLength() const override;
+    unsigned long getContentLength() const;
 
-    std::list<ColumnStatistics*> getStatistics() const override;
+    std::list<ColumnStatistics*> getStatistics() const;
 
-    const Type& getType() const override;
+    const Type& getType() const;
 
-    const bool* getSelectedColumns() const override;
+    const bool* getSelectedColumns() const;
 
-    std::unique_ptr<ColumnVectorBatch> createRowBatch(unsigned long size
-                                                      ) const override;
+    std::auto_ptr<ColumnVectorBatch> createRowBatch(unsigned long size
+                                                      ) const;
 
-    bool next(ColumnVectorBatch& data) override;
+    bool next(ColumnVectorBatch& data);
 
-    unsigned long getRowNumber() const override;
+    unsigned long getRowNumber() const;
 
-    void seekToRow(unsigned long rowNumber) override;
+    void seekToRow(unsigned long rowNumber);
   };
 
   InputStream::~InputStream() {
@@ -551,7 +551,7 @@ namespace orc {
     return rowsToRead != 0;
   }
 
-  std::unique_ptr<ColumnVectorBatch> ReaderImpl::createRowBatch
+  std::auto_ptr<ColumnVectorBatch> ReaderImpl::createRowBatch
        (const Type& type, unsigned long capacity) const {
     switch (type.getKind()) {
     case BOOLEAN:
@@ -560,36 +560,33 @@ namespace orc {
     case INT:
     case LONG:
     case TIMESTAMP:
-    case DATE:
-      return std::unique_ptr<ColumnVectorBatch>(new LongVectorBatch(capacity));
-
+    case DATE: {
+        LongVectorBatch* batch = new LongVectorBatch(capacity);
+        return std::auto_ptr<ColumnVectorBatch>( dynamic_cast<ColumnVectorBatch*>(batch));
+    }
     case FLOAT:
-    case DOUBLE:
-      return std::unique_ptr<ColumnVectorBatch>
-        (new DoubleVectorBatch(capacity));
-
+    case DOUBLE: {
+        DoubleVectorBatch* batch = new DoubleVectorBatch(capacity);
+        return std::auto_ptr<ColumnVectorBatch>( dynamic_cast<ColumnVectorBatch*>(batch));
+    }
     case STRING:
     case BINARY:
     case CHAR:
-    case VARCHAR:
-      return std::unique_ptr<StringVectorBatch>
-        (new StringVectorBatch(capacity));
-
+    case VARCHAR: {
+        StringVectorBatch* batch = new StringVectorBatch(capacity);
+        return std::auto_ptr<ColumnVectorBatch>( dynamic_cast<ColumnVectorBatch*>(batch));
+    }
     case STRUCT: {
-      std::unique_ptr<ColumnVectorBatch> result =
-        std::unique_ptr<ColumnVectorBatch>(new StructVectorBatch(capacity));
+        StructVectorBatch* batch = new StructVectorBatch(capacity);
 
-      StructVectorBatch* structPtr = 
-        dynamic_cast<StructVectorBatch*>(result.get());
-
-      bool* selected = selectedColumns.get();
-      for(unsigned int i=0; i < type.getSubtypeCount(); ++i) {
-        const Type& child = type.getSubtype(i);
-        if (selected[child.getColumnId()]) {
-          structPtr->fields.push_back(createRowBatch(child, capacity));
+        bool* selected = selectedColumns.get();
+        for(unsigned int i=0; i < type.getSubtypeCount(); ++i) {
+            const Type& child = type.getSubtype(i);
+            if (selected[child.getColumnId()]) {
+                batch->fields.push_back((createRowBatch(child, capacity)).get());
+            }
         }
-      }
-      return result;
+        return std::auto_ptr<ColumnVectorBatch>( dynamic_cast<ColumnVectorBatch*>(batch));
     }
     case LIST:
     case MAP:
@@ -601,13 +598,13 @@ namespace orc {
     throw NotImplementedYet("not supported yet");
   }
 
-  std::unique_ptr<ColumnVectorBatch> ReaderImpl::createRowBatch
+  std::auto_ptr<ColumnVectorBatch> ReaderImpl::createRowBatch
        (unsigned long capacity) const {
     return createRowBatch(*(schema.get()), capacity);
   }
 
-  std::unique_ptr<Reader> createReader(std::unique_ptr<InputStream> stream, 
+  std::auto_ptr<Reader> createReader(std::unique_ptr<InputStream> stream,
                                        const ReaderOptions& options) {
-    return std::unique_ptr<Reader>(new ReaderImpl(std::move(stream), options));
+    return std::auto_ptr<Reader>(new ReaderImpl(std::move(stream), options));
   }
 }

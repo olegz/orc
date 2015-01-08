@@ -73,7 +73,7 @@ namespace orc {
     close(file);
   }
 
-  std::unique_ptr<InputStream> readLocalFile(const std::string& path) {
-    return std::unique_ptr<InputStream>(new FileInputStream(path));
+  std::auto_ptr<InputStream> readLocalFile(const std::string& path) {
+    return std::auto_ptr<InputStream>(new FileInputStream(path));
   }
 }

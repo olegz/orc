@@ -450,7 +450,7 @@ namespace orc {
      * @param size the number of rows to read
      * @return a new ColumnVectorBatch to read into
      */
-    virtual std::unique_ptr<ColumnVectorBatch> createRowBatch
+    virtual std::auto_ptr<ColumnVectorBatch> createRowBatch
       (unsigned long size) const = 0;
 
     /**

@@ -32,9 +32,9 @@ int main(int argc, char* argv[]) {
   std::cout << std::nounitbuf;
   orc::ReaderOptions opts;
   // opts.include({1});
-  std::unique_ptr<orc::Reader> reader =
+  std::auto_ptr<orc::Reader> reader =
     orc::createReader(orc::readLocalFile(std::string(argv[1])), opts);
-  std::unique_ptr<orc::ColumnVectorBatch> batch = reader->createRowBatch(1024);
+  std::auto_ptr<orc::ColumnVectorBatch> batch = reader->createRowBatch(1024);
   orc::StructColumnPrinter printer(*batch);
 
   while (reader->next(*batch)) {
