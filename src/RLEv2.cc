@@ -67,9 +67,9 @@ void RleDecoderV2::readLongs(long *data, unsigned long offset, unsigned len) {
       int bitsLeftToRead = bitSize;
       while (bitsLeftToRead > bitsLeft) {
         result <<= bitsLeft;
-        result |= current & ((1 << bitsLeft) - 1);
+        result |= curByte & ((1 << bitsLeft) - 1);
         bitsLeftToRead -= bitsLeft;
-        current = readByte();
+        curByte = readByte();
         bitsLeft = 8;
       }
 
@@ -77,7 +77,7 @@ void RleDecoderV2::readLongs(long *data, unsigned long offset, unsigned len) {
       if (bitsLeftToRead > 0) {
         result <<= bitsLeftToRead;
         bitsLeft -= bitsLeftToRead;
-        result |= (current >> bitsLeft) & ((1 << bitsLeftToRead) - 1);
+        result |= (curByte >> bitsLeft) & ((1 << bitsLeftToRead) - 1);
       }
       data[i] = result;
   }
@@ -142,7 +142,7 @@ RleDecoderV2::RleDecoderV2(std::unique_ptr<SeekableInputStream> input,
     prevValue(0),
     bitSize(0),
     bitsLeft(0),
-    current(0) {
+    curByte(0) {
 }
 
 void RleDecoderV2::seek(PositionProvider& location) {
@@ -226,7 +226,7 @@ unsigned long RleDecoderV2::nextDirect(long* const data,
     unsigned char fbo = (((unsigned char) firstByte) >> 1) & 0x1f;
     bitSize = decodeBitWidth(fbo);
     bitsLeft = 0;
-    current = 0;
+    curByte = 0;
 
     // extract the run length
     runLength = (firstByte & 0x01) << 8;

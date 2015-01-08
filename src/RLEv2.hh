@@ -80,7 +80,7 @@ private:
   long prevValue; // Used by DELTA
   int bitSize; // Used by DIRECT and DELTA
   int bitsLeft; // Used by DIRECT
-  int current; // Used by DIRECT
+  int curByte; // Used by DIRECT
 };
 }  // namespace orc
 
