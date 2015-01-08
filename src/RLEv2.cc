@@ -60,7 +60,7 @@ inline int decodeBitWidth(int n) {
   }
 }
 
-void RleDecoderV2::readInts(long *data, unsigned long offset, unsigned len) {
+void RleDecoderV2::readLongs(long *data, unsigned long offset, unsigned len) {
   // TODO: unroll to improve performance
   for(unsigned long i = offset; i < (offset + len); i++) {
       long result = 0;
@@ -238,7 +238,7 @@ unsigned long RleDecoderV2::nextDirect(long* const data,
 
   unsigned long nRead = std::min(runLength - runRead, numValues);
 
-  readInts(data, offset, nRead);
+  readLongs(data, offset, nRead);
   if (isSigned) { 
     // write the unpacked values and zigzag decode to result buffer
     for(unsigned long pos = offset; pos < offset + nRead; ++pos) {
@@ -305,7 +305,7 @@ unsigned long RleDecoderV2::nextDelta(long* const data,
     // write the unpacked values, add it to previous value and store final
     // value to result buffer. if the delta base value is negative then it
     // is a decreasing sequence else an increasing sequence
-    readInts(data, offset, remaining);
+    readLongs(data, offset, remaining);
     if (deltaBase < 0) {
       for (unsigned long pos = offset; pos < offset + remaining; ++pos) {
         prevValue = data[pos] = prevValue - data[pos];

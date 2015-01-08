@@ -53,7 +53,7 @@ private:
   unsigned long readLongBE();
   unsigned long readVslong();
   unsigned long readVulong();
-  void readInts(long *data, unsigned long offset, unsigned len);
+  void readLongs(long *data, unsigned long offset, unsigned len);
 
   unsigned long nextShortRepeats(long* data, unsigned long offset,
                                  unsigned long numValues,
