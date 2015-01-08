@@ -26,7 +26,7 @@
 
 namespace orc {
 
-std::vector<long> decodeRLEv2(const char *bytes,
+std::vector<long> decodeRLEv2(const unsigned char *bytes,
                               unsigned long l,
                               size_t n,
                               size_t count) {
@@ -61,8 +61,7 @@ TEST(RLEv2, basicDelta0) {
     values.push_back(i);
   }
 
-  const char bc0 = 0xc0;
-  const char bytes[] = {bc0,0x13,0x00,0x02};
+  const unsigned char bytes[] = {0xc0,0x13,0x00,0x02};
   unsigned long l = sizeof(bytes) / sizeof(char);
   // Read 1 at a time, then 3 at a time, etc.
   checkResults(values, decodeRLEv2(bytes, l, 1, count), 1);
@@ -79,8 +78,7 @@ TEST(RLEv2, basicDelta1) {
   values[3] = -325;
   values[4] = -310;
 
-  const char bce = 0xce, be7 = 0xe7, bc8 = 0xc8;
-  const char bytes[] = {bce,0x04,be7,0x07,bc8,0x01,0x32,0x19,0x0f};
+  const unsigned char bytes[] = {0xce,0x04,0xe7,0x07,0xc8,0x01,0x32,0x19,0x0f};
   unsigned long l = sizeof(bytes) / sizeof(char);
   // Read 1 at a time, then 3 at a time, etc.
   checkResults(values, decodeRLEv2(bytes, l, 1, values.size()), 1);
@@ -98,8 +96,7 @@ TEST(RLEv2, basicDelta2) {
   values[3] = -675;
   values[4] = -710;
 
-  const char bce = 0xce, be7 = 0xe7, bc7 = 0xc7;
-  const char bytes[] = {bce,0x04,be7,0x07,bc7,0x01,0x32,0x19,0x23};
+  const unsigned char bytes[] = {0xce,0x04,0xe7,0x07,0xc7,0x01,0x32,0x19,0x23};
   unsigned long l = sizeof(bytes) / sizeof(char);
   // Read 1 at a time, then 3 at a time, etc.
   checkResults(values, decodeRLEv2(bytes, l, 1, values.size()), 1);
@@ -117,8 +114,7 @@ TEST(RLEv2, basicDelta3) {
   values[3] = 325;
   values[4] = 310;
 
-  const char bce = 0xce, be8 = 0xe8, bc7 = 0xc7;
-  const char bytes[] = {bce,0x04,be8,0x07,bc7,0x01,0x32,0x19,0x0f};
+  const unsigned char bytes[] = {0xce,0x04,0xe8,0x07,0xc7,0x01,0x32,0x19,0x0f};
   unsigned long l = sizeof(bytes) / sizeof(char);
   // Read 1 at a time, then 3 at a time, etc.
   checkResults(values, decodeRLEv2(bytes, l, 1, values.size()), 1);
@@ -136,8 +132,7 @@ TEST(RLEv2, basicDelta4) {
   values[3] = 675;
   values[4] = 710;
 
-  const char bce = 0xce, be8 = 0xe8, bc8 = 0xc8;
-  const char bytes[] = {bce,0x04,be8,0x07,bc8,0x01,0x32,0x19,0x23};
+  const unsigned char bytes[] = {0xce,0x04,0xe8,0x07,0xc8,0x01,0x32,0x19,0x23};
   unsigned long l = sizeof(bytes) / sizeof(char);
   // Read 1 at a time, then 3 at a time, etc.
   checkResults(values, decodeRLEv2(bytes, l, 1, values.size()), 1);
@@ -158,8 +153,9 @@ TEST(RLEv2, shortRepeats) {
     }
   }
 
-  const char bytes[] = {0x04,0x00,0x04,0x02,0x04,0x04,0x04,0x06,0x04,0x08,
-                        0x04,0x0a,0x04,0x0c,0x04,0x0e,0x04,0x10,0x04,0x12};
+  const unsigned char bytes[] = {0x04,0x00,0x04,0x02,0x04,0x04,0x04,
+                                 0x06,0x04,0x08,0x04,0x0a,0x04,0x0c,
+                                 0x04,0x0e,0x04,0x10,0x04,0x12};
   unsigned long l = sizeof(bytes) / sizeof(char);
   // Read 1 at a time, then 3 at a time, etc.
   checkResults(values, decodeRLEv2(bytes, l, 1, count), 1);
@@ -179,10 +175,9 @@ TEST(RLEv2, multiByteShortRepeats) {
     }
   }
 
-  const char b80 = 0x80;
-  const char bytes[] = {0x3c,b80,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x3c,b80,
-                        0x00,0x00,0x00,0x00,0x00,0x00,0x02,0x3c,b80,0x00,0x00,
-                        0x00,0x00,0x00,0x00,0x04};
+  const unsigned char bytes[] = {0x3c,0x80,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+                                 0x3c,0x80,0x00,0x00,0x00,0x00,0x00,0x00,0x02,
+                                 0x3c,0x80,0x00,0x00,0x00,0x00,0x00,0x00,0x04};
   unsigned long l = sizeof(bytes) / sizeof(char);
   // Read 1 at a time, then 3 at a time, etc.
   checkResults(values, decodeRLEv2(bytes, l, 1, count), 1);
@@ -214,7 +209,7 @@ TEST(RLEv2, bitSize2Direct) {
       values.push_back(i%2);
   }
 
-  const char bytes[] = {0x42, 0x13, 0x22, 0x22, 0x22, 0x22, 0x22};
+  const unsigned char bytes[] = {0x42, 0x13, 0x22, 0x22, 0x22, 0x22, 0x22};
   unsigned long l = sizeof(bytes) / sizeof(char);
   // Read 1 at a time, then 3 at a time, etc.
   checkResults(values, decodeRLEv2(bytes, l, 1, count), 1);
@@ -231,7 +226,8 @@ TEST(RLEv2, bitSize4Direct) {
       values.push_back((i%2)*2);
   }
 
-  const char bytes[] = {0x46,0x13,0x04,0x04,0x04,0x04,0x04,0x04,0x04,0x04,0x04,0x04 };
+  const unsigned char bytes[] = {0x46,0x13,0x04,0x04,0x04,0x04,
+                                 0x04,0x04,0x04,0x04,0x04,0x04};
   unsigned long l = sizeof(bytes) / sizeof(char);
 
   // Read 1 at a time, then 3 at a time, etc.
@@ -252,9 +248,9 @@ TEST(RLEv2, multipleRunsDirect) {
       values.push_back((i%2)*2);
   }
 
-  const char bytes[] = {0x42,0x13,0x22,0x22,0x22,0x22,0x22,
-                        0x46,0x13,0x04,0x04,0x04,0x04,0x04,
-                        0x04,0x04,0x04,0x04,0x04};
+  const unsigned char bytes[] = {0x42,0x13,0x22,0x22,0x22,0x22,0x22,
+                                 0x46,0x13,0x04,0x04,0x04,0x04,0x04,
+                                 0x04,0x04,0x04,0x04,0x04};
   unsigned long l = sizeof(bytes) / sizeof(char);
 
   // Read 1 at a time, then 3 at a time, etc.
@@ -283,6 +279,26 @@ TEST(RLEv2, largeNegativesDirect) {
   EXPECT_EQ(1, data[2]) << "Output wrong at " << 2;
   EXPECT_EQ(1, data[3]) << "Output wrong at " << 3;
   EXPECT_EQ(-5535739865598783616, data[4]) << "Output wrong at " << 4;
+};
+
+TEST(RLEv2, overflowDirect) {
+  std::vector<long> values(4);
+  values[0] = 4513343538618202719l;
+  values[1] = 4513343538618202711l;
+  values[2] = 2911390882471569739l;
+  values[3] = -9181829309989854913l;
+
+  const unsigned char bytes[] = {0x7e,0x03,0x7d,0x45,0x3c,0x12,0x41,0x48,0xf4,
+                                 0xbe,0x7d,0x45,0x3c,0x12,0x41,0x48,0xf4,0xae,
+                                 0x50,0xce,0xad,0x2a,0x30,0x0e,0xd2,0x96,0xfe,
+                                 0xd8,0xd2,0x38,0x54,0x6e,0x3d,0x81};
+  unsigned long l = sizeof(bytes) / sizeof(char);
+  // Read 1 at a time, then 3 at a time, etc.
+  checkResults(values, decodeRLEv2(bytes, l, 1, values.size()), 1);
+  checkResults(values, decodeRLEv2(bytes, l, 3, values.size()), 3);
+  checkResults(values, decodeRLEv2(bytes, l, 7, values.size()), 7);
+  checkResults(values, decodeRLEv2(bytes, l, values.size(), values.size()),
+               values.size());
 };
 
 TEST(RLEv1, simpleTest) {
