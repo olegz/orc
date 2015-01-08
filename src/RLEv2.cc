@@ -99,7 +99,7 @@ signed char RleDecoderV2::readByte() {
   return prevByte;
 }
 
-long RleDecoderV2::readLongBE() {
+unsigned long RleDecoderV2::readLongBE() {
   long ret = 0, val;
   int n = byteSize;
   while (n > 0) {
@@ -107,6 +107,22 @@ long RleDecoderV2::readLongBE() {
     val = readByte();
     ret |= (val << (n * 8));
   }
+  return ret;
+}
+
+unsigned long RleDecoderV2::readVslong() {
+  unsigned long ret = readVulong();
+  return (ret >> 1) ^ -(ret & 1);
+}
+
+unsigned long RleDecoderV2::readVulong() {
+  unsigned long ret = 0, b;
+  int offset = 0;
+  do {
+    b = readByte();
+    ret |= (0x7f & b) << offset;
+    offset += 7;
+  } while (b >= 0x80);
   return ret;
 }
 
@@ -120,8 +136,10 @@ RleDecoderV2::RleDecoderV2(std::unique_ptr<SeekableInputStream> input,
     runRead(0),
     bufferStart(nullptr),
     bufferEnd(bufferStart),
+    deltaBase(0),
     byteSize(0),
-    value(0),
+    firstValue(0),
+    prevValue(0),
     bitSize(0),
     bitsLeft(0),
     current(0) {
@@ -160,7 +178,7 @@ void RleDecoderV2::next(long* const data,
       throw ParseError("PATCHED_BASE encoding is not yet supported");
       break;
     case DELTA:
-      throw ParseError("DELTA encoding is not yet supported");
+      nRead += nextDelta(data, offset, length, notNull);
       break;
     default:
       throw ParseError("unknown encoding");
@@ -169,8 +187,8 @@ void RleDecoderV2::next(long* const data,
 }
 
 unsigned long RleDecoderV2::nextShortRepeats(long* const data,
-                                             const unsigned long offset,
-                                             const unsigned long numValues,
+                                             unsigned long offset,
+                                             unsigned long numValues,
                                              const char* const notNull) {
   if (runRead == runLength) {
     // extract the number of fixed bytes
@@ -183,16 +201,16 @@ unsigned long RleDecoderV2::nextShortRepeats(long* const data,
     runRead = 0;
 
     // read the repeated value which is store using fixed bytes
-    value = readLongBE();
+    firstValue = readLongBE();
 
     if (isSigned) {
-      value = unZigZag(value);
+      firstValue = unZigZag(firstValue);
     }
   }
 
   unsigned long nRead = std::min(runLength - runRead, numValues);
   for(unsigned long pos = offset; pos < offset + nRead; ++pos) {
-    data[pos] = value;
+    data[pos] = firstValue;
   }
 
   runRead += nRead;
@@ -200,8 +218,8 @@ unsigned long RleDecoderV2::nextShortRepeats(long* const data,
 }
 
 unsigned long RleDecoderV2::nextDirect(long* const data,
-                                       const unsigned long offset,
-                                       const unsigned long numValues,
+                                       unsigned long offset,
+                                       unsigned long numValues,
                                        const char* const notNull) {
   if (runRead == runLength) {
     // extract the number of fixed bits
@@ -225,6 +243,77 @@ unsigned long RleDecoderV2::nextDirect(long* const data,
     // write the unpacked values and zigzag decode to result buffer
     for(unsigned long pos = offset; pos < offset + nRead; ++pos) {
       data[pos] = unZigZag(data[pos]);
+    }
+  }
+
+  runRead += nRead;
+  return nRead;
+}
+
+unsigned long RleDecoderV2::nextDelta(long* const data,
+                                      unsigned long offset,
+                                      unsigned long numValues,
+                                      const char* const notNull) {
+
+  if (runRead == runLength) {
+    // extract the number of fixed bits
+    unsigned char fbo = (((unsigned char) firstByte) >> 1) & 0x1f;
+    if (fbo != 0) {
+      bitSize = decodeBitWidth(fbo);
+    }
+
+    // extract the run length
+    runLength = (firstByte & 0x01) << 8;
+    runLength |= readByte();
+    ++runLength; // account for first value
+    runRead = deltaBase = 0;
+
+    // read the first value stored as vint
+    if (isSigned) {
+      firstValue = static_cast<long>(readVslong());
+    } else {
+      firstValue = static_cast<long>(readVulong());
+    }
+
+    data[offset++] = prevValue = firstValue;
+  }
+
+  unsigned long nRead = std::min(runLength - runRead, numValues);
+  unsigned long remaining = runRead == 0 ? nRead - 1 : nRead;
+
+  if (remaining == 0) {
+    ; // already read the first value
+  } else if (bitSize == 0) {
+    if (runRead < 2) {
+      // read the fixed delta value stored as vint (deltas can be negative even
+      // if all number are positive)
+      deltaBase = static_cast<long>(readVslong());
+    }
+
+    // add fixed deltas to adjacent values
+    for (unsigned long pos = offset; pos < offset + remaining; ++pos) {
+      prevValue = data[pos] = prevValue + deltaBase;
+    }
+  } else {
+    if (runRead < 2) {
+      deltaBase = static_cast<long>(readVslong());
+      // add delta base and first value
+      prevValue = data[offset++] = firstValue + deltaBase;
+      --remaining;
+    }
+
+    // write the unpacked values, add it to previous value and store final
+    // value to result buffer. if the delta base value is negative then it
+    // is a decreasing sequence else an increasing sequence
+    readInts(data, offset, remaining);
+    if (deltaBase < 0) {
+      for (unsigned long pos = offset; pos < offset + remaining; ++pos) {
+        prevValue = data[pos] = prevValue - data[pos];
+      }
+    } else {
+      for (unsigned long pos = offset; pos < offset + remaining; ++pos) {
+        prevValue = data[pos] = prevValue + data[pos];
+      }
     }
   }
 

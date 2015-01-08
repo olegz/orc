@@ -50,14 +50,20 @@ public:
 private:
 
   signed char readByte();
+  unsigned long readLongBE();
+  unsigned long readVslong();
+  unsigned long readVulong();
+  void readInts(long *data, unsigned long offset, unsigned len);
+
   unsigned long nextShortRepeats(long* data, unsigned long offset,
                                  unsigned long numValues,
                                  const char* notNull);
-  long readLongBE();
   unsigned long nextDirect(long* data, unsigned long offset,
                            unsigned long numValues,
                            const char* notNull);
-  void readInts(long *data, unsigned long offset, unsigned len);
+  unsigned long nextDelta(long* data, unsigned long offset,
+                          unsigned long numValues,
+                          const char* notNull);
 
   const std::unique_ptr<SeekableInputStream> inputStream;
   const bool isSigned;
@@ -68,9 +74,11 @@ private:
   unsigned long runRead;
   const char *bufferStart;
   const char *bufferEnd;
+  long deltaBase; // Used by DELTA
   int byteSize; // Used by SHORT_REPEAT
-  long value; // Used by SHORT_REPEAT
-  int bitSize; // Used by DIRECT
+  long firstValue; // Used by SHORT_REPEAT and DELTA
+  long prevValue; // Used by DELTA
+  int bitSize; // Used by DIRECT and DELTA
   int bitsLeft; // Used by DIRECT
   int current; // Used by DIRECT
 };
