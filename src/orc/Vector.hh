@@ -20,7 +20,6 @@
 #define ORC_VECTOR_HH
 
 #include <array>
-#include <initializer_list>
 #include <list>
 #include <memory>
 #include <string>
@@ -66,21 +65,21 @@ namespace orc {
   const int DEFAULT_DECIMAL_SCALE = 18;
   const int DEFAULT_DECIMAL_PRECISION = 38;
 
-  std::unique_ptr<Type> createPrimitiveType(TypeKind kind);
-  std::unique_ptr<Type> createCharType(TypeKind kind,
+  std::auto_ptr<Type> createPrimitiveType(TypeKind kind);
+  std::auto_ptr<Type> createCharType(TypeKind kind,
                                        unsigned int maxLength);
-  std::unique_ptr<Type>
+  std::auto_ptr<Type>
                 createDecimalType(unsigned int precision=
                                     DEFAULT_DECIMAL_PRECISION,
                                   unsigned int scale=DEFAULT_DECIMAL_SCALE);
-  std::unique_ptr<Type>
-    createStructType(std::initializer_list<std::unique_ptr<Type> > types,
-                      std::initializer_list<std::string> fieldNames);
-  std::unique_ptr<Type> createListType(std::unique_ptr<Type> elements);
-  std::unique_ptr<Type> createMapType(std::unique_ptr<Type> key,
-                                      std::unique_ptr<Type> value);
-  std::unique_ptr<Type>
-    createUnionType(std::initializer_list<std::unique_ptr<Type> > types);
+  std::auto_ptr<Type>
+    createStructType(std::vector<std::auto_ptr<Type> > types,
+                      std::vector<std::string> fieldNames);
+  std::auto_ptr<Type> createListType(std::auto_ptr<Type> elements);
+  std::auto_ptr<Type> createMapType(std::auto_ptr<Type> key,
+                                      std::auto_ptr<Type> value);
+  std::auto_ptr<Type>
+    createUnionType(std::initializer_list<std::auto_ptr<Type> > types);
 
   /**
    * The base class for each of the column vectors. This class handles

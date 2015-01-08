@@ -69,7 +69,7 @@ namespace orc {
    * @param stream the stream to read
    * @param options the options for reading the file
    */
-  std::auto_ptr<Reader> createReader(std::unique_ptr<InputStream> stream,
+  std::auto_ptr<Reader> createReader(std::auto_ptr<InputStream> stream,
                                        const ReaderOptions& options);
 }
 

@@ -21,7 +21,6 @@
 
 #include "Vector.hh"
 
-#include <initializer_list>
 #include <memory>
 #include <string>
 #include <vector>
@@ -44,10 +43,10 @@ namespace orc {
    */
   class ColumnStatistics {
   private:
-    std::unique_ptr<ColumnStatisticsPrivate> privateBits;
+    std::auto_ptr<ColumnStatisticsPrivate> privateBits;
 
   public:
-    ColumnStatistics(std::unique_ptr<ColumnStatisticsPrivate> data);
+    ColumnStatistics(std::auto_ptr<ColumnStatisticsPrivate> data);
     virtual ~ColumnStatistics();
 
     /**
@@ -63,7 +62,7 @@ namespace orc {
    */
   class BinaryColumnStatistics: public ColumnStatistics {
   public:
-    BinaryColumnStatistics(std::unique_ptr<ColumnStatisticsPrivate> data);
+    BinaryColumnStatistics(std::auto_ptr<ColumnStatisticsPrivate> data);
     virtual ~BinaryColumnStatistics();
 
     long getTotalLength() const;
@@ -74,7 +73,7 @@ namespace orc {
    */
   class BooleanColumnStatistics: public ColumnStatistics {
   public:
-    BooleanColumnStatistics(std::unique_ptr<ColumnStatisticsPrivate> data);
+    BooleanColumnStatistics(std::auto_ptr<ColumnStatisticsPrivate> data);
     virtual ~BooleanColumnStatistics();
 
     long getFalseCount() const;
@@ -86,7 +85,7 @@ namespace orc {
    */
   class DateColumnStatistics: public ColumnStatistics {
   public:
-    DateColumnStatistics(std::unique_ptr<ColumnStatisticsPrivate> data);
+    DateColumnStatistics(std::auto_ptr<ColumnStatisticsPrivate> data);
     virtual ~DateColumnStatistics();
 
     /**
@@ -107,7 +106,7 @@ namespace orc {
    */
   class DecimalColumnStatistics: public ColumnStatistics {
   public:
-    DecimalColumnStatistics(std::unique_ptr<ColumnStatisticsPrivate> data);
+    DecimalColumnStatistics(std::auto_ptr<ColumnStatisticsPrivate> data);
     virtual ~DecimalColumnStatistics();
 
     /**
@@ -134,7 +133,7 @@ namespace orc {
    */
   class DoubleColumnStatistics: public ColumnStatistics {
   public:
-    DoubleColumnStatistics(std::unique_ptr<ColumnStatisticsPrivate> data);
+    DoubleColumnStatistics(std::auto_ptr<ColumnStatisticsPrivate> data);
     virtual ~DoubleColumnStatistics();
 
     /**
@@ -164,7 +163,7 @@ namespace orc {
    */
   class IntegerColumnStatistics: public ColumnStatistics {
   public:
-    IntegerColumnStatistics(std::unique_ptr<ColumnStatisticsPrivate> data);
+    IntegerColumnStatistics(std::auto_ptr<ColumnStatisticsPrivate> data);
     virtual ~IntegerColumnStatistics();
 
     /**
@@ -200,7 +199,7 @@ namespace orc {
    */
   class StringColumnStatistics: public ColumnStatistics {
   public:
-    StringColumnStatistics(std::unique_ptr<ColumnStatisticsPrivate> data);
+    StringColumnStatistics(std::auto_ptr<ColumnStatisticsPrivate> data);
     virtual ~StringColumnStatistics();
 
     /**
@@ -227,7 +226,7 @@ namespace orc {
    */
   class TimestampColumnStatistics: public ColumnStatistics {
   public:
-    TimestampColumnStatistics(std::unique_ptr<ColumnStatisticsPrivate> data);
+    TimestampColumnStatistics(std::auto_ptr<ColumnStatisticsPrivate> data);
     virtual ~TimestampColumnStatistics();
 
     /**
@@ -289,7 +288,7 @@ namespace orc {
    */
   class ReaderOptions {
   private:
-    std::unique_ptr<ReaderOptionsPrivate> privateBits;
+    std::auto_ptr<ReaderOptionsPrivate> privateBits;
 
   public:
     ReaderOptions();
@@ -314,7 +313,7 @@ namespace orc {
      * @param include a list of columns to read
      * @return this
      */
-    ReaderOptions& include(std::initializer_list<int> include);
+    ReaderOptions& include(std::vector<int> include);
 
     /**
      * Set the section of the file to process.
@@ -419,7 +418,7 @@ namespace orc {
      * @param stripeIndex the stripe 0 to N-1 to get information about
      * @return the information about that stripe
      */
-    virtual std::unique_ptr<StripeInformation> 
+    virtual std::auto_ptr<StripeInformation>
       getStripe(unsigned long stripeIndex) const = 0;
 
     /**

@@ -45,7 +45,7 @@ namespace orc {
     /**
      * Get the stream for the given column/kind in this stripe.
      */
-    virtual std::unique_ptr<SeekableInputStream> 
+    virtual std::auto_ptr<SeekableInputStream>
                     getStream(int columnId,
                               proto::Stream_Kind kind) const = 0;
   };
@@ -55,7 +55,7 @@ namespace orc {
    */
   class ColumnReader {
   protected:
-    std::unique_ptr<ByteRleDecoder> notNullDecoder;
+    std::auto_ptr<ByteRleDecoder> notNullDecoder;
     int columnId;
 
   public:
@@ -86,7 +86,7 @@ namespace orc {
   /**
    * Create a reader for the given stripe.
    */
-  std::unique_ptr<ColumnReader> buildReader(const Type& type,
+  std::auto_ptr<ColumnReader> buildReader(const Type& type,
                                             StripeStreams& stripe);
 }
 
