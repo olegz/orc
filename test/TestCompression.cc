@@ -408,7 +408,8 @@ TEST(Zlib, testZlibBackup) {
 
     // now this comp_str should be input to a SeekableArrayInputStream..
     SeekableArrayInputStream* stream = new SeekableArrayInputStream(comp_vec.data(), comp_vec.size(), 20);
-    ZlibCodec2 zlib2(std::unique_ptr<SeekableInputStream> (stream), 256*1024);
+    //ZlibCodec2 zlib2(std::unique_ptr<SeekableInputStream> (stream), 256*1024);
+    ZlibCodec2 zlib2(std::unique_ptr<SeekableInputStream> (stream), 20); // should take inputstream's block size
     const void *ptr;
     int len;
     EXPECT_EQ(true, zlib2.Next(&ptr, &len));

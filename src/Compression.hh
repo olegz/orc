@@ -158,6 +158,20 @@ namespace orc {
      unsigned long getBlockSize() { return blockSize; }
 
     virtual bool Next(const void** data, int*size) {
+        // there are a few cases: 
+        // 1) existing buffer has enough available (i.e. >block size). In this case, just return those;
+        // 2) if not enough available, then we need to decompress some: check if it is original
+        //      a) if original, copy to zlib buffer and return (optimization: if current zlib buffer empty, can return input directly)
+        //      b) if not, decompress a block and copy to zlib buffer
+
+        // if 1)
+        if( length - position >= blockSize ) {
+            *data = &buffer[position];
+            *size = static_cast<int>(blockSize);
+            position += blockSize;
+            return true;
+        }
+        // decompress header to see if it is original
         const void *ptr;
         int length;
         input->Next(&ptr, &length);
@@ -172,7 +186,27 @@ namespace orc {
 
         // if is original, return input itself (its position etc would be updated accordingly, too)
         if(isOriginal) {
-            return input->Next(data, size);
+            // TODO: copy block to zlib buffer and return on zlib buffer
+            //return input->Next(data, size);
+            const void *ptr;
+            int length;
+
+            input->Next(&ptr, &length);
+
+            for(int i = 0; i < length; i++)
+                buffer[length+i] =  (((char*)ptr)[i]);
+            // check if have enough for a block 
+            unsigned long currentSize = std::min(length - position, blockSize);
+            if (currentSize > 0) {
+                *data = &buffer[position];
+                //*buffer = (data ? data : ownedData.data()) + position;
+                *size = static_cast<int>(currentSize);
+                position += currentSize;
+                return true;
+            }
+            // TODO: otherwise keep asking for more from input?
+            *size = 0;
+            return false;
         }
         else { // else, need to uncompress
             string in;
@@ -209,13 +243,6 @@ namespace orc {
             }
             *size = 0;
             return false;
-            /*
-            *size = out.size();
-            //memcpy(static_cast<void*>(*data), out.data(), *size);
-            *data = out.data(); //TODO: 1st step: copy it into its buffer, ultimate: decompress to its buffer directly
-
-            return true;
-            */
         }
 
         return false;
