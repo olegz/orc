@@ -31,8 +31,8 @@ namespace orc {
   private:
     int columnId;
     TypeKind kind;
-    std::unique_ptr<std::unique_ptr<Type>[]> subTypes;
-    std::unique_ptr<std::string[]> fieldNames;
+    std::auto_ptr<std::auto_ptr<Type>[]> subTypes;
+    std::auto_ptr<std::string[]> fieldNames;
     unsigned int subtypeCount;
     unsigned int maxLength;
     unsigned int precision;
@@ -69,26 +69,26 @@ namespace orc {
 
     virtual ~TypeImpl();
 
-    int assignIds(int root) override;
+    int assignIds(int root)  ;
 
-    int getColumnId() const override;
+    int getColumnId() const  ;
 
-    TypeKind getKind() const override;
+    TypeKind getKind() const  ;
 
-    unsigned int getSubtypeCount() const override;
+    unsigned int getSubtypeCount() const  ;
 
-    const Type& getSubtype(unsigned int i) const override;
+    const Type& getSubtype(unsigned int i) const  ;
 
-    const std::string& getFieldName(unsigned int i) const override;
+    const std::string& getFieldName(unsigned int i) const  ;
 
-    unsigned int getMaximumLength() const override;
+    unsigned int getMaximumLength() const  ;
 
-    unsigned int getPrecision() const override;
+    unsigned int getPrecision() const  ;
 
-    unsigned int getScale() const override;
+    unsigned int getScale() const  ;
   };
 
-  std::unique_ptr<Type> convertType(const proto::Type& type,
+  std::auto_ptr<Type> convertType(const proto::Type& type,
                                     const proto::Footer& footer);
 }
 

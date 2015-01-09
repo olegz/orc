@@ -53,7 +53,7 @@ namespace orc {
     }
 
     void read(void* buffer, unsigned long offset,
-              unsigned long length) override {
+              unsigned long length)   {
       ssize_t bytesRead = pread(file, buffer, length,
                                 static_cast<off_t>(offset));
       if (bytesRead == -1) {
@@ -64,7 +64,7 @@ namespace orc {
       }
     }
 
-    const std::string& getName() const override { 
+    const std::string& getName() const   { 
       return filename;
     }
   };

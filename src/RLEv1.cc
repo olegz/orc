@@ -84,12 +84,12 @@ void RleDecoderV1::readHeader() {
   }
 }
 
-RleDecoderV1::RleDecoderV1(std::unique_ptr<SeekableInputStream> input,
+RleDecoderV1::RleDecoderV1(std::auto_ptr<SeekableInputStream> input,
                            bool hasSigned)
-    : inputStream(std::move(input)),
+    : inputStream(input),
       isSigned(hasSigned),
       remainingValues(0),
-      bufferStart(nullptr),
+      bufferStart(NULL),
       bufferEnd(bufferStart) {
 }
 
@@ -124,15 +124,15 @@ void RleDecoderV1::next(long* const data,
                         const unsigned long numValues,
                         const char* const notNull) {
   unsigned long position = 0;
-  const auto skipNulls =[&position, numValues, notNull] {
-    if (notNull) {
-      // Skip over null values.
-      while (position < numValues && !notNull[position]) {
-        ++position;
-      }
+
+  // skipNulls
+  if (notNull) {
+    // Skip over null values.
+    while (position < numValues && !notNull[position]) {
+      ++position;
     }
-  };
-  skipNulls();
+  }
+
   while (position < numValues) {
     // If we are out of values, read more.
     if (remainingValues == 0) {
@@ -181,7 +181,14 @@ void RleDecoderV1::next(long* const data,
     }
     remainingValues -= consumed;
     position += count;
-    skipNulls();
+
+    // skipNulls
+    if (notNull) {
+      // Skip over null values.
+      while (position < numValues && !notNull[position]) {
+        ++position;
+      }
+    }
   }
 }
 

@@ -25,9 +25,9 @@
 namespace orc {
 
 TEST(ByteRle, simpleTest) {
-  std::unique_ptr<ByteRleDecoder> rle =
+  std::auto_ptr<ByteRleDecoder> rle =
       createByteRleDecoder(
-        std::unique_ptr<SeekableInputStream>(
+        std::auto_ptr<SeekableInputStream>(
           new SeekableArrayInputStream({0x61, 0x00, 0xfd, 0x44, 0x45, 0x46})));
   std::vector<char> data(103);
   rle->next(data.data(), data.size(), nullptr);
@@ -41,9 +41,9 @@ TEST(ByteRle, simpleTest) {
 }
 
 TEST(ByteRle, skipLiteralBufferUnderflowTest) {
-  std::unique_ptr<ByteRleDecoder> rle =
+  std::auto_ptr<ByteRleDecoder> rle =
       createByteRleDecoder(
-        std::unique_ptr<SeekableInputStream>(
+        std::auto_ptr<SeekableInputStream>(
           new SeekableArrayInputStream(
             {0xf8, 0x0, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7}, 4)));
   std::vector<char> data(8);
@@ -60,9 +60,9 @@ TEST(ByteRle, skipLiteralBufferUnderflowTest) {
 }
 
 TEST(ByteRle, simpleRuns) {
-  std::unique_ptr<ByteRleDecoder> rle =
+  std::auto_ptr<ByteRleDecoder> rle =
       createByteRleDecoder(
-        std::unique_ptr<SeekableInputStream>(
+        std::auto_ptr<SeekableInputStream>(
           new SeekableArrayInputStream({0x0d, 0xff, 0x0d, 0xfe, 0x0d, 0xfd})));
   std::vector<char> data(16);
   for (size_t i = 0; i < 3; ++i) {
@@ -75,9 +75,9 @@ TEST(ByteRle, simpleRuns) {
 }
 
 TEST(ByteRle, splitHeader) {
-  std::unique_ptr<ByteRleDecoder> rle =
+  std::auto_ptr<ByteRleDecoder> rle =
       createByteRleDecoder(
-        std::unique_ptr<orc::SeekableInputStream>(
+        std::auto_ptr<orc::SeekableInputStream>(
           new SeekableArrayInputStream(
             {0x00, 0x01, 0xe0,
              0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,
@@ -96,9 +96,9 @@ TEST(ByteRle, splitHeader) {
 }
 
 TEST(ByteRle, splitRuns) {
-  std::unique_ptr<ByteRleDecoder> rle =
+  std::auto_ptr<ByteRleDecoder> rle =
       createByteRleDecoder(
-        std::unique_ptr<orc::SeekableInputStream>(
+        std::auto_ptr<orc::SeekableInputStream>(
           new SeekableArrayInputStream(
             {0x0d, 0x02, 0xf0,
              0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,
@@ -128,9 +128,9 @@ TEST(ByteRle, splitRuns) {
 }
 
 TEST(ByteRle, testNulls) {
-  std::unique_ptr<ByteRleDecoder> rle =
+  std::auto_ptr<ByteRleDecoder> rle =
       createByteRleDecoder(
-        std::unique_ptr<orc::SeekableInputStream>(
+        std::auto_ptr<orc::SeekableInputStream>(
           new SeekableArrayInputStream(
             {0xf0,
                   0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
@@ -165,9 +165,9 @@ TEST(ByteRle, testNulls) {
 }
 
 TEST(ByteRle, testAllNulls) {
-  std::unique_ptr<ByteRleDecoder> rle =
+  std::auto_ptr<ByteRleDecoder> rle =
       createByteRleDecoder(
-        std::unique_ptr<orc::SeekableInputStream>(
+        std::auto_ptr<orc::SeekableInputStream>(
           new SeekableArrayInputStream(
             {0xf0,
              0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
@@ -300,8 +300,8 @@ TEST(ByteRle, testSkip) {
 0xf0, 0xf1, 0xf2, 0xf3, 0xf4, 0xf5, 0xf6, 0xf7, 0xf8, 0xf9, 0xfa, 0xfb, 0xfc,
 0xfd, 0xfe, 0xff,
 });
-  std::unique_ptr<ByteRleDecoder> rle =
-      createByteRleDecoder(std::unique_ptr<orc::SeekableInputStream>(stream));
+  std::auto_ptr<ByteRleDecoder> rle =
+      createByteRleDecoder(std::auto_ptr<orc::SeekableInputStream>(stream));
   std::vector<char> data(1);
   for (size_t i = 0; i < 2048; i += 10) {
     rle->next(data.data(), data.size(), nullptr);
@@ -325,7 +325,7 @@ TEST(ByteRle, testSeek) {
   //     out.write(i % 256);
   //   }
   // }
-  std::unique_ptr<SeekableInputStream> stream(
+  std::auto_ptr<SeekableInputStream> stream(
       new SeekableArrayInputStream({
  0x1,  0x0,  0x1,  0x1,  0x1,  0x2,  0x1,  0x3,  0x1,  0x4,  0x1,  0x5,  0x1,
  0x6,  0x1,  0x7,  0x1,  0x8,  0x1,  0x9,  0x1,  0xa,  0x1,  0xb,  0x1,  0xc,
@@ -742,7 +742,7 @@ TEST(ByteRle, testSeek) {
     positions[i].push_back(fileLocs[i]);
     positions[i].push_back(rleLocs[i]);
   }
-  std::unique_ptr<ByteRleDecoder> rle =
+  std::auto_ptr<ByteRleDecoder> rle =
       createByteRleDecoder(std::move(stream));
   std::vector<char> data(1);
   for (size_t i = 0; i < 2048; ++i) {
@@ -764,9 +764,9 @@ TEST(ByteRle, testSeek) {
 }
 
 TEST(BooleanRle, simpleTest) {
-  std::unique_ptr<SeekableInputStream> stream(
+  std::auto_ptr<SeekableInputStream> stream(
     new SeekableArrayInputStream({0x61, 0xf0, 0xfd, 0x55, 0xAA, 0x55}));
-  std::unique_ptr<ByteRleDecoder> rle =
+  std::auto_ptr<ByteRleDecoder> rle =
       createBooleanRleDecoder(std::move(stream));
   std::vector<char> data(50);
   for (size_t i = 0; i < 16; ++i) {
@@ -789,11 +789,11 @@ TEST(BooleanRle, simpleTest) {
 }
 
 TEST(BooleanRle, runsTest) {
-  std::unique_ptr<SeekableInputStream> stream(
+  std::auto_ptr<SeekableInputStream> stream(
     new SeekableArrayInputStream(
       {0xf7, 0xff, 0x80, 0x3f, 0xe0, 0x0f,
        0xf8, 0x03, 0xfe, 0x00}));
-  std::unique_ptr<ByteRleDecoder> rle =
+  std::auto_ptr<ByteRleDecoder> rle =
       createBooleanRleDecoder(std::move(stream));
   std::vector<char> data(72);
   rle->next(data.data(), data.size(), nullptr);
@@ -814,11 +814,11 @@ TEST(BooleanRle, runsTest) {
 }
 
 TEST(BooleanRle, runsTestWithNull) {
-  std::unique_ptr<SeekableInputStream> stream(
+  std::auto_ptr<SeekableInputStream> stream(
     new SeekableArrayInputStream(
       {0xf7, 0xff, 0x80, 0x3f, 0xe0, 0x0f,
             0xf8, 0x03, 0xfe, 0x00}));
-  std::unique_ptr<ByteRleDecoder> rle =
+  std::auto_ptr<ByteRleDecoder> rle =
       createBooleanRleDecoder(std::move(stream));
   std::vector<char> data(72);
   std::vector<char> notNull(data.size(), 1);
@@ -846,7 +846,7 @@ TEST(BooleanRle, skipTest) {
   //     out.write(i & 1)
   //   else
   //     out.write((i / 3) & 1)
-  std::unique_ptr<SeekableInputStream> stream(
+  std::auto_ptr<SeekableInputStream> stream(
     new SeekableArrayInputStream({
 0x7f, 0x55, 0x7f, 0x55, 0x7f, 0x55, 0x7f, 0x55, 0x7f, 0x55, 0x7f, 0x55, 0x7f,
 0x55, 0x6f, 0x55, 0x80, 0x71, 0xc7, 0x1c, 0x71, 0xc7, 0x1c, 0x71, 0xc7, 0x1c,
@@ -930,7 +930,7 @@ TEST(BooleanRle, skipTest) {
 0xc7, 0x1c, 0x71, 0xc7, 0x1c, 0x71, 0xc7, 0x1c, 0x71, 0xc7, 0x1c, 0x71, 0xc7,
 0x1c, 0x71, 0xc7, 0x1c, 0x71, 0xc7, 0x1c, 0x71
     }));
-  std::unique_ptr<ByteRleDecoder> rle =
+  std::auto_ptr<ByteRleDecoder> rle =
       createBooleanRleDecoder(std::move(stream));
   std::vector<char> data(1);
   for (size_t i = 0; i < 16384; i += 5) {
@@ -952,7 +952,7 @@ TEST(BooleanRle, skipTestWithNulls) {
   //     out.write(i & 1)
   //   else
   //     out.write((i / 3) & 1)
-  std::unique_ptr<SeekableInputStream> stream(
+  std::auto_ptr<SeekableInputStream> stream(
     new SeekableArrayInputStream({
 0x7f, 0x55, 0x7f, 0x55, 0x7f, 0x55, 0x7f, 0x55, 0x7f, 0x55, 0x7f, 0x55, 0x7f,
 0x55, 0x6f, 0x55, 0x80, 0x71, 0xc7, 0x1c, 0x71, 0xc7, 0x1c, 0x71, 0xc7, 0x1c,
@@ -1036,7 +1036,7 @@ TEST(BooleanRle, skipTestWithNulls) {
 0xc7, 0x1c, 0x71, 0xc7, 0x1c, 0x71, 0xc7, 0x1c, 0x71, 0xc7, 0x1c, 0x71, 0xc7,
 0x1c, 0x71, 0xc7, 0x1c, 0x71, 0xc7, 0x1c, 0x71
     }));
-  std::unique_ptr<ByteRleDecoder> rle =
+  std::auto_ptr<ByteRleDecoder> rle =
       createBooleanRleDecoder(std::move(stream));
   std::vector<char> data(3);
   std::vector<char> someNull(data.size(), 0);
@@ -1069,7 +1069,7 @@ TEST(BooleanRle, seekTest) {
   //     out.write(i & 1)
   //   else
   //     out.write((i / 3) & 1)
-  std::unique_ptr<SeekableInputStream> stream(
+  std::auto_ptr<SeekableInputStream> stream(
     new SeekableArrayInputStream({
 0x7f, 0x55, 0x7f, 0x55, 0x7f, 0x55, 0x7f, 0x55, 0x7f, 0x55, 0x7f, 0x55, 0x7f,
 0x55, 0x6f, 0x55, 0x80, 0x71, 0xc7, 0x1c, 0x71, 0xc7, 0x1c, 0x71, 0xc7, 0x1c,
@@ -1153,7 +1153,7 @@ TEST(BooleanRle, seekTest) {
 0xc7, 0x1c, 0x71, 0xc7, 0x1c, 0x71, 0xc7, 0x1c, 0x71, 0xc7, 0x1c, 0x71, 0xc7,
 0x1c, 0x71, 0xc7, 0x1c, 0x71, 0xc7, 0x1c, 0x71
     }));
-  std::unique_ptr<ByteRleDecoder> rle =
+  std::auto_ptr<ByteRleDecoder> rle =
       createBooleanRleDecoder(std::move(stream));
   std::vector<char> data(16384);
   rle->next(data.data(), data.size(), nullptr);
@@ -1198,7 +1198,7 @@ TEST(BooleanRle, seekTestWithNulls) {
   //     out.write(i & 1)
   //   else
   //     out.write((i / 3) & 1)
-  std::unique_ptr<SeekableInputStream> stream(
+  std::auto_ptr<SeekableInputStream> stream(
     new SeekableArrayInputStream({
 0x7f, 0x55, 0x7f, 0x55, 0x7f, 0x55, 0x7f, 0x55, 0x7f, 0x55, 0x7f, 0x55, 0x7f,
 0x55, 0x6f, 0x55, 0x80, 0x71, 0xc7, 0x1c, 0x71, 0xc7, 0x1c, 0x71, 0xc7, 0x1c,
@@ -1282,7 +1282,7 @@ TEST(BooleanRle, seekTestWithNulls) {
 0xc7, 0x1c, 0x71, 0xc7, 0x1c, 0x71, 0xc7, 0x1c, 0x71, 0xc7, 0x1c, 0x71, 0xc7,
 0x1c, 0x71, 0xc7, 0x1c, 0x71, 0xc7, 0x1c, 0x71
     }));
-  std::unique_ptr<ByteRleDecoder> rle =
+  std::auto_ptr<ByteRleDecoder> rle =
       createBooleanRleDecoder(std::move(stream));
   std::vector<char> data(16384);
   std::vector<char> allNull(data.size(), 0);

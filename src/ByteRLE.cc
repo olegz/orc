@@ -312,7 +312,7 @@ namespace orc {
     // fill in the remaining values
     if (nonNulls == 0) {
       while (position < numValues) {
-	data[position++] = 0;
+        data[position++] = 0;
       }
     } else if (position < numValues) {
       // read the new bytes into the array
@@ -345,7 +345,8 @@ namespace orc {
 
   std::auto_ptr<ByteRleDecoder> createBooleanRleDecoder
                                  (std::auto_ptr<SeekableInputStream> input) {
-    return std::auto_ptr<BooleanRleDecoderImpl>(new BooleanRleDecoderImpl(input));
+    BooleanRleDecoderImpl* decoder = new BooleanRleDecoderImpl(input) ;
+    return std::auto_ptr<ByteRleDecoder>(reinterpret_cast<ByteRleDecoder*>(decoder));
   }
 
 }

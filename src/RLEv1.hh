@@ -27,24 +27,24 @@ namespace orc {
 
 class RleDecoderV1 : public RleDecoder {
 public:
-    RleDecoderV1(std::unique_ptr<SeekableInputStream> input,
+    RleDecoderV1(std::auto_ptr<SeekableInputStream> input,
                  bool isSigned);
 
     /**
     * Seek to a particular spot.
     */
-    void seek(PositionProvider&) override;
+    void seek(PositionProvider&)  ;
 
     /**
     * Seek over a given number of values.
     */
-    void skip(unsigned long numValues) override;
+    void skip(unsigned long numValues)  ;
 
     /**
     * Read a number of values into the batch.
     */
     void next(long* data, unsigned long numValues,
-	      const char* notNull) override;
+	      const char* notNull)  ;
 
 private:
     inline signed char readByte();
@@ -55,7 +55,7 @@ private:
 
     inline void skipLongs(unsigned long numValues);
 
-    const std::unique_ptr<SeekableInputStream> inputStream;
+    const std::auto_ptr<SeekableInputStream> inputStream;
     const bool isSigned;
     unsigned long remainingValues;
     long value;

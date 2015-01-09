@@ -53,8 +53,8 @@ namespace orc {
    * Create a byte RLE decoder.
    * @param input the input stream to read from
    */
-  std::unique_ptr<ByteRleDecoder> createByteRleDecoder
-                                 (std::unique_ptr<SeekableInputStream> input);
+  std::auto_ptr<ByteRleDecoder> createByteRleDecoder
+                                 (std::auto_ptr<SeekableInputStream> input);
 
   /**
    * Create a boolean RLE decoder.
@@ -64,8 +64,8 @@ namespace orc {
    * processing to properly apply multiple masks from nested types.
    * @param input the input stream to read from
    */
-  std::unique_ptr<ByteRleDecoder> createBooleanRleDecoder
-                                 (std::unique_ptr<SeekableInputStream> input);
+  std::auto_ptr<ByteRleDecoder> createBooleanRleDecoder
+                                 (std::auto_ptr<SeekableInputStream> input);
 }
 
 #endif

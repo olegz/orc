@@ -202,7 +202,7 @@ namespace orc {
 
   TEST_F(TestCompression, testFileBackup) {
     SCOPED_TRACE("testFileBackup");
-    std::unique_ptr<InputStream> file = readLocalFile(simpleFile);
+    std::auto_ptr<InputStream> file = readLocalFile(simpleFile);
     SeekableFileInputStream stream(file.get(), 0, 200, 20);
     const void *ptr;
     int len;
@@ -233,7 +233,7 @@ namespace orc {
 
   TEST_F(TestCompression, testFileSkip) {
     SCOPED_TRACE("testFileSkip");
-    std::unique_ptr<InputStream> file = readLocalFile(simpleFile);
+    std::auto_ptr<InputStream> file = readLocalFile(simpleFile);
     SeekableFileInputStream stream(file.get(), 0, 200, 20);
     const void *ptr;
     int len;
@@ -253,7 +253,7 @@ namespace orc {
 
   TEST_F(TestCompression, testFileCombo) {
     SCOPED_TRACE("testFileCombo");
-    std::unique_ptr<InputStream> file = readLocalFile(simpleFile);
+    std::auto_ptr<InputStream> file = readLocalFile(simpleFile);
     SeekableFileInputStream stream(file.get(), 0, 200, 20);
     const void *ptr;
     int len;
@@ -273,7 +273,7 @@ namespace orc {
 
   TEST_F(TestCompression, testFileSeek) {
     SCOPED_TRACE("testFileSeek");
-    std::unique_ptr<InputStream> file = readLocalFile(simpleFile);
+    std::auto_ptr<InputStream> file = readLocalFile(simpleFile);
     SeekableFileInputStream stream(file.get(), 0, 200, 20);
     const void *ptr;
     int len;
@@ -310,9 +310,9 @@ namespace orc {
     for(unsigned int i=0; i < bytes.size(); ++i) {
       bytes[i] = static_cast<char>(i);
     }
-    std::unique_ptr<SeekableInputStream> result =
+    std::auto_ptr<SeekableInputStream> result =
       createCodec(CompressionKind_NONE,
-                  std::unique_ptr<SeekableInputStream>
+                  std::auto_ptr<SeekableInputStream>
                     (new SeekableArrayInputStream(bytes.data(), bytes.size())),
                   32768);
     const void *ptr;
@@ -322,17 +322,17 @@ namespace orc {
       EXPECT_EQ(static_cast<char>(i), static_cast<const char*>(ptr)[i]);
     }
     EXPECT_THROW(createCodec(CompressionKind_ZLIB,
-                             std::unique_ptr<SeekableInputStream>
+                             std::auto_ptr<SeekableInputStream>
                              (new SeekableArrayInputStream(bytes.data(),
                                                            bytes.size())),
                              32768), NotImplementedYet);
     EXPECT_THROW(createCodec(CompressionKind_SNAPPY,
-                             std::unique_ptr<SeekableInputStream>
+                             std::auto_ptr<SeekableInputStream>
                              (new SeekableArrayInputStream(bytes.data(),
                                                            bytes.size())),
                              32768), NotImplementedYet);
     EXPECT_THROW(createCodec(CompressionKind_LZO,
-                             std::unique_ptr<SeekableInputStream>
+                             std::auto_ptr<SeekableInputStream>
                              (new SeekableArrayInputStream(bytes.data(),
                                                            bytes.size())),
                              32768), NotImplementedYet);

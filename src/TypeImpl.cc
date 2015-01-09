@@ -62,7 +62,7 @@ namespace orc {
     precision = 0;
     scale = 0;
     subtypeCount = static_cast<unsigned int>(types.size());
-    subTypes.reset(new std::unique_ptr<Type>[subtypeCount]);
+    subTypes.reset(new std::auto_ptr<Type>[subtypeCount]);
     fieldNames.reset(new std::string[_fieldNames.size()]);
     for(unsigned int i=0; i < subtypeCount; ++i) {
       subTypes.get()[i].reset(types[i]);
@@ -77,7 +77,7 @@ namespace orc {
     precision = 0;
     scale = 0;
     subtypeCount = static_cast<unsigned int>(types.size());
-    subTypes.reset(new std::unique_ptr<Type>[subtypeCount]);
+    subTypes.reset(new std::auto_ptr<Type>[subtypeCount]);
     for(unsigned int i=0; i < subtypeCount; ++i) {
       subTypes.get()[i].reset(types[static_cast<unsigned long>(i)]);
     }
@@ -86,7 +86,7 @@ namespace orc {
   int TypeImpl::assignIds(int root) {
     columnId = root;
     int current = root + 1;
-    std::unique_ptr<Type> *children = subTypes.get();
+    std::auto_ptr<Type> *children = subTypes.get();
     for(unsigned int i=0; i < subtypeCount; ++i) {
       current = children[i].get()->assignIds(current);
     }
@@ -129,68 +129,68 @@ namespace orc {
     return scale;
   }
 
-  std::unique_ptr<Type> createPrimitiveType(TypeKind kind) {
-    return std::unique_ptr<Type>(new TypeImpl(kind));
+  std::auto_ptr<Type> createPrimitiveType(TypeKind kind) {
+    return std::auto_ptr<Type>(new TypeImpl(kind));
   }
 
-  std::unique_ptr<Type> createCharType(TypeKind kind,
+  std::auto_ptr<Type> createCharType(TypeKind kind,
                                        unsigned int maxLength) {
-    return std::unique_ptr<Type>(new TypeImpl(kind, maxLength));
+    return std::auto_ptr<Type>(new TypeImpl(kind, maxLength));
   }
 
-  std::unique_ptr<Type> createDecimalType(unsigned int precision,
+  std::auto_ptr<Type> createDecimalType(unsigned int precision,
                                           unsigned int scale) {
-    return std::unique_ptr<Type>(new TypeImpl(DECIMAL, precision, scale));
+    return std::auto_ptr<Type>(new TypeImpl(DECIMAL, precision, scale));
   }
 
-  std::unique_ptr<Type>
-      createStructType(std::initializer_list<std::unique_ptr<Type> > types,
-                       std::initializer_list<std::string> fieldNames) {
+  std::auto_ptr<Type>
+      createStructType(std::vector<Type*> types,
+                       std::vector<std::string> fieldNames) {
     std::vector<Type*> typeVector(types.size());
     std::vector<std::string> fieldVector(types.size());
-    auto currentType = types.begin();
-    auto endType = types.end();
+    std::vector<Type*>::iterator currentType = types.begin();
+    std::vector<Type*>::iterator endType = types.end();
     size_t current = 0;
     while (currentType != endType) {
       typeVector[current++] =
-        const_cast<std::unique_ptr<Type>*>(currentType)->release();
+        const_cast<Type*>(currentType)->release();
       ++currentType;
     }
     fieldVector.insert(fieldVector.end(), fieldNames.begin(),
                        fieldNames.end());
-    return std::unique_ptr<Type>(new TypeImpl(STRUCT, typeVector,
+    return std::auto_ptr<Type>(new TypeImpl(STRUCT, typeVector,
                                               fieldVector));
   }
 
-  std::unique_ptr<Type> createListType(std::unique_ptr<Type> elements) {
+  std::auto_ptr<Type> createListType(std::auto_ptr<Type> elements) {
     std::vector<Type*> subtypes(1);
     subtypes[0] = elements.release();
-    return std::unique_ptr<Type>(new TypeImpl(LIST, subtypes));
+    return std::auto_ptr<Type>(new TypeImpl(LIST, subtypes));
   }
 
-  std::unique_ptr<Type> createMapType(std::unique_ptr<Type> key,
-                                      std::unique_ptr<Type> value) {
+  std::auto_ptr<Type> createMapType(std::auto_ptr<Type> key,
+                                      std::auto_ptr<Type> value) {
     std::vector<Type*> subtypes(2);
     subtypes[0] = key.release();
     subtypes[1] = value.release();
-    return std::unique_ptr<Type>(new TypeImpl(MAP, subtypes));
+    return std::auto_ptr<Type>(new TypeImpl(MAP, subtypes));
   }
 
-  std::unique_ptr<Type>
-      createUnionType(std::initializer_list<std::unique_ptr<Type> > types) {
+  std::auto_ptr<Type>
+      createUnionType(std::vector<Type*> types) {
     std::vector<Type*> typeVector(types.size());
-    auto currentType = types.begin();
-    auto endType = types.end();
+    std::vector<Type*>::iterator currentType = types.begin();
+    std::vector<Type*>::iterator endType = types.end();
     size_t current = 0;
     while (currentType != endType) {
       typeVector[current++] =
-        const_cast<std::unique_ptr<Type>*>(currentType)->release();
+        const_cast<Type*>(currentType)->release();
       ++currentType;
     }
-    return std::unique_ptr<Type>(new TypeImpl(UNION, typeVector));
+    return std::auto_ptr<Type>(new TypeImpl(UNION, typeVector));
   }
 
-  std::unique_ptr<Type> convertType(const proto::Type& type,
+  std::auto_ptr<Type> convertType(const proto::Type& type,
                                     const proto::Footer& footer) {
     switch (type.kind()) {
 
@@ -205,17 +205,17 @@ namespace orc {
     case proto::Type_Kind_BINARY:
     case proto::Type_Kind_TIMESTAMP:
     case proto::Type_Kind_DATE:
-      return std::unique_ptr<Type>
+      return std::auto_ptr<Type>
         (new TypeImpl(static_cast<TypeKind>(type.kind())));
 
     case proto::Type_Kind_CHAR:
     case proto::Type_Kind_VARCHAR:
-      return std::unique_ptr<Type>
+      return std::auto_ptr<Type>
         (new TypeImpl(static_cast<TypeKind>(type.kind()),
                       type.maximumlength()));
 
     case proto::Type_Kind_DECIMAL:
-      return std::unique_ptr<Type>
+      return std::auto_ptr<Type>
         (new TypeImpl(DECIMAL, type.precision(), type.scale()));
 
     case proto::Type_Kind_LIST:
@@ -228,7 +228,7 @@ namespace orc {
           convertType(footer.types(static_cast<int>(type.subtypes(i))),
                       footer).release();
       }
-      return std::unique_ptr<Type>
+      return std::auto_ptr<Type>
         (new TypeImpl(static_cast<TypeKind>(type.kind()), typeList));
     }
 
@@ -242,7 +242,7 @@ namespace orc {
                       footer).release();
         fieldList[static_cast<unsigned int>(i)] = type.fieldnames(i);
       }
-      return std::unique_ptr<Type>
+      return std::auto_ptr<Type>
         (new TypeImpl(STRUCT, typeList, fieldList));
     }
     }

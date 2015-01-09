@@ -27,9 +27,9 @@
 namespace orc {
 
 TEST(RLEv1, simpleTest) {
-  std::unique_ptr<RleDecoder> rle =
+  std::auto_ptr<RleDecoder> rle =
       createRleDecoder(
-          std::unique_ptr<SeekableInputStream>(
+          std::auto_ptr<SeekableInputStream>(
               new SeekableArrayInputStream(
                   {0x61, 0xff, 0x64, 0xfb, 0x02, 0x03, 0x5, 0x7, 0xb})),
           false, RleVersion_1);
@@ -47,9 +47,9 @@ TEST(RLEv1, simpleTest) {
 };
 
 TEST(RLEv1, signedNullLiteralTest) {
-  std::unique_ptr<RleDecoder> rle =
+  std::auto_ptr<RleDecoder> rle =
       createRleDecoder(
-          std::unique_ptr<SeekableInputStream>(
+          std::auto_ptr<SeekableInputStream>(
               new SeekableArrayInputStream(
                   {0xf8, 0x0, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7})),
           true, RleVersion_1);
@@ -64,9 +64,9 @@ TEST(RLEv1, signedNullLiteralTest) {
 }
 
 TEST(RLEv1, splitHeader) {
-  std::unique_ptr<RleDecoder> rle =
+  std::auto_ptr<RleDecoder> rle =
       createRleDecoder(
-          std::unique_ptr<SeekableInputStream>(
+          std::auto_ptr<SeekableInputStream>(
               new SeekableArrayInputStream({0x0, 0x00, 0xdc, 0xba, 0x98, 0x76}, 4)),
   false, RleVersion_1);
   std::vector<long> data(200);
@@ -81,8 +81,8 @@ TEST(RLEv1, splitRuns) {
   SeekableInputStream* const stream =
       new SeekableArrayInputStream({0x7d, 0x01, 0xff, 0x01, 0xfb, 0x01,
                                     0x02, 0x03, 0x04, 0x05});
-  std::unique_ptr<RleDecoder> rle =
-      createRleDecoder(std::move(std::unique_ptr<SeekableInputStream>
+  std::auto_ptr<RleDecoder> rle =
+      createRleDecoder(std::move(std::auto_ptr<SeekableInputStream>
                                       (stream)),
                             false, RleVersion_1);
   std::vector<long> data(200);
@@ -108,8 +108,8 @@ TEST(RLEv1, splitRuns) {
 TEST(RLEv1, testSigned) {
   SeekableInputStream* const stream =
       new SeekableArrayInputStream({0x7f, 0xff, 0x20});
-  std::unique_ptr<RleDecoder> rle =
-      createRleDecoder(std::move(std::unique_ptr<SeekableInputStream>
+  std::auto_ptr<RleDecoder> rle =
+      createRleDecoder(std::move(std::auto_ptr<SeekableInputStream>
                                      (stream)),
                        true, RleVersion_1);
   std::vector<long> data(100);
@@ -127,8 +127,8 @@ TEST(RLEv1, testSigned) {
 TEST(RLEv1, testNull) {
   SeekableInputStream* const stream =
       new SeekableArrayInputStream({0x75, 0x02, 0x00});
-  std::unique_ptr<RleDecoder> rle =
-      createRleDecoder(std::move(std::unique_ptr<SeekableInputStream>
+  std::auto_ptr<RleDecoder> rle =
+      createRleDecoder(std::move(std::auto_ptr<SeekableInputStream>
                                      (stream)),
                        true, RleVersion_1);
   std::vector<long> data(24);
@@ -157,8 +157,8 @@ TEST(RLEv1, testAllNulls) {
                                        0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
                                        0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
                                        0x3d, 0x00, 0x12});
-  std::unique_ptr<RleDecoder> rle =
-      createRleDecoder(std::move(std::unique_ptr<SeekableInputStream>(stream)),
+  std::auto_ptr<RleDecoder> rle =
+      createRleDecoder(std::move(std::auto_ptr<SeekableInputStream>(stream)),
                        false, RleVersion_1);
   std::vector<long> data(16, -1);
   std::vector<char> allNull(16, 0);
@@ -390,8 +390,8 @@ TEST(RLEv1, skipTest) {
 128, 204,  63, 128, 208,  63, 128, 212,  63, 128, 216,  63, 128, 220,  63, 128,
 224,  63, 128, 228,  63, 128, 232,  63, 128, 236,  63, 128, 240,  63, 128, 244,
  63, 128, 248,  63, 128, 252,  63});
-  std::unique_ptr<RleDecoder> rle =
-      createRleDecoder(std::move(std::unique_ptr<SeekableInputStream>(stream)),
+  std::auto_ptr<RleDecoder> rle =
+      createRleDecoder(std::move(std::auto_ptr<SeekableInputStream>(stream)),
                        true, RleVersion_1);
   std::vector<long> data(1);
   for (size_t i = 0; i < 2048; i += 10) {
@@ -2096,8 +2096,8 @@ TEST(RLEv1, seekTest) {
     positions[i].push_back(fileLoc[i]);
     positions[i].push_back(rleLoc[i]);
   }
-  std::unique_ptr<RleDecoder> rle =
-      createRleDecoder(std::move(std::unique_ptr<SeekableInputStream>(stream)),
+  std::auto_ptr<RleDecoder> rle =
+      createRleDecoder(std::move(std::auto_ptr<SeekableInputStream>(stream)),
                        true, RleVersion_1);
   std::vector<long> data(2048);
   rle->next(data.data(), data.size(), nullptr);

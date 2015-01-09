@@ -22,9 +22,9 @@
 #include "orc/OrcFile.hh"
 #include "wrap/zero-copy-stream-wrapper.h"
 
-#include <initializer_list>
 #include <list>
 #include <memory>
+#include <vector>
 
 namespace orc {
 
@@ -34,9 +34,9 @@ namespace orc {
 
   class PositionProvider {
   private:
-    std::list<unsigned long>::const_iterator position;
+    std::list<unsigned long>::iterator position;
   public:
-    PositionProvider(const std::list<unsigned long>& positions);
+    PositionProvider(std::list<unsigned long>& positions);
     unsigned long next();
   };
 
@@ -64,18 +64,18 @@ namespace orc {
     unsigned long blockSize;
 
   public:
-    SeekableArrayInputStream(std::initializer_list<unsigned char> list,
+    SeekableArrayInputStream(std::vector<unsigned char> list,
                              long block_size = -1);
     SeekableArrayInputStream(const char* list,
                              unsigned long length,
                              long block_size = -1);
     virtual ~SeekableArrayInputStream();
-    virtual bool Next(const void** data, int*size) override;
-    virtual void BackUp(int count) override;
-    virtual bool Skip(int count) override;
-    virtual google::protobuf::int64 ByteCount() const override;
-    virtual void seek(PositionProvider& position) override;
-    virtual std::string getName() const override;
+    virtual bool Next(const void** data, int*size)  ;
+    virtual void BackUp(int count)  ;
+    virtual bool Skip(int count)  ;
+    virtual google::protobuf::int64 ByteCount() const  ;
+    virtual void seek(PositionProvider& position)  ;
+    virtual std::string getName() const  ;
   };
 
   /**
@@ -84,7 +84,7 @@ namespace orc {
   class SeekableFileInputStream: public SeekableInputStream {
   private:
     InputStream* input;
-    std::unique_ptr<char[]> buffer;
+    std::vector<char> buffer;
     unsigned long offset;
     unsigned long length;
     unsigned long position;
@@ -98,12 +98,12 @@ namespace orc {
                             long blockSize = -1);
     virtual ~SeekableFileInputStream();
 
-    virtual bool Next(const void** data, int*size) override;
-    virtual void BackUp(int count) override;
-    virtual bool Skip(int count) override;
-    virtual google::protobuf::int64 ByteCount() const override;
-    virtual void seek(PositionProvider& position) override;
-    virtual std::string getName() const override;
+    virtual bool Next(const void** data, int*size)  ;
+    virtual void BackUp(int count)  ;
+    virtual bool Skip(int count)  ;
+    virtual google::protobuf::int64 ByteCount() const  ;
+    virtual void seek(PositionProvider& position)  ;
+    virtual std::string getName() const  ;
   };
 
   /**
@@ -112,9 +112,9 @@ namespace orc {
    * @param input the input stream that is the underlying source
    * @param bufferSize the maximum size of the buffer
    */
-  std::unique_ptr<SeekableInputStream> 
+  std::auto_ptr<SeekableInputStream> 
      createCodec(CompressionKind kind,
-                 std::unique_ptr<SeekableInputStream> input,
+                 std::auto_ptr<SeekableInputStream> input,
                  unsigned long bufferSize);
 }
 

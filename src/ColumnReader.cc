@@ -22,6 +22,7 @@
 #include "RLEs.hh"
 
 #include <iostream>
+#include <vector>
 
 namespace orc {
 
@@ -45,10 +46,10 @@ namespace orc {
   ColumnReader::ColumnReader(const Type& type,
                              StripeStreams& stripe
                              ): columnId(type.getColumnId()) {
-    std::unique_ptr<SeekableInputStream> stream =
+    std::auto_ptr<SeekableInputStream> stream =
       stripe.getStream(columnId, proto::Stream_Kind_PRESENT);
     if (stream.get()) {
-      notNullDecoder = createBooleanRleDecoder(std::move(stream));
+      notNullDecoder = createBooleanRleDecoder(stream);
     }
   }
 
@@ -120,17 +121,17 @@ namespace orc {
 
   class BooleanColumnReader: public ColumnReader {
   private:
-    std::unique_ptr<orc::ByteRleDecoder> rle;
+    std::auto_ptr<orc::ByteRleDecoder> rle;
 
   public:
     BooleanColumnReader(const Type& type, StripeStreams& stipe);
     ~BooleanColumnReader();
 
-    unsigned long skip(unsigned long numValues) override;
+    unsigned long skip(unsigned long numValues)  ;
 
     void next(ColumnVectorBatch& rowBatch,
               unsigned long numValues,
-              char* notNull) override;
+              char* notNull)  ;
   };
 
   BooleanColumnReader::BooleanColumnReader(const Type& type,
@@ -164,17 +165,17 @@ namespace orc {
 
   class ByteColumnReader: public ColumnReader {
   private:
-    std::unique_ptr<orc::ByteRleDecoder> rle;
+    std::auto_ptr<orc::ByteRleDecoder> rle;
 
   public:
     ByteColumnReader(const Type& type, StripeStreams& stipe);
     ~ByteColumnReader();
 
-    unsigned long skip(unsigned long numValues) override;
+    unsigned long skip(unsigned long numValues)  ;
 
     void next(ColumnVectorBatch& rowBatch,
               unsigned long numValues,
-              char* notNull) override;
+              char* notNull)  ;
   };
 
   ByteColumnReader::ByteColumnReader(const Type& type,
@@ -208,17 +209,17 @@ namespace orc {
 
   class IntegerColumnReader: public ColumnReader {
   private:
-    std::unique_ptr<orc::RleDecoder> rle;
+    std::auto_ptr<orc::RleDecoder> rle;
 
   public:
     IntegerColumnReader(const Type& type, StripeStreams& stipe);
     ~IntegerColumnReader();
 
-    unsigned long skip(unsigned long numValues) override;
+    unsigned long skip(unsigned long numValues)  ;
 
     void next(ColumnVectorBatch& rowBatch,
               unsigned long numValues,
-              char* notNull) override;
+              char* notNull)  ;
   };
 
   IntegerColumnReader::IntegerColumnReader(const Type& type,
@@ -263,20 +264,20 @@ namespace orc {
 
   class StringDictionaryColumnReader: public ColumnReader {
   private:
-    std::unique_ptr<char[]> dictionaryBlob;
-    std::unique_ptr<long[]> dictionaryOffset;
-    std::unique_ptr<RleDecoder> rle;
+    std::vector<char> dictionaryBlob;
+    std::vector<long> dictionaryOffset;
+    std::auto_ptr<RleDecoder> rle;
     unsigned int dictionaryCount;
     
   public:
     StringDictionaryColumnReader(const Type& type, StripeStreams& stipe);
     ~StringDictionaryColumnReader();
 
-    unsigned long skip(unsigned long numValues) override;
+    unsigned long skip(unsigned long numValues)  ;
 
     void next(ColumnVectorBatch& rowBatch,
               unsigned long numValues,
-              char *notNull) override;
+              char *notNull)  ;
   };
 
   StringDictionaryColumnReader::StringDictionaryColumnReader
@@ -289,22 +290,22 @@ namespace orc {
     rle = createRleDecoder(stripe.getStream(columnId,
                                             proto::Stream_Kind_DATA), 
                            false, rleVersion);
-    std::unique_ptr<RleDecoder> lengthDecoder = 
+    std::auto_ptr<RleDecoder> lengthDecoder =
       createRleDecoder(stripe.getStream(columnId,
                                         proto::Stream_Kind_LENGTH),
                        false, rleVersion);
-    dictionaryOffset = std::unique_ptr<long[]>(new long[dictionaryCount+1]);
-    long* lengthArray = dictionaryOffset.get();
+    dictionaryOffset.resize(dictionaryCount+1);
+    long* lengthArray = dictionaryOffset.data();
     lengthDecoder->next(lengthArray + 1, dictionaryCount, 0);
     lengthArray[0] = 0;
     for(unsigned int i=1; i < dictionaryCount + 1; ++i) {
       lengthArray[i] += lengthArray[i-1];
     }
     long blobSize = lengthArray[dictionaryCount];
-    dictionaryBlob = std::unique_ptr<char[]>(new char[blobSize]);
-    std::unique_ptr<SeekableInputStream> blobStream =
+    dictionaryBlob.resize(blobSize);
+    std::auto_ptr<SeekableInputStream> blobStream =
       stripe.getStream(columnId, proto::Stream_Kind_DICTIONARY_DATA);
-    readFully(dictionaryBlob.get(), blobSize, blobStream.get());
+    readFully(dictionaryBlob.data(), blobSize, blobStream.get());
   }
 
   StringDictionaryColumnReader::~StringDictionaryColumnReader() {
@@ -324,8 +325,8 @@ namespace orc {
     // update the notNull from the parent class
     notNull = rowBatch.hasNulls ? rowBatch.notNull.data() : 0;
     StringVectorBatch& byteBatch = dynamic_cast<StringVectorBatch&>(rowBatch);
-    char *blob = dictionaryBlob.get();
-    long *dictionaryOffsets = dictionaryOffset.get();
+    char *blob = dictionaryBlob.data();
+    long *dictionaryOffsets = dictionaryOffset.data();
     char **outputStarts = byteBatch.data.data();
     long *outputLengths = byteBatch.length.data();
     rle->next(outputLengths, numValues, notNull);
@@ -351,8 +352,8 @@ namespace orc {
   class StringDirectColumnReader: public ColumnReader {
   private:
     std::vector<char> blobBuffer;
-    std::unique_ptr<RleDecoder> lengthRle;
-    std::unique_ptr<SeekableInputStream> blobStream;
+    std::auto_ptr<RleDecoder> lengthRle;
+    std::auto_ptr<SeekableInputStream> blobStream;
     const char *lastBuffer;
     size_t lastBufferLength;
 
@@ -370,11 +371,11 @@ namespace orc {
     StringDirectColumnReader(const Type& type, StripeStreams& stipe);
     ~StringDirectColumnReader();
 
-    unsigned long skip(unsigned long numValues) override;
+    unsigned long skip(unsigned long numValues)  ;
 
     void next(ColumnVectorBatch& rowBatch,
               unsigned long numValues,
-              char *notNull) override;
+              char *notNull)  ;
   };
 
   StringDirectColumnReader::StringDirectColumnReader(const Type& type,
@@ -533,25 +534,25 @@ namespace orc {
 
   class StructColumnReader: public ColumnReader {
   private:
-    std::vector<std::unique_ptr<ColumnReader> > children;
+    std::vector<ColumnReader*> children;
 
   public:
     StructColumnReader(const Type& type,
                        StripeStreams& stipe);
     ~StructColumnReader();
 
-    unsigned long skip(unsigned long numValues) override;
+    unsigned long skip(unsigned long numValues)  ;
 
     void next(ColumnVectorBatch& rowBatch,
               unsigned long numValues,
-              char *notNull) override;
+              char *notNull)  ;
   };
 
   StructColumnReader::StructColumnReader(const Type& type,
                                          StripeStreams& stripe
                                          ): ColumnReader(type, stripe) {
     // count the number of selected sub-columns
-    const bool *selectedColumns = stripe.getSelectedColumns();
+    const std::vector<bool>& selectedColumns = stripe.getSelectedColumns();
     switch (stripe.getEncoding(columnId).kind()) {
     case proto::ColumnEncoding_Kind_DIRECT:
       for(unsigned int i=0; i < type.getSubtypeCount(); ++i) {
@@ -570,13 +571,16 @@ namespace orc {
   }
 
   StructColumnReader::~StructColumnReader() {
-    // PASS
+    for (size_t i=0; i<children.size(); i++) {
+      delete children[i];
+    }
+
   }
 
   unsigned long StructColumnReader::skip(unsigned long numValues) {
     numValues = ColumnReader::skip(numValues);
-    for(auto ptr=children.cbegin(); ptr != children.cend(); ++ptr) {
-      ptr->get()->skip(numValues);
+    for(std::vector<ColumnReader*>::iterator ptr=children.begin(); ptr != children.end(); ++ptr) {
+      (*ptr)->skip(numValues);
     }
     return numValues;
   }
@@ -585,43 +589,44 @@ namespace orc {
                                 unsigned long numValues,
                                 char *notNull) {
     ColumnReader::next(rowBatch, numValues, notNull);
-    std::unique_ptr<ColumnVectorBatch> *childBatch = 
-      dynamic_cast<StructVectorBatch&>(rowBatch).fields.data();
+    ColumnVectorBatch* childBatch =
+        *(dynamic_cast<StructVectorBatch&>(rowBatch).fields.data());
     unsigned int i=0;
-    for(auto ptr=children.cbegin(); ptr != children.cend(); ++ptr, ++i) {
-      ptr->get()->next(*(childBatch[i]), numValues,
+    for(std::vector<ColumnReader*>::iterator ptr=children.begin();
+        ptr != children.end(); ++ptr, ++i) {
+      (*ptr)->next(childBatch[i], numValues,
                        rowBatch.hasNulls ? rowBatch.notNull.data(): 0);
     }
   }
 
   class ListColumnReader: public ColumnReader {
   private:
-    std::unique_ptr<ColumnReader> child;
-    std::unique_ptr<RleDecoder> rle;
+    std::auto_ptr<ColumnReader> child;
+    std::auto_ptr<RleDecoder> rle;
 
   public:
     ListColumnReader(const Type& type, StripeStreams& stipe);
     ~ListColumnReader();
 
-    unsigned long skip(unsigned long numValues) override;
+    unsigned long skip(unsigned long numValues)  ;
 
     void next(ColumnVectorBatch& rowBatch,
               unsigned long numValues,
-              char *notNull) override;
+              char *notNull)  ;
   };
 
   ListColumnReader::ListColumnReader(const Type& type,
                                      StripeStreams& stripe
                                      ): ColumnReader(type, stripe) {
     // count the number of selected sub-columns
-    const bool *selectedColumns = stripe.getSelectedColumns();
+    const std::vector<bool>& selectedColumns = stripe.getSelectedColumns();
     RleVersion vers = convertRleVersion(stripe.getEncoding(columnId).kind());
     rle = createRleDecoder(stripe.getStream(columnId,
                                             proto::Stream_Kind_LENGTH),
                            false, vers);
     const Type& childType = type.getSubtype(0);
     if (selectedColumns[childType.getColumnId()]) {
-      child = buildReader(childType, stripe);
+      child = std::auto_ptr<ColumnReader>(buildReader(childType, stripe));
     }
   }
 
@@ -691,37 +696,37 @@ namespace orc {
 
   class MapColumnReader: public ColumnReader {
   private:
-    std::unique_ptr<ColumnReader> keyReader;
-    std::unique_ptr<ColumnReader> elementReader;
-    std::unique_ptr<RleDecoder> rle;
+    std::auto_ptr<ColumnReader> keyReader;
+    std::auto_ptr<ColumnReader> elementReader;
+    std::auto_ptr<RleDecoder> rle;
 
   public:
     MapColumnReader(const Type& type, StripeStreams& stipe);
     ~MapColumnReader();
 
-    unsigned long skip(unsigned long numValues) override;
+    unsigned long skip(unsigned long numValues)  ;
 
     void next(ColumnVectorBatch& rowBatch,
               unsigned long numValues,
-              char *notNull) override;
+              char *notNull)  ;
   };
 
   MapColumnReader::MapColumnReader(const Type& type,
                                      StripeStreams& stripe
                                      ): ColumnReader(type, stripe) {
     // count the number of selected sub-columns
-    const bool *selectedColumns = stripe.getSelectedColumns();
+    const std::vector<bool>& selectedColumns = stripe.getSelectedColumns();
     RleVersion vers = convertRleVersion(stripe.getEncoding(columnId).kind());
     rle = createRleDecoder(stripe.getStream(columnId,
                                             proto::Stream_Kind_LENGTH),
                            false, vers);
     const Type& keyType = type.getSubtype(0);
     if (selectedColumns[keyType.getColumnId()]) {
-      keyReader = buildReader(keyType, stripe);
+      keyReader = std::auto_ptr<ColumnReader>(buildReader(keyType, stripe));
     }
     const Type& elementType = type.getSubtype(1);
     if (selectedColumns[elementType.getColumnId()]) {
-      elementReader = buildReader(elementType, stripe);
+      elementReader = std::auto_ptr<ColumnReader>(buildReader(elementType, stripe));
     }
   }
 
@@ -802,15 +807,14 @@ namespace orc {
   /**
    * Create a reader for the given stripe.
    */
-  std::unique_ptr<ColumnReader> buildReader(const Type& type,
+  ColumnReader* buildReader(const Type& type,
                                             StripeStreams& stripe) {
     switch (type.getKind()) {
     case DATE:
     case INT:
     case LONG:
     case SHORT:
-      return std::unique_ptr<ColumnReader>(new IntegerColumnReader(type,
-                                                                   stripe));
+      return new IntegerColumnReader(type, stripe);
     case BINARY:
     case CHAR:
     case STRING:
@@ -818,32 +822,30 @@ namespace orc {
       switch (stripe.getEncoding(type.getColumnId()).kind()) {
       case proto::ColumnEncoding_Kind_DICTIONARY:
       case proto::ColumnEncoding_Kind_DICTIONARY_V2:
-        return std::unique_ptr<ColumnReader>(new StringDictionaryColumnReader
-                                             (type, stripe));
+        return new StringDictionaryColumnReader(type, stripe);
+
       case proto::ColumnEncoding_Kind_DIRECT:
       case proto::ColumnEncoding_Kind_DIRECT_V2:
-        return std::unique_ptr<ColumnReader>(new StringDirectColumnReader
-                                             (type, stripe));
+        return new StringDirectColumnReader(type, stripe);
       default:
         throw NotImplementedYet("buildReader unhandled string encoding");
       }
+      break;
 
     case BOOLEAN:
-      return std::unique_ptr<ColumnReader>(new BooleanColumnReader(type, 
-                                                                   stripe));
+      return new BooleanColumnReader(type, stripe);
 
     case BYTE:
-      return std::unique_ptr<ColumnReader>(new ByteColumnReader(type, stripe));
+      return new ByteColumnReader(type, stripe);
 
     case LIST:
-      return std::unique_ptr<ColumnReader>(new ListColumnReader(type, stripe));
+      return new ListColumnReader(type, stripe);
 
     case MAP:
-      return std::unique_ptr<ColumnReader>(new MapColumnReader(type, stripe));
+      return new MapColumnReader(type, stripe);
 
     case STRUCT:
-      return std::unique_ptr<ColumnReader>(new StructColumnReader(type,
-                                                                  stripe));
+      return new StructColumnReader(type, stripe);
 
     case FLOAT:
     case DOUBLE:

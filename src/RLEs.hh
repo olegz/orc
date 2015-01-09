@@ -37,8 +37,8 @@ enum RleVersion {
 * @param isSigned true if the number sequence is signed
 * @param version version of RLE decoding to do
 */
-std::unique_ptr<RleDecoder> createRleDecoder(
-    std::unique_ptr<SeekableInputStream> input,
+std::auto_ptr<RleDecoder> createRleDecoder(
+    std::auto_ptr<SeekableInputStream> input,
     bool isSigned,
     RleVersion version);
 

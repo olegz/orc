@@ -19,7 +19,6 @@
 #ifndef ORC_VECTOR_HH
 #define ORC_VECTOR_HH
 
-#include <array>
 #include <list>
 #include <memory>
 #include <string>
@@ -73,13 +72,13 @@ namespace orc {
                                     DEFAULT_DECIMAL_PRECISION,
                                   unsigned int scale=DEFAULT_DECIMAL_SCALE);
   std::auto_ptr<Type>
-    createStructType(std::vector<std::auto_ptr<Type> > types,
+    createStructType(std::vector<Type*> types,
                       std::vector<std::string> fieldNames);
   std::auto_ptr<Type> createListType(std::auto_ptr<Type> elements);
   std::auto_ptr<Type> createMapType(std::auto_ptr<Type> key,
                                       std::auto_ptr<Type> value);
   std::auto_ptr<Type>
-    createUnionType(std::initializer_list<std::auto_ptr<Type> > types);
+    createUnionType(std::vector<Type*> types);
 
   /**
    * The base class for each of the column vectors. This class handles

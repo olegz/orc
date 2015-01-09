@@ -44,8 +44,8 @@ namespace orc {
     out << std::dec;
   }
 
-  PositionProvider::PositionProvider(const std::list<unsigned long>& posns) {
-    position = posns.cbegin();
+  PositionProvider::PositionProvider(std::list<unsigned long>& posns) {
+    position = posns.begin();
   }
 
   unsigned long PositionProvider::next() {
@@ -63,10 +63,10 @@ namespace orc {
   }
 
   SeekableArrayInputStream::SeekableArrayInputStream
-     (std::initializer_list<unsigned char> values,
+     (std::vector<unsigned char> values,
       long blkSize): ownedData(values.size()), data(0) {
     length = values.size();
-    memcpy(ownedData.data(), values.begin(), values.size());
+    memcpy(ownedData.data(), values.data(), values.size());
     position = 0;
     blockSize = blkSize == -1 ? length : static_cast<unsigned long>(blkSize);
   }
@@ -143,7 +143,7 @@ namespace orc {
     blockSize = std::min(length,
                          static_cast<unsigned long>(_blockSize < 0 ? 
                                                     256 * 1024 : _blockSize));
-    buffer.reset(new char[blockSize]);
+    buffer.resize(blockSize);
     remainder = 0;
   }
 
@@ -154,9 +154,9 @@ namespace orc {
   bool SeekableFileInputStream::Next(const void** data, int*size) {
     unsigned long bytesRead = std::min(length - position, blockSize);
     if (bytesRead > 0) {
-      *data = buffer.get();
+      *data = buffer.data();
       // read from the file, skipping over the remainder
-      input->read(buffer.get() + remainder, offset + position + remainder, 
+      input->read(buffer.data() + remainder, offset + position + remainder,
                   bytesRead - remainder);
       position += bytesRead;
       remainder = 0;
@@ -174,8 +174,8 @@ namespace orc {
     }
     remainder = static_cast<unsigned long>(count);
     position -= remainder;
-    memmove(buffer.get(), 
-            buffer.get() + blockSize - static_cast<size_t>(count), 
+    memmove(buffer.data(),
+            buffer.data() + blockSize - static_cast<size_t>(count),
             static_cast<size_t>(count));
   }
 
@@ -192,7 +192,7 @@ namespace orc {
     }
     if (remainder > count) {
       remainder -= count;
-      memmove(buffer.get(), buffer.get() + count, remainder);
+      memmove(buffer.data(), buffer.data() + count, remainder);
     } else {
       remainder = 0;
     }
@@ -219,13 +219,13 @@ namespace orc {
     return result.str();
   }
 
-  std::unique_ptr<SeekableInputStream> 
+  std::auto_ptr<SeekableInputStream> 
      createCodec(CompressionKind kind,
-                 std::unique_ptr<SeekableInputStream> input,
+                 std::auto_ptr<SeekableInputStream> input,
                  unsigned long) {
     switch (kind) {
     case CompressionKind_NONE:
-      return std::move(input);
+      return input;
     case CompressionKind_LZO:
     case CompressionKind_SNAPPY:
     case CompressionKind_ZLIB: {

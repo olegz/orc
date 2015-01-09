@@ -28,8 +28,8 @@ namespace orc {
   public:
     explicit NotImplementedYet(const std::string& what_arg);
     explicit NotImplementedYet(const char* what_arg);
-    virtual ~NotImplementedYet();
-    NotImplementedYet(const NotImplementedYet&);
+//    virtual ~NotImplementedYet();
+//    NotImplementedYet(const NotImplementedYet&);
   private:
     NotImplementedYet& operator=(const NotImplementedYet&);
   };
@@ -38,8 +38,8 @@ namespace orc {
   public:
     explicit ParseError(const std::string& what_arg);
     explicit ParseError(const char* what_arg);
-    virtual ~ParseError();
-    ParseError(const ParseError&);
+//    virtual ~ParseError();
+//    ParseError(const ParseError&);
   private:
     ParseError& operator=(const ParseError&);
   };

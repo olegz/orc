@@ -31,9 +31,9 @@ namespace orc {
   class MockStripeStreams : public StripeStreams {
   public:
     ~MockStripeStreams();
-    std::unique_ptr<SeekableInputStream> getStream(int columnId,
+    std::auto_ptr<SeekableInputStream> getStream(int columnId,
                                                    proto::Stream_Kind kind
-                                                   ) const override;
+                                                   ) const;
     MOCK_CONST_METHOD0(getSelectedColumns, const bool*());
     MOCK_CONST_METHOD1(getEncoding, proto::ColumnEncoding (int));
     MOCK_CONST_METHOD2(getStreamProxy, SeekableInputStream*
@@ -44,7 +44,7 @@ namespace orc {
     // PASS
   }
 
-  std::unique_ptr<SeekableInputStream>
+  std::auto_ptr<SeekableInputStream>
        MockStripeStreams::getStream(int columnId,
                                     proto::Stream_Kind kind) const {
     return std::auto_ptr<SeekableInputStream>(getStreamProxy(columnId,
@@ -79,14 +79,14 @@ namespace orc {
                                       ({0x1d, 0x0f})));
 
     // create the row type
-    std::unique_ptr<Type> rowType =
+    std::auto_ptr<Type> rowType =
       createStructType({createPrimitiveType(BOOLEAN)}, {"col0"});
     rowType->assignIds(0);
 
-    std::unique_ptr<ColumnReader> reader = buildReader(*rowType, streams);
+    std::auto_ptr<ColumnReader> reader = buildReader(*rowType, streams);
     LongVectorBatch *longBatch = new LongVectorBatch(1024);
     StructVectorBatch batch(1024);
-    batch.fields.push_back(std::unique_ptr<ColumnVectorBatch>(longBatch));
+    batch.fields.push_back(std::auto_ptr<ColumnVectorBatch>(longBatch));
     reader->next(batch, 512, 0);
     ASSERT_EQ(512, batch.numElements);
     ASSERT_EQ(false, batch.hasNulls);
@@ -131,14 +131,14 @@ namespace orc {
                                       ({0x1d, 0x0f})));
 
     // create the row type
-    std::unique_ptr<Type> rowType =
+    std::auto_ptr<Type> rowType =
       createStructType({createPrimitiveType(BOOLEAN)}, {"col0"});
     rowType->assignIds(0);
 
-    std::unique_ptr<ColumnReader> reader = buildReader(*rowType, streams);
+    std::auto_ptr<ColumnReader> reader = buildReader(*rowType, streams);
     LongVectorBatch *longBatch = new LongVectorBatch(1024);
     StructVectorBatch batch(1024);
-    batch.fields.push_back(std::unique_ptr<ColumnVectorBatch>(longBatch));
+    batch.fields.push_back(std::auto_ptr<ColumnVectorBatch>(longBatch));
     reader->next(batch, 1, 0);
     ASSERT_EQ(1, batch.numElements);
     ASSERT_EQ(false, batch.hasNulls);
@@ -195,15 +195,15 @@ namespace orc {
                                       (buffer, 258)));
 
     // create the row type
-    std::unique_ptr<Type> rowType =
+    std::auto_ptr<Type> rowType =
       createStructType({createPrimitiveType(BYTE)}, {"col0"});
     rowType->assignIds(0);
 
-    std::unique_ptr<ColumnReader> reader =
+    std::auto_ptr<ColumnReader> reader =
       buildReader(*rowType, streams);
     LongVectorBatch *longBatch = new LongVectorBatch(1024);
     StructVectorBatch batch(1024);
-    batch.fields.push_back(std::unique_ptr<ColumnVectorBatch>(longBatch));
+    batch.fields.push_back(std::auto_ptr<ColumnVectorBatch>(longBatch));
     reader->next(batch, 512, 0);
     ASSERT_EQ(512, batch.numElements);
     ASSERT_EQ(false, batch.hasNulls);
@@ -258,15 +258,15 @@ namespace orc {
                                       (buffer, 258)));
 
     // create the row type
-    std::unique_ptr<Type> rowType =
+    std::auto_ptr<Type> rowType =
       createStructType({createPrimitiveType(BYTE)}, {"col0"});
     rowType->assignIds(0);
 
-    std::unique_ptr<ColumnReader> reader =
+    std::auto_ptr<ColumnReader> reader =
       buildReader(*rowType, streams);
     LongVectorBatch *longBatch = new LongVectorBatch(1024);
     StructVectorBatch batch(1024);
-    batch.fields.push_back(std::unique_ptr<ColumnVectorBatch>(longBatch));
+    batch.fields.push_back(std::auto_ptr<ColumnVectorBatch>(longBatch));
     reader->next(batch, 1, 0);
     ASSERT_EQ(1, batch.numElements);
     ASSERT_EQ(false, batch.hasNulls);
@@ -290,8 +290,8 @@ namespace orc {
     MockStripeStreams streams;
 
     // set getSelectedColumns()
-    std::unique_ptr<bool[]> selectedColumns =
-      std::unique_ptr<bool[]>(new bool[2]);
+    std::auto_ptr<bool[]> selectedColumns =
+      std::auto_ptr<bool[]>(new bool[2]);
     memset(selectedColumns.get(), true, 2);
     EXPECT_CALL(streams, getSelectedColumns())
       .WillRepeatedly(testing::Return(selectedColumns.get()));
@@ -313,15 +313,15 @@ namespace orc {
                                       ({0x64, 0x01, 0x00})));
 
     // create the row type
-    std::unique_ptr<Type> rowType =
+    std::auto_ptr<Type> rowType =
       createStructType({createPrimitiveType(INT)}, {"myInt"});
     rowType->assignIds(0);
 
-    std::unique_ptr<ColumnReader> reader =
+    std::auto_ptr<ColumnReader> reader =
       buildReader(*rowType, streams);
     LongVectorBatch *longBatch = new LongVectorBatch(1024);
     StructVectorBatch batch(1024);
-    batch.fields.push_back(std::unique_ptr<ColumnVectorBatch>(longBatch));
+    batch.fields.push_back(std::auto_ptr<ColumnVectorBatch>(longBatch));
     reader->next(batch, 200, 0);
     ASSERT_EQ(200, batch.numElements);
     ASSERT_EQ(false, batch.hasNulls);
@@ -342,8 +342,8 @@ namespace orc {
     MockStripeStreams streams;
 
     // set getSelectedColumns()
-    std::unique_ptr<bool[]> selectedColumns =
-      std::unique_ptr<bool[]>(new bool[2]);
+    std::auto_ptr<bool[]> selectedColumns =
+      std::auto_ptr<bool[]>(new bool[2]);
     memset(selectedColumns.get(), true, 2);
     EXPECT_CALL(streams, getSelectedColumns())
       .WillRepeatedly(testing::Return(selectedColumns.get()));
@@ -378,16 +378,16 @@ namespace orc {
                                       ({0x02, 0x01, 0x03})));
 
     // create the row type
-    std::unique_ptr<Type> rowType =
+    std::auto_ptr<Type> rowType =
       createStructType({createPrimitiveType(STRING)}, {"myString"});
     rowType->assignIds(0);
 
 
-    std::unique_ptr<ColumnReader> reader =
+    std::auto_ptr<ColumnReader> reader =
       buildReader(*rowType, streams);
     StringVectorBatch *stringBatch = new StringVectorBatch(1024);
     StructVectorBatch batch(1024);
-    batch.fields.push_back(std::unique_ptr<ColumnVectorBatch>(stringBatch));
+    batch.fields.push_back(std::auto_ptr<ColumnVectorBatch>(stringBatch));
     reader->next(batch, 200, 0);
     ASSERT_EQ(200, batch.numElements);
     ASSERT_EQ(false, batch.hasNulls);
@@ -413,8 +413,8 @@ namespace orc {
     MockStripeStreams streams;
 
     // set getSelectedColumns()
-    std::unique_ptr<bool[]> selectedColumns =
-      std::unique_ptr<bool[]>(new bool[4]);
+    std::auto_ptr<bool[]> selectedColumns =
+      std::auto_ptr<bool[]>(new bool[4]);
     memset(selectedColumns.get(), true, 3);
     selectedColumns.get()[3] = false;
     EXPECT_CALL(streams, getSelectedColumns())
@@ -471,20 +471,20 @@ namespace orc {
                                       ({})));
 
     // create the row type
-    std::unique_ptr<Type> rowType =
+    std::auto_ptr<Type> rowType =
       createStructType({createPrimitiveType(VARCHAR),
                         createPrimitiveType(CHAR),
                         createPrimitiveType(STRING)},
         {"col0", "col1", "col2"});
     rowType->assignIds(0);
 
-    std::unique_ptr<ColumnReader> reader =
+    std::auto_ptr<ColumnReader> reader =
       buildReader(*rowType, streams);
     StructVectorBatch batch(1024);
     StringVectorBatch *stringBatch = new StringVectorBatch(1024);
     StringVectorBatch *nullBatch = new StringVectorBatch(1024);
-    batch.fields.push_back(std::unique_ptr<ColumnVectorBatch>(stringBatch));
-    batch.fields.push_back(std::unique_ptr<ColumnVectorBatch>(nullBatch));
+    batch.fields.push_back(std::auto_ptr<ColumnVectorBatch>(stringBatch));
+    batch.fields.push_back(std::auto_ptr<ColumnVectorBatch>(nullBatch));
     reader->next(batch, 200, 0);
     ASSERT_EQ(200, batch.numElements);
     ASSERT_EQ(false, batch.hasNulls);
@@ -509,8 +509,8 @@ namespace orc {
     MockStripeStreams streams;
 
     // set getSelectedColumns()
-    std::unique_ptr<bool[]> selectedColumns =
-      std::unique_ptr<bool[]>(new bool[4]);
+    std::auto_ptr<bool[]> selectedColumns =
+      std::auto_ptr<bool[]>(new bool[4]);
     memset(selectedColumns.get(), true, 4);
     EXPECT_CALL(streams, getSelectedColumns())
       .WillRepeatedly(testing::Return(selectedColumns.get()));
@@ -541,7 +541,7 @@ namespace orc {
                                       ({0x17, 0x01, 0x00})));
 
     // create the row type
-    std::unique_ptr<Type> rowType =
+    std::auto_ptr<Type> rowType =
       createStructType
         ({createStructType
             ({createStructType
@@ -550,15 +550,15 @@ namespace orc {
           {"col0"});
     rowType->assignIds(0);
 
-    std::unique_ptr<ColumnReader> reader = buildReader(*rowType, streams);
+    std::auto_ptr<ColumnReader> reader = buildReader(*rowType, streams);
 
     StructVectorBatch batch(1024);
     StructVectorBatch *middle = new StructVectorBatch(1024);
     StructVectorBatch *inner = new StructVectorBatch(1024);
     LongVectorBatch *longs = new LongVectorBatch(1024);
-    batch.fields.push_back(std::unique_ptr<ColumnVectorBatch>(middle));
-    middle->fields.push_back(std::unique_ptr<ColumnVectorBatch>(inner));
-    inner->fields.push_back(std::unique_ptr<ColumnVectorBatch>(longs));
+    batch.fields.push_back(std::auto_ptr<ColumnVectorBatch>(middle));
+    middle->fields.push_back(std::auto_ptr<ColumnVectorBatch>(inner));
+    inner->fields.push_back(std::auto_ptr<ColumnVectorBatch>(longs));
     reader->next(batch, 200, 0);
     ASSERT_EQ(200, batch.numElements);
     ASSERT_EQ(false, batch.hasNulls);
@@ -598,8 +598,8 @@ namespace orc {
     MockStripeStreams streams;
 
     // set getSelectedColumns()
-    std::unique_ptr<bool[]> selectedColumns =
-      std::unique_ptr<bool[]>(new bool[3]);
+    std::auto_ptr<bool[]> selectedColumns =
+      std::auto_ptr<bool[]>(new bool[3]);
     memset(selectedColumns.get(), true, 3);
     EXPECT_CALL(streams, getSelectedColumns())
       .WillRepeatedly(testing::Return(selectedColumns.get()));
@@ -649,19 +649,19 @@ namespace orc {
                                       ({0x61, 0x00, 0x02})));
 
     // create the row type
-    std::unique_ptr<Type> rowType =
+    std::auto_ptr<Type> rowType =
       createStructType({createPrimitiveType(INT),
             createPrimitiveType(STRING)}, {"myInt", "myString"});
     rowType->assignIds(0);
 
 
-    std::unique_ptr<ColumnReader> reader =
+    std::auto_ptr<ColumnReader> reader =
       buildReader(*rowType, streams);
     StructVectorBatch batch(100);
     LongVectorBatch *longBatch = new LongVectorBatch(100);
     StringVectorBatch *stringBatch = new StringVectorBatch(100);
-    batch.fields.push_back(std::unique_ptr<ColumnVectorBatch>(longBatch));
-    batch.fields.push_back(std::unique_ptr<ColumnVectorBatch>(stringBatch));
+    batch.fields.push_back(std::auto_ptr<ColumnVectorBatch>(longBatch));
+    batch.fields.push_back(std::auto_ptr<ColumnVectorBatch>(stringBatch));
     reader->next(batch, 20, 0);
     ASSERT_EQ(20, batch.numElements);
     ASSERT_EQ(20, longBatch->numElements);
@@ -730,15 +730,15 @@ namespace orc {
                                       ({0x61, 0x00, 0x02})));
 
     // create the row type
-    std::unique_ptr<Type> rowType =
+    std::auto_ptr<Type> rowType =
       createStructType({createPrimitiveType(BINARY)}, {"col0"});
     rowType->assignIds(0);
 
-    std::unique_ptr<ColumnReader> reader = buildReader(*rowType, streams);
+    std::auto_ptr<ColumnReader> reader = buildReader(*rowType, streams);
 
     StructVectorBatch batch(1024);
     StringVectorBatch *strings = new StringVectorBatch(1024);
-    batch.fields.push_back(std::unique_ptr<ColumnVectorBatch>(strings));
+    batch.fields.push_back(std::auto_ptr<ColumnVectorBatch>(strings));
     for(size_t i=0; i < 2; ++i) {
       reader->next(batch, 50, 0);
       ASSERT_EQ(50, batch.numElements);
@@ -791,15 +791,15 @@ namespace orc {
                                       ({0x7d, 0x00, 0x02})));
 
     // create the row type
-    std::unique_ptr<Type> rowType =
+    std::auto_ptr<Type> rowType =
       createStructType({createPrimitiveType(BINARY)}, {"col0"});
     rowType->assignIds(0);
 
-    std::unique_ptr<ColumnReader> reader = buildReader(*rowType, streams);
+    std::auto_ptr<ColumnReader> reader = buildReader(*rowType, streams);
 
     StructVectorBatch batch(1024);
     StringVectorBatch *strings = new StringVectorBatch(1024);
-    batch.fields.push_back(std::unique_ptr<ColumnVectorBatch>(strings));
+    batch.fields.push_back(std::auto_ptr<ColumnVectorBatch>(strings));
     size_t next = 0;
     for(size_t i=0; i < 2; ++i) {
       reader->next(batch, 128, 0);
@@ -850,15 +850,15 @@ namespace orc {
                                       ({0x61, 0x00, 0x02})));
 
     // create the row type
-    std::unique_ptr<Type> rowType =
+    std::auto_ptr<Type> rowType =
       createStructType({createPrimitiveType(STRING)}, {"col0"});
     rowType->assignIds(0);
 
-    std::unique_ptr<ColumnReader> reader = buildReader(*rowType, streams);
+    std::auto_ptr<ColumnReader> reader = buildReader(*rowType, streams);
 
     StructVectorBatch batch(1024);
     StringVectorBatch *strings = new StringVectorBatch(1024);
-    batch.fields.push_back(std::unique_ptr<ColumnVectorBatch>(strings));
+    batch.fields.push_back(std::auto_ptr<ColumnVectorBatch>(strings));
     EXPECT_THROW(reader->next(batch, 100, 0), ParseError);
   }
 
@@ -899,15 +899,15 @@ namespace orc {
                                       ({0x61, 0x00, 0x02})));
 
     // create the row type
-    std::unique_ptr<Type> rowType =
+    std::auto_ptr<Type> rowType =
       createStructType({createPrimitiveType(STRING)}, {"col0"});
     rowType->assignIds(0);
 
-    std::unique_ptr<ColumnReader> reader = buildReader(*rowType, streams);
+    std::auto_ptr<ColumnReader> reader = buildReader(*rowType, streams);
 
     StructVectorBatch batch(25);
     StringVectorBatch *strings = new StringVectorBatch(25);
-    batch.fields.push_back(std::unique_ptr<ColumnVectorBatch>(strings));
+    batch.fields.push_back(std::auto_ptr<ColumnVectorBatch>(strings));
     for(size_t i=0; i < 4; ++i) {
       reader->next(batch, 25, 0);
       ASSERT_EQ(25, batch.numElements);
@@ -960,15 +960,15 @@ namespace orc {
                                       ({0x7d, 0x00, 0x02, 0x7d, 0x00, 0x02})));
 
     // create the row type
-    std::unique_ptr<Type> rowType =
+    std::auto_ptr<Type> rowType =
       createStructType({createPrimitiveType(STRING)}, {"col0"});
     rowType->assignIds(0);
 
-    std::unique_ptr<ColumnReader> reader = buildReader(*rowType, streams);
+    std::auto_ptr<ColumnReader> reader = buildReader(*rowType, streams);
 
     StructVectorBatch batch(64);
     StringVectorBatch *strings = new StringVectorBatch(64);
-    batch.fields.push_back(std::unique_ptr<ColumnVectorBatch>(strings));
+    batch.fields.push_back(std::auto_ptr<ColumnVectorBatch>(strings));
     size_t next = 0;
     for(size_t i=0; i < 8; ++i) {
       reader->next(batch, 64, 0);
@@ -1037,15 +1037,15 @@ namespace orc {
                                           0x1b, 0x01, 0x92, 0x09})));
 
     // create the row type
-    std::unique_ptr<Type> rowType =
+    std::auto_ptr<Type> rowType =
       createStructType({createPrimitiveType(STRING)}, {"col0"});
     rowType->assignIds(0);
 
-    std::unique_ptr<ColumnReader> reader = buildReader(*rowType, streams);
+    std::auto_ptr<ColumnReader> reader = buildReader(*rowType, streams);
 
     StructVectorBatch batch(2);
     StringVectorBatch *strings = new StringVectorBatch(2);
-    batch.fields.push_back(std::unique_ptr<ColumnVectorBatch>(strings));
+    batch.fields.push_back(std::auto_ptr<ColumnVectorBatch>(strings));
     reader->next(batch, 2, 0);
     ASSERT_EQ(2, batch.numElements);
     ASSERT_EQ(false, batch.hasNulls);
@@ -1136,15 +1136,15 @@ namespace orc {
                                           0x1b, 0x01, 0x92, 0x09})));
 
     // create the row type
-    std::unique_ptr<Type> rowType =
+    std::auto_ptr<Type> rowType =
       createStructType({createPrimitiveType(STRING)}, {"col0"});
     rowType->assignIds(0);
 
-    std::unique_ptr<ColumnReader> reader = buildReader(*rowType, streams);
+    std::auto_ptr<ColumnReader> reader = buildReader(*rowType, streams);
 
     StructVectorBatch batch(2);
     StringVectorBatch *strings = new StringVectorBatch(2);
-    batch.fields.push_back(std::unique_ptr<ColumnVectorBatch>(strings));
+    batch.fields.push_back(std::auto_ptr<ColumnVectorBatch>(strings));
     reader->next(batch, 2, 0);
     ASSERT_EQ(2, batch.numElements);
     ASSERT_EQ(false, batch.hasNulls);
@@ -1222,17 +1222,17 @@ namespace orc {
                                           0x1b, 0x01, 0xa4, 0x12})));
 
     // create the row type
-    std::unique_ptr<Type> rowType =
+    std::auto_ptr<Type> rowType =
       createStructType({createListType(createPrimitiveType(LONG))}, {"col0"});
     rowType->assignIds(0);
 
-    std::unique_ptr<ColumnReader> reader = buildReader(*rowType, streams);
+    std::auto_ptr<ColumnReader> reader = buildReader(*rowType, streams);
 
     StructVectorBatch batch(512);
     ListVectorBatch *lists = new ListVectorBatch(512);
     LongVectorBatch *longs = new LongVectorBatch(512);
-    batch.fields.push_back(std::unique_ptr<ColumnVectorBatch>(lists));
-    lists->elements = std::unique_ptr<ColumnVectorBatch>(longs);
+    batch.fields.push_back(std::auto_ptr<ColumnVectorBatch>(lists));
+    lists->elements = std::auto_ptr<ColumnVectorBatch>(longs);
     reader->next(batch, 512, 0);
     ASSERT_EQ(512, batch.numElements);
     ASSERT_EQ(false, batch.hasNulls);
@@ -1312,17 +1312,17 @@ namespace orc {
                                           0x5f, 0x01, 0xbc, 0x1e})));
 
     // create the row type
-    std::unique_ptr<Type> rowType =
+    std::auto_ptr<Type> rowType =
       createStructType({createListType(createPrimitiveType(LONG))}, {"col0"});
     rowType->assignIds(0);
 
-    std::unique_ptr<ColumnReader> reader = buildReader(*rowType, streams);
+    std::auto_ptr<ColumnReader> reader = buildReader(*rowType, streams);
 
     StructVectorBatch batch(512);
     ListVectorBatch *lists = new ListVectorBatch(512);
     LongVectorBatch *longs = new LongVectorBatch(512);
-    batch.fields.push_back(std::unique_ptr<ColumnVectorBatch>(lists));
-    lists->elements = std::unique_ptr<ColumnVectorBatch>(longs);
+    batch.fields.push_back(std::auto_ptr<ColumnVectorBatch>(lists));
+    lists->elements = std::auto_ptr<ColumnVectorBatch>(longs);
     reader->next(batch, 512, 0);
     ASSERT_EQ(512, batch.numElements);
     ASSERT_EQ(false, batch.hasNulls);
@@ -1472,17 +1472,17 @@ namespace orc {
                                           0x5f, 0x01, 0xbc, 0x1e})));
 
     // create the row type
-    std::unique_ptr<Type> rowType =
+    std::auto_ptr<Type> rowType =
       createStructType({createListType(createPrimitiveType(LONG))}, {"col0"});
     rowType->assignIds(0);
 
-    std::unique_ptr<ColumnReader> reader = buildReader(*rowType, streams);
+    std::auto_ptr<ColumnReader> reader = buildReader(*rowType, streams);
 
     StructVectorBatch batch(1);
     ListVectorBatch *lists = new ListVectorBatch(1);
     LongVectorBatch *longs = new LongVectorBatch(1);
-    batch.fields.push_back(std::unique_ptr<ColumnVectorBatch>(lists));
-    lists->elements = std::unique_ptr<ColumnVectorBatch>(longs);
+    batch.fields.push_back(std::auto_ptr<ColumnVectorBatch>(lists));
+    lists->elements = std::auto_ptr<ColumnVectorBatch>(longs);
 
     reader->next(batch, 1, 0);
     ASSERT_EQ(1, batch.numElements);
@@ -1570,15 +1570,15 @@ namespace orc {
       .WillRepeatedly(testing::Return(nullptr));
 
     // create the row type
-    std::unique_ptr<Type> rowType =
+    std::auto_ptr<Type> rowType =
       createStructType({createListType(createPrimitiveType(LONG))}, {"col0"});
     rowType->assignIds(0);
 
-    std::unique_ptr<ColumnReader> reader = buildReader(*rowType, streams);
+    std::auto_ptr<ColumnReader> reader = buildReader(*rowType, streams);
 
     StructVectorBatch batch(1);
     ListVectorBatch *lists = new ListVectorBatch(1);
-    batch.fields.push_back(std::unique_ptr<ColumnVectorBatch>(lists));
+    batch.fields.push_back(std::auto_ptr<ColumnVectorBatch>(lists));
 
     reader->next(batch, 1, 0);
     ASSERT_EQ(1, batch.numElements);
@@ -1665,21 +1665,21 @@ namespace orc {
                                           0x1b, 0x01, 0xb4, 0x12})));
 
     // create the row type
-    std::unique_ptr<Type> rowType =
+    std::auto_ptr<Type> rowType =
       createStructType({createMapType(createPrimitiveType(LONG),
                                       createPrimitiveType(LONG))},
         {"col0", "col1"});
     rowType->assignIds(0);
 
-    std::unique_ptr<ColumnReader> reader = buildReader(*rowType, streams);
+    std::auto_ptr<ColumnReader> reader = buildReader(*rowType, streams);
 
     StructVectorBatch batch(512);
     MapVectorBatch *maps = new MapVectorBatch(512);
     LongVectorBatch *keys = new LongVectorBatch(512);
     LongVectorBatch *elements = new LongVectorBatch(512);
-    batch.fields.push_back(std::unique_ptr<ColumnVectorBatch>(maps));
-    maps->keys = std::unique_ptr<ColumnVectorBatch>(keys);
-    maps->elements = std::unique_ptr<ColumnVectorBatch>(elements);
+    batch.fields.push_back(std::auto_ptr<ColumnVectorBatch>(maps));
+    maps->keys = std::auto_ptr<ColumnVectorBatch>(keys);
+    maps->elements = std::auto_ptr<ColumnVectorBatch>(elements);
     reader->next(batch, 512, 0);
     ASSERT_EQ(512, batch.numElements);
     ASSERT_EQ(false, batch.hasNulls);
@@ -1779,21 +1779,21 @@ namespace orc {
                                           0x6f, 0x01, 0xac, 0x0e})));
 
     // create the row type
-    std::unique_ptr<Type> rowType =
+    std::auto_ptr<Type> rowType =
       createStructType({createMapType(createPrimitiveType(LONG),
                                       createPrimitiveType(LONG))},
         {"col0", "col1"});
     rowType->assignIds(0);
 
-    std::unique_ptr<ColumnReader> reader = buildReader(*rowType, streams);
+    std::auto_ptr<ColumnReader> reader = buildReader(*rowType, streams);
 
     StructVectorBatch batch(512);
     MapVectorBatch *maps = new MapVectorBatch(512);
     LongVectorBatch *keys = new LongVectorBatch(512);
     LongVectorBatch *elements = new LongVectorBatch(512);
-    batch.fields.push_back(std::unique_ptr<ColumnVectorBatch>(maps));
-    maps->keys = std::unique_ptr<ColumnVectorBatch>(keys);
-    maps->elements = std::unique_ptr<ColumnVectorBatch>(elements);
+    batch.fields.push_back(std::auto_ptr<ColumnVectorBatch>(maps));
+    maps->keys = std::auto_ptr<ColumnVectorBatch>(keys);
+    maps->elements = std::auto_ptr<ColumnVectorBatch>(elements);
     reader->next(batch, 512, 0);
     ASSERT_EQ(512, batch.numElements);
     ASSERT_EQ(false, batch.hasNulls);
@@ -1984,21 +1984,21 @@ namespace orc {
                                           0x5f, 0x01, 0xcc, 0x1e})));
 
     // create the row type
-    std::unique_ptr<Type> rowType =
+    std::auto_ptr<Type> rowType =
       createStructType({createMapType(createPrimitiveType(LONG),
                                       createPrimitiveType(LONG))},
         {"col0", "col1"});
     rowType->assignIds(0);
 
-    std::unique_ptr<ColumnReader> reader = buildReader(*rowType, streams);
+    std::auto_ptr<ColumnReader> reader = buildReader(*rowType, streams);
 
     StructVectorBatch batch(1);
     MapVectorBatch *maps = new MapVectorBatch(1);
     LongVectorBatch *keys = new LongVectorBatch(1);
     LongVectorBatch *elements = new LongVectorBatch(1);
-    batch.fields.push_back(std::unique_ptr<ColumnVectorBatch>(maps));
-    maps->keys = std::unique_ptr<ColumnVectorBatch>(keys);
-    maps->elements = std::unique_ptr<ColumnVectorBatch>(elements);
+    batch.fields.push_back(std::auto_ptr<ColumnVectorBatch>(maps));
+    maps->keys = std::auto_ptr<ColumnVectorBatch>(keys);
+    maps->elements = std::auto_ptr<ColumnVectorBatch>(elements);
 
     reader->next(batch, 1, 0);
     ASSERT_EQ(1, batch.numElements);
@@ -2089,17 +2089,17 @@ namespace orc {
                                           0xff, 0x13})));
 
     // create the row type
-    std::unique_ptr<Type> rowType =
+    std::auto_ptr<Type> rowType =
       createStructType({createMapType(createPrimitiveType(LONG),
                                       createPrimitiveType(LONG))},
         {"col0", "col1"});
     rowType->assignIds(0);
 
-    std::unique_ptr<ColumnReader> reader = buildReader(*rowType, streams);
+    std::auto_ptr<ColumnReader> reader = buildReader(*rowType, streams);
 
     StructVectorBatch batch(1);
     MapVectorBatch *maps = new MapVectorBatch(1);
-    batch.fields.push_back(std::unique_ptr<ColumnVectorBatch>(maps));
+    batch.fields.push_back(std::auto_ptr<ColumnVectorBatch>(maps));
 
     reader->next(batch, 1, 0);
     ASSERT_EQ(1, batch.numElements);
@@ -2133,8 +2133,8 @@ namespace orc {
     MockStripeStreams streams;
 
     // set getSelectedColumns()
-    std::unique_ptr<bool[]> selectedColumns =
-      std::unique_ptr<bool[]>(new bool[2]);
+    std::auto_ptr<bool[]> selectedColumns =
+      std::auto_ptr<bool[]>(new bool[2]);
     memset(selectedColumns.get(), true, 2);
     EXPECT_CALL(streams, getSelectedColumns())
       .WillRepeatedly(testing::Return(selectedColumns.get()));
@@ -2150,7 +2150,7 @@ namespace orc {
       .WillRepeatedly(testing::Return(nullptr));
 
     // create the row type
-    std::unique_ptr<Type> rowType =
+    std::auto_ptr<Type> rowType =
       createStructType({createPrimitiveType(FLOAT)}, {"col0"});
     rowType->assignIds(0);
     EXPECT_THROW(buildReader(*rowType, streams), NotImplementedYet);

@@ -32,7 +32,7 @@ TEST(Reader, simpleTest) {
   orc::ReaderOptions opts;
   std::ostringstream filename;
   filename << exampleDirectory << "/demo-11-none.orc";
-  std::unique_ptr<orc::Reader> reader =
+  std::auto_ptr<orc::Reader> reader =
     orc::createReader(orc::readLocalFile(filename.str()), opts);
 
   EXPECT_EQ(orc::CompressionKind_NONE, reader->getCompression());
@@ -77,7 +77,7 @@ TEST(Reader, simpleTest) {
   }
 
   unsigned long rowCount = 0;
-  std::unique_ptr<orc::ColumnVectorBatch> batch = reader->createRowBatch(1024);
+  std::auto_ptr<orc::ColumnVectorBatch> batch = reader->createRowBatch(1024);
   orc::LongVectorBatch* longVector =
     dynamic_cast<orc::LongVectorBatch*>
     (dynamic_cast<orc::StructVectorBatch&>(*batch).fields[0].get());

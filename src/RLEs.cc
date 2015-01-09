@@ -26,15 +26,14 @@ RleDecoder::~RleDecoder() {
   // PASS
 }
 
-std::unique_ptr<RleDecoder> createRleDecoder(
-    std::unique_ptr<SeekableInputStream> input,
+std::auto_ptr<RleDecoder> createRleDecoder(
+    std::auto_ptr<SeekableInputStream> input,
     bool isSigned,
     RleVersion version) {
   switch (version) {
     case RleVersion_1:
       // We don't have std::make_unique() yet.
-      return std::unique_ptr<RleDecoder>(new RleDecoderV1(std::move(input), 
-                                                          isSigned));
+      return std::auto_ptr<RleDecoder>(new RleDecoderV1(input, isSigned));
     case RleVersion_2:
     default:
       throw NotImplementedYet("Not implemented yet");

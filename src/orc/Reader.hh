@@ -293,7 +293,7 @@ namespace orc {
   public:
     ReaderOptions();
     ReaderOptions(const ReaderOptions&);
-    ReaderOptions(ReaderOptions&&);
+    ReaderOptions(ReaderOptions&);
     ReaderOptions& operator=(const ReaderOptions&);
     virtual ~ReaderOptions();
 
@@ -442,7 +442,7 @@ namespace orc {
     /**
      * Get the selected columns of the file.
      */
-    virtual const bool* getSelectedColumns() const = 0;
+    virtual const std::vector<bool>& getSelectedColumns() const = 0;
 
     /**
      * Create a row batch for reading the selected columns of this file.

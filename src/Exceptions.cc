@@ -26,18 +26,18 @@ namespace orc {
   }
 
   NotImplementedYet::NotImplementedYet(const char* what_arg
-                                       ) :logic_error(what_arg) {
+                                       ) : logic_error(what_arg) {
     // PASS
   }
 
-  NotImplementedYet::NotImplementedYet(const NotImplementedYet& error
-                                       ): logic_error(error) {
-    // PASS
-  }
+//  NotImplementedYet::NotImplementedYet(const NotImplementedYet& error
+//                                       ): logic_error(error) {
+//    // PASS
+//  }
 
-  NotImplementedYet::~NotImplementedYet() {
-    // PASS
-  }
+//  NotImplementedYet::~NotImplementedYet() {
+//    // PASS
+//  }
 
   ParseError::ParseError(const std::string& what_arg
                          ): runtime_error(what_arg) {
@@ -49,11 +49,11 @@ namespace orc {
     // PASS
   }
 
-  ParseError::ParseError(const ParseError& error): runtime_error(error) {
-    // PASS
-  }
+//  ParseError::ParseError(const ParseError& error): runtime_error(error) {
+//    // PASS
+//  }
 
-  ParseError::~ParseError() {
-    // PASS
-  }
+//  ParseError::~ParseError() {
+//    // PASS
+//  }
 }
