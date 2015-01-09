@@ -552,7 +552,7 @@ namespace orc {
                                          StripeStreams& stripe
                                          ): ColumnReader(type, stripe) {
     // count the number of selected sub-columns
-    const std::vector<bool>& selectedColumns = stripe.getSelectedColumns();
+    const std::vector<bool> selectedColumns = stripe.getSelectedColumns();
     switch (stripe.getEncoding(columnId).kind()) {
     case proto::ColumnEncoding_Kind_DIRECT:
       for(unsigned int i=0; i < type.getSubtypeCount(); ++i) {
@@ -619,7 +619,7 @@ namespace orc {
                                      StripeStreams& stripe
                                      ): ColumnReader(type, stripe) {
     // count the number of selected sub-columns
-    const std::vector<bool>& selectedColumns = stripe.getSelectedColumns();
+    const std::vector<bool> selectedColumns = stripe.getSelectedColumns();
     RleVersion vers = convertRleVersion(stripe.getEncoding(columnId).kind());
     rle = createRleDecoder(stripe.getStream(columnId,
                                             proto::Stream_Kind_LENGTH),
@@ -715,7 +715,7 @@ namespace orc {
                                      StripeStreams& stripe
                                      ): ColumnReader(type, stripe) {
     // count the number of selected sub-columns
-    const std::vector<bool>& selectedColumns = stripe.getSelectedColumns();
+    const std::vector<bool> selectedColumns = stripe.getSelectedColumns();
     RleVersion vers = convertRleVersion(stripe.getEncoding(columnId).kind());
     rle = createRleDecoder(stripe.getStream(columnId,
                                             proto::Stream_Kind_LENGTH),

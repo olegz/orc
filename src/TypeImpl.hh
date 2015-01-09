@@ -24,6 +24,7 @@
 #include "wrap/orc-proto-wrapper.hh"
 
 #include <vector>
+#include <string>
 
 namespace orc {
 
@@ -31,8 +32,8 @@ namespace orc {
   private:
     int columnId;
     TypeKind kind;
-    std::auto_ptr<std::auto_ptr<Type>[]> subTypes;
-    std::auto_ptr<std::string[]> fieldNames;
+    std::vector<Type*> subTypes;
+    std::vector<std::string> fieldNames;
     unsigned int subtypeCount;
     unsigned int maxLength;
     unsigned int precision;

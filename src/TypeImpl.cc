@@ -62,12 +62,8 @@ namespace orc {
     precision = 0;
     scale = 0;
     subtypeCount = static_cast<unsigned int>(types.size());
-    subTypes.reset(new std::auto_ptr<Type>[subtypeCount]);
-    fieldNames.reset(new std::string[_fieldNames.size()]);
-    for(unsigned int i=0; i < subtypeCount; ++i) {
-      subTypes.get()[i].reset(types[i]);
-      fieldNames.get()[i] = _fieldNames[i];
-    }
+    subTypes.assign(types.begin(), types.end());
+    fieldNames.assign(_fieldNames.begin(), _fieldNames.end());
   }
 
   TypeImpl::TypeImpl(TypeKind _kind, const std::vector<Type*>& types) {
@@ -77,24 +73,23 @@ namespace orc {
     precision = 0;
     scale = 0;
     subtypeCount = static_cast<unsigned int>(types.size());
-    subTypes.reset(new std::auto_ptr<Type>[subtypeCount]);
-    for(unsigned int i=0; i < subtypeCount; ++i) {
-      subTypes.get()[i].reset(types[static_cast<unsigned long>(i)]);
-    }
+    subTypes.assign(types.begin(), types.end());
   }
 
   int TypeImpl::assignIds(int root) {
     columnId = root;
     int current = root + 1;
-    std::auto_ptr<Type> *children = subTypes.get();
     for(unsigned int i=0; i < subtypeCount; ++i) {
-      current = children[i].get()->assignIds(current);
+      current = subTypes[i]->assignIds(current);
     }
     return current;
   }
 
   TypeImpl::~TypeImpl() {
-    // PASS
+    for (std::vector<Type*>::iterator it = subTypes.begin();
+        it != subTypes.end(); it++) {
+      delete (*it) ;
+    }
   }
 
   int TypeImpl::getColumnId() const {
@@ -110,11 +105,11 @@ namespace orc {
   }
 
   const Type& TypeImpl::getSubtype(unsigned int i) const {
-    return *(subTypes.get()[i].get());
+    return *(subTypes[i]);
   }
 
   const std::string& TypeImpl::getFieldName(unsigned int i) const {
-    return fieldNames.get()[i];
+    return fieldNames[i];
   }
 
   unsigned int TypeImpl::getMaximumLength() const {
@@ -147,17 +142,12 @@ namespace orc {
       createStructType(std::vector<Type*> types,
                        std::vector<std::string> fieldNames) {
     std::vector<Type*> typeVector(types.size());
+    typeVector.assign(types.begin(), types.end());
+
     std::vector<std::string> fieldVector(types.size());
-    std::vector<Type*>::iterator currentType = types.begin();
-    std::vector<Type*>::iterator endType = types.end();
-    size_t current = 0;
-    while (currentType != endType) {
-      typeVector[current++] =
-        const_cast<Type*>(currentType)->release();
-      ++currentType;
-    }
     fieldVector.insert(fieldVector.end(), fieldNames.begin(),
                        fieldNames.end());
+
     return std::auto_ptr<Type>(new TypeImpl(STRUCT, typeVector,
                                               fieldVector));
   }
@@ -179,14 +169,8 @@ namespace orc {
   std::auto_ptr<Type>
       createUnionType(std::vector<Type*> types) {
     std::vector<Type*> typeVector(types.size());
-    std::vector<Type*>::iterator currentType = types.begin();
-    std::vector<Type*>::iterator endType = types.end();
-    size_t current = 0;
-    while (currentType != endType) {
-      typeVector[current++] =
-        const_cast<Type*>(currentType)->release();
-      ++currentType;
-    }
+    typeVector.assign(types.begin(), types.end());
+
     return std::auto_ptr<Type>(new TypeImpl(UNION, typeVector));
   }
 

@@ -214,7 +214,7 @@ namespace orc {
 
     const Type& getType() const;
 
-    const std::vector<bool>& getSelectedColumns() const;
+    const std::vector<bool> getSelectedColumns() const;
 
     std::auto_ptr<ColumnVectorBatch> createRowBatch(unsigned long size
                                                       ) const;
@@ -359,7 +359,7 @@ namespace orc {
     // TODO fix me
   }
 
-  const std::vector<bool>& ReaderImpl::getSelectedColumns() const {
+  const std::vector<bool> ReaderImpl::getSelectedColumns() const {
     return selectedColumns;
   }
 
@@ -460,7 +460,7 @@ namespace orc {
 
     virtual ~StripeStreamsImpl();
 
-    virtual const std::vector<bool>& getSelectedColumns() const  ;
+    virtual const std::vector<bool> getSelectedColumns() const  ;
 
     virtual proto::ColumnEncoding getEncoding(int columnId) const  ;
 
@@ -484,7 +484,7 @@ namespace orc {
     // PASS
   }
 
-  const std::vector<bool>& StripeStreamsImpl::getSelectedColumns() const {
+  const std::vector<bool> StripeStreamsImpl::getSelectedColumns() const {
     return reader.getSelectedColumns();
   }
 

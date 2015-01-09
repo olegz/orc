@@ -71,7 +71,7 @@ TEST(Reader, simpleTest) {
   for(unsigned int i=0; i < 9; ++i) {
     EXPECT_EQ(i + 1, rootType.getSubtype(i).getColumnId()) << "fail on " << i;
   }
-  const bool* const selected = reader->getSelectedColumns();
+  const std::vector<bool> selected = reader->getSelectedColumns();
   for (size_t i = 0; i < 10; ++i) {
     EXPECT_EQ(true, selected[i]) << "fail on " << i;
   }
@@ -80,7 +80,7 @@ TEST(Reader, simpleTest) {
   std::auto_ptr<orc::ColumnVectorBatch> batch = reader->createRowBatch(1024);
   orc::LongVectorBatch* longVector =
     dynamic_cast<orc::LongVectorBatch*>
-    (dynamic_cast<orc::StructVectorBatch&>(*batch).fields[0].get());
+    (dynamic_cast<orc::StructVectorBatch&>(*batch).fields[0]);
   long* idCol = longVector->data.data();
   while (reader->next(*batch)) {
     EXPECT_EQ(rowCount, reader->getRowNumber());

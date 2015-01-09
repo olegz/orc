@@ -17,6 +17,8 @@
  */
 
 #include "ColumnPrinter.hh"
+#include <typeinfo>
+#include <stdexcept>
 
 namespace orc {
 
@@ -95,20 +97,16 @@ namespace orc {
   StructColumnPrinter::StructColumnPrinter(const ColumnVectorBatch& batch) {
     const StructVectorBatch& structBatch =
       dynamic_cast<const StructVectorBatch&>(batch);
-    for(std::vector<ColumnVectorBatch*>::iterator ptr=structBatch.fields.cbegin();
-        ptr != structBatch.fields.cend(); ++ptr) {
-      if (typeid(*ptr) == typeid(LongVectorBatch)) {
-        fields.push_back(std::auto_ptr<ColumnPrinter>
-                         (new LongColumnPrinter(*ptr)));
-      } else if (typeid(*ptr) == typeid(DoubleVectorBatch)) {
-        fields.push_back(std::auto_ptr<ColumnPrinter>
-                         (new DoubleColumnPrinter(*ptr)));
-      } else if (typeid(*ptr) == typeid(StringVectorBatch)) {
-        fields.push_back(std::auto_ptr<ColumnPrinter>
-                         (new StringColumnPrinter(*ptr)));
-      } else if (typeid(*ptr) == typeid(StructVectorBatch)) {
-        fields.push_back(std::auto_ptr<ColumnPrinter>
-                         (new StructColumnPrinter(*ptr)));
+    for(std::vector<ColumnVectorBatch*>::const_iterator ptr=structBatch.fields.begin();
+        ptr != structBatch.fields.end(); ++ptr) {
+      if (typeid(**ptr) == typeid(LongVectorBatch)) {
+        fields.push_back(new LongColumnPrinter(**ptr));
+      } else if (typeid(**ptr) == typeid(DoubleVectorBatch)) {
+        fields.push_back(new DoubleColumnPrinter(**ptr));
+      } else if (typeid(**ptr) == typeid(StringVectorBatch)) {
+        fields.push_back(new StringColumnPrinter(**ptr));
+      } else if (typeid(**ptr) == typeid(StructVectorBatch)) {
+        fields.push_back(new StructColumnPrinter(**ptr));
       } else {
         throw std::logic_error("unknown batch type");
       }
@@ -132,9 +130,9 @@ namespace orc {
   void StructColumnPrinter::printRow(unsigned long rowId) {
     if (fields.size() > 0) {
       fields[0]->printRow(rowId);
-      for (std::vector<ColumnPrinter*>::iterator ptr = fields.cbegin(); ptr != fields.cend(); ++ptr) {
+      for (std::vector<ColumnPrinter*>::iterator ptr = fields.begin(); ptr != fields.end(); ++ptr) {
         std::cout << "\t";
-        ptr->printRow(rowId);
+        (*ptr)->printRow(rowId);
       }
       std::cout << "\n";
     }

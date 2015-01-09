@@ -442,7 +442,7 @@ namespace orc {
     /**
      * Get the selected columns of the file.
      */
-    virtual const std::vector<bool>& getSelectedColumns() const = 0;
+    virtual const std::vector<bool> getSelectedColumns() const = 0;
 
     /**
      * Create a row batch for reading the selected columns of this file.

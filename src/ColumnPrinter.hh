@@ -42,7 +42,7 @@ namespace orc {
     std::vector<ColumnPrinter*> fields;
   public:
     StructColumnPrinter(const ColumnVectorBatch& batch);
-    virtual ~StructColumnPrinter() {}
+    virtual ~StructColumnPrinter();
     void printRow(unsigned long rowId)  ;
     void reset(const ColumnVectorBatch& batch)  ;
   };

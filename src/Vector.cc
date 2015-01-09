@@ -127,7 +127,7 @@ namespace orc {
   }
 
   StructVectorBatch::~StructVectorBatch() {
-    for (int i=0; i<this->fields.size(); i++)
+    for (unsigned int i=0; i<this->fields.size(); i++)
         delete this->fields[i];
   }
 
@@ -135,8 +135,9 @@ namespace orc {
     std::ostringstream buffer;
     buffer << "Struct vector <" << numElements << " of " << capacity 
            << "; ";
-    for (std::vector<ColumnVectorBatch*>::iterator ptr=fields.begin(); ptr != fields.end(); ++ptr) {
-        buffer << ptr->toString() << "; ";
+    for (std::vector<ColumnVectorBatch*>::const_iterator ptr=fields.begin();
+        ptr != fields.end(); ++ptr) {
+        buffer << (*ptr)->toString() << "; ";
     }
     buffer << ">";
     return buffer.str();
