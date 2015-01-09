@@ -301,6 +301,60 @@ TEST(RLEv2, overflowDirect) {
                values.size());
 };
 
+TEST(RLEv2, basicPatched0) {
+  long v[] = {2030,2000,2020,1000000,2040,2050,2060,2070,2080,2090};
+  std::vector<long> values;
+  for (size_t i = 0; i < sizeof(v) / sizeof(long); ++i) {
+      values.push_back(v[i]);
+  }
+
+  const unsigned char bytes[] = {0x8e,0x09,0x2b,0x21,0x07,0xd0,0x1e,0x00,0x14,
+                                 0x70,0x28,0x32,0x3c,0x46,0x50,0x5a,0xfc,0xe8};
+  unsigned long l = sizeof(bytes) / sizeof(char);
+  // Read 1 at a time, then 3 at a time, etc.
+  checkResults(values, decodeRLEv2(bytes, l, 1, values.size()), 1);
+  checkResults(values, decodeRLEv2(bytes, l, 3, values.size()), 3);
+  checkResults(values, decodeRLEv2(bytes, l, 7, values.size()), 7);
+  checkResults(values, decodeRLEv2(bytes, l, values.size(), values.size()),
+               values.size());
+};
+
+TEST(RLEv2, basicPatched1) {
+  long v[] = {20, 2, 3, 2, 1, 3, 17, 71, 35, 2, 1, 139, 2, 2, 3, 1783, 475, 2,
+              1, 1, 3, 1, 3, 2, 32, 1, 2, 3, 1, 8, 30, 1, 3, 414, 1, 1, 135, 3,
+              3, 1, 414, 2, 1, 2, 2, 594, 2, 5, 6, 4, 11, 1, 2, 2, 1, 1, 52, 4,
+              1, 2, 7, 1, 17, 334, 1, 2, 1, 2, 2, 6, 1, 266, 1, 2, 217, 2, 6, 2,
+              13, 2, 2, 1, 2, 3, 5, 1, 2, 1, 7244, 11813, 1, 33, 2, -13, 1, 2, 3,
+              13, 1, 92, 3, 13, 5, 14, 9, 141, 12, 6, 15, 25};
+  std::vector<long> values;
+  for (size_t i = 0; i < sizeof(v) / sizeof(long); ++i) {
+    values.push_back(v[i]);
+  }
+
+  const unsigned char bytes[] = {0x90,0x6d,0x04,0xa4,0x8d,0x10,0x83,0xc2,0x00,
+                                 0xf0,0x70,0x40,0x3c,0x54,0x18,0x03,0xc1,0xc9,
+                                 0x80,0x78,0x3c,0x21,0x04,0xf4,0x03,0xc1,0xc0,
+                                 0xe0,0x80,0x38,0x20,0x0f,0x16,0x83,0x81,0xe1,
+                                 0x00,0x70,0x54,0x56,0x0e,0x08,0x6a,0xc1,0xc0,
+                                 0xe4,0xa0,0x40,0x20,0x0e,0xd5,0x83,0xc1,0xc0,
+                                 0xf0,0x79,0x7c,0x1e,0x12,0x09,0x84,0x43,0x00,
+                                 0xe0,0x78,0x3c,0x1c,0x0e,0x20,0x84,0x41,0xc0,
+                                 0xf0,0xa0,0x38,0x3d,0x5b,0x07,0x03,0xc1,0xc0,
+                                 0xf0,0x78,0x4c,0x1d,0x17,0x07,0x03,0xdc,0xc0,
+                                 0xf0,0x98,0x3c,0x34,0x0f,0x07,0x83,0x81,0xe1,
+                                 0x00,0x90,0x38,0x1e,0x0e,0x2c,0x8c,0x81,0xc2,
+                                 0xe0,0x78,0x00,0x1c,0x0f,0x08,0x06,0x81,0xc6,
+                                 0x90,0x80,0x68,0x24,0x1b,0x0b,0x26,0x83,0x21,
+                                 0x30,0xe0,0x98,0x3c,0x6f,0x06,0xb7,0x03,0x70};
+  unsigned long l = sizeof(bytes) / sizeof(char);
+  // Read 1 at a time, then 3 at a time, etc.
+  checkResults(values, decodeRLEv2(bytes, l, 1, values.size()), 1);
+  checkResults(values, decodeRLEv2(bytes, l, 3, values.size()), 3);
+  checkResults(values, decodeRLEv2(bytes, l, 7, values.size()), 7);
+  checkResults(values, decodeRLEv2(bytes, l, values.size(), values.size()),
+               values.size());
+};
+
 TEST(RLEv1, simpleTest) {
   std::unique_ptr<RleDecoder> rle =
       createRleDecoder(

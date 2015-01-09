@@ -21,6 +21,8 @@
 
 #include "RLE.hh"
 
+#include <vector>
+
 namespace orc {
 
 class RleDecoderV2 : public RleDecoder {
@@ -49,11 +51,30 @@ public:
 
 private:
 
+  // Used by PATCHED_BASE
+  void adjustGapAndPatch() {
+    curGap = static_cast<unsigned long>(unpackedPatch[patchIdx]) >> patchBitSize;
+    curPatch = unpackedPatch[patchIdx] & patchMask;
+    actualGap = 0;
+
+    // special case: gap is >255 then patch value will be 0.
+    // if gap is <=255 then patch value cannot be 0
+    while (curGap == 255 && curPatch == 0) {
+      actualGap += 255;
+      ++patchIdx;
+      curGap = static_cast<unsigned long>(unpackedPatch[patchIdx]) >> patchBitSize;
+      curPatch = unpackedPatch[patchIdx] & patchMask;
+    }
+    // add the left over gap
+    actualGap += curGap;
+  }
+
   unsigned char readByte();
-  unsigned long readLongBE();
+  unsigned long readLongBE(unsigned bsz);
   unsigned long readVslong();
   unsigned long readVulong();
-  void readLongs(long *data, unsigned long offset, unsigned len);
+  void readLongs(long *data, unsigned long offset, unsigned len,
+                 unsigned fb);
 
   unsigned long nextShortRepeats(long* data, unsigned long offset,
                                  unsigned long numValues,
@@ -61,6 +82,9 @@ private:
   unsigned long nextDirect(long* data, unsigned long offset,
                            unsigned long numValues,
                            const char* notNull);
+  unsigned long nextPatched(long* data, unsigned long offset,
+                            unsigned long numValues,
+                            const char* notNull);
   unsigned long nextDelta(long* data, unsigned long offset,
                           unsigned long numValues,
                           const char* notNull);
@@ -69,18 +93,28 @@ private:
   const bool isSigned;
 
   unsigned char firstByte;
-  unsigned char prevByte;
   unsigned long runLength;
   unsigned long runRead;
   const char *bufferStart;
   const char *bufferEnd;
   long deltaBase; // Used by DELTA
-  int byteSize; // Used by SHORT_REPEAT
+  int byteSize; // Used by SHORT_REPEAT and PATCHED_BASE
   long firstValue; // Used by SHORT_REPEAT and DELTA
   long prevValue; // Used by DELTA
-  int bitSize; // Used by DIRECT and DELTA
-  int bitsLeft; // Used by DIRECT
-  int curByte; // Used by DIRECT
+  int bitSize; // Used by DIRECT, PATCHED_BASE and DELTA
+  int bitsLeft; // Used by anything that uses readLongs
+  int curByte; // Used by anything that uses readLongs
+  // TODO: Allow allocator for buffer.
+  std::vector<long> unpacked; // Used by PATCHED_BASE
+  std::vector<long> unpackedPatch; // Used by PATCHED_BASE
+  int patchBitSize; // Used by PATCHED_BASE
+  unsigned long unpackedIdx; // Used by PATCHED_BASE
+  unsigned long patchIdx; // Used by PATCHED_BASE
+  long base; // Used by PATCHED_BASE
+  long curGap; // Used by PATCHED_BASE
+  long curPatch; // Used by PATCHED_BASE
+  long patchMask; // Used by PATCHED_BASE
+  long actualGap; // Used by PATCHED_BASE
 };
 }  // namespace orc
 

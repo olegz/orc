@@ -60,11 +60,38 @@ inline int decodeBitWidth(int n) {
   }
 }
 
-void RleDecoderV2::readLongs(long *data, unsigned long offset, unsigned len) {
+inline int getClosestFixedBits(int n) {
+  if (n == 0) {
+    return 1;
+  }
+
+  if (n >= 1 && n <= 24) {
+    return n;
+  } else if (n > 24 && n <= 26) {
+    return 26;
+  } else if (n > 26 && n <= 28) {
+    return 28;
+  } else if (n > 28 && n <= 30) {
+    return 30;
+  } else if (n > 30 && n <= 32) {
+    return 32;
+  } else if (n > 32 && n <= 40) {
+    return 40;
+  } else if (n > 40 && n <= 48) {
+    return 48;
+  } else if (n > 48 && n <= 56) {
+    return 56;
+  } else {
+    return 64;
+  }
+}
+
+void RleDecoderV2::readLongs(long *data, unsigned long offset, unsigned len,
+                             unsigned fb) {
   // TODO: unroll to improve performance
   for(unsigned long i = offset; i < (offset + len); i++) {
       unsigned long result = 0;
-      int bitsLeftToRead = bitSize;
+      int bitsLeftToRead = fb;
       while (bitsLeftToRead > bitsLeft) {
         result <<= bitsLeft;
         result |= curByte & ((1 << bitsLeft) - 1);
@@ -94,14 +121,12 @@ unsigned char RleDecoderV2::readByte() {
     bufferEnd = bufferStart + bufferLength;
   }
 
-  prevByte = *bufferStart;
-  ++bufferStart;
-  return prevByte;
+  return *bufferStart++;
 }
 
-unsigned long RleDecoderV2::readLongBE() {
+unsigned long RleDecoderV2::readLongBE(unsigned bsz) {
   unsigned long ret = 0, val;
-  int n = byteSize;
+  unsigned n = bsz;
   while (n > 0) {
     n--;
     val = readByte();
@@ -117,7 +142,7 @@ unsigned long RleDecoderV2::readVslong() {
 
 unsigned long RleDecoderV2::readVulong() {
   unsigned long ret = 0, b;
-  int offset = 0;
+  unsigned int offset = 0;
   do {
     b = readByte();
     ret |= (0x7f & b) << offset;
@@ -131,7 +156,6 @@ RleDecoderV2::RleDecoderV2(std::unique_ptr<SeekableInputStream> input,
   : inputStream(std::move(input)),
     isSigned(isSigned),
     firstByte(0),
-    prevByte(0),
     runLength(0),
     runRead(0),
     bufferStart(nullptr),
@@ -142,7 +166,12 @@ RleDecoderV2::RleDecoderV2(std::unique_ptr<SeekableInputStream> input,
     prevValue(0),
     bitSize(0),
     bitsLeft(0),
-    curByte(0) {
+    curByte(0),
+    patchBitSize(0),
+    base(0),
+    curGap(0),
+    patchMask(0),
+    actualGap(0) {
 }
 
 void RleDecoderV2::seek(PositionProvider& location) {
@@ -166,7 +195,7 @@ void RleDecoderV2::next(long* const data,
     unsigned long offset = nRead, length = numValues - nRead;
 
     EncodingType enc = static_cast<EncodingType>
-        ((((unsigned char) firstByte) >> 6) & 0x03);
+        ((firstByte >> 6) & 0x03);
     switch(enc) {
     case SHORT_REPEAT:
       nRead += nextShortRepeats(data, offset, length, notNull);
@@ -175,7 +204,7 @@ void RleDecoderV2::next(long* const data,
       nRead += nextDirect(data, offset, length, notNull);
       break;
     case PATCHED_BASE:
-      throw ParseError("PATCHED_BASE encoding is not yet supported");
+      nRead += nextPatched(data, offset, length, notNull);
       break;
     case DELTA:
       nRead += nextDelta(data, offset, length, notNull);
@@ -192,7 +221,7 @@ unsigned long RleDecoderV2::nextShortRepeats(long* const data,
                                              const char* const notNull) {
   if (runRead == runLength) {
     // extract the number of fixed bytes
-    byteSize = ((static_cast<unsigned char>(firstByte)) >> 3) & 0x07;
+    byteSize = (firstByte >> 3) & 0x07;
     byteSize += 1;
 
     runLength = firstByte & 0x07;
@@ -201,7 +230,7 @@ unsigned long RleDecoderV2::nextShortRepeats(long* const data,
     runRead = 0;
 
     // read the repeated value which is store using fixed bytes
-    firstValue = readLongBE();
+    firstValue = readLongBE(byteSize);
 
     if (isSigned) {
       firstValue = unZigZag(firstValue);
@@ -223,7 +252,7 @@ unsigned long RleDecoderV2::nextDirect(long* const data,
                                        const char* const notNull) {
   if (runRead == runLength) {
     // extract the number of fixed bits
-    unsigned char fbo = (((unsigned char) firstByte) >> 1) & 0x1f;
+    unsigned char fbo = (firstByte >> 1) & 0x1f;
     bitSize = decodeBitWidth(fbo);
     bitsLeft = 0;
     curByte = 0;
@@ -238,11 +267,110 @@ unsigned long RleDecoderV2::nextDirect(long* const data,
 
   unsigned long nRead = std::min(runLength - runRead, numValues);
 
-  readLongs(data, offset, nRead);
+  readLongs(data, offset, nRead, bitSize);
   if (isSigned) { 
     // write the unpacked values and zigzag decode to result buffer
     for(unsigned long pos = offset; pos < offset + nRead; ++pos) {
       data[pos] = unZigZag(data[pos]);
+    }
+  }
+
+  runRead += nRead;
+  return nRead;
+}
+
+unsigned long RleDecoderV2::nextPatched(long* const data,
+                                        unsigned long offset,
+                                        unsigned long numValues,
+                                        const char* const notNull) {
+  if (runRead == runLength) {
+    // extract the number of fixed bits
+    unsigned char fbo = (firstByte >> 1) & 0x1f;
+    bitSize = decodeBitWidth(fbo);
+
+    // extract the run length
+    runLength = (firstByte & 0x01) << 8;
+    runLength |= readByte();
+    // runs are one off
+    runLength += 1;
+    runRead = 0;
+
+    // extract the number of bytes occupied by base
+    unsigned int thirdByte = readByte();
+    byteSize = (thirdByte >> 5) & 0x07;
+    // base width is one off
+    byteSize += 1;
+
+    // extract patch width
+    unsigned int pwo = thirdByte & 0x1f;
+    patchBitSize = decodeBitWidth(pwo);
+
+    // read fourth byte and extract patch gap width
+    unsigned int fourthByte = readByte();
+    int pgw = (fourthByte >> 5) & 0x07;
+    // patch gap width is one off
+    pgw += 1;
+
+    // extract the length of the patch list
+    int pl = fourthByte & 0x1f;
+
+    // read the next base width number of bytes to extract base value
+    base = readLongBE(byteSize);
+    long mask = (1L << ((byteSize * 8) - 1));
+    // if mask of base value is 1 then base is negative value else positive
+    if ((base & mask) != 0) {
+      base = base & ~mask;
+      base = -base;
+    }
+
+    // TODO: something more efficient than resize
+    unpacked.resize(runLength);
+    unpackedIdx = 0;
+    readLongs(unpacked.data(), 0, runLength, bitSize);
+    // any remaining bits are thrown out
+    bitsLeft = 0;
+
+    // TODO: something more efficient than resize
+    unpackedPatch.resize(pl);
+    patchIdx = 0;
+    // TODO: Skip corrupt?
+    //    if ((patchBitSize + pgw) > 64 && !skipCorrupt) {
+    if ((patchBitSize + pgw) > 64) {
+      throw ParseError("Corrupt PATCHED_BASE encoded data!");
+    }
+    int cfb = getClosestFixedBits(patchBitSize + pgw);
+    readLongs(unpackedPatch.data(), 0, pl, cfb);
+    // any remaining bits are thrown out
+    bitsLeft = 0;
+
+    // apply the patch directly when decoding the packed data
+    patchMask = ((1L << patchBitSize) - 1);
+
+    adjustGapAndPatch();
+  }
+
+  unsigned long nRead = std::min(runLength - runRead, numValues);
+
+  for(unsigned long pos = offset; pos < offset + nRead; ++pos, ++unpackedIdx) {
+    if (static_cast<long>(unpackedIdx) != actualGap) {
+      // no patching required. add base to unpacked value to get final value
+      data[pos] = base + unpacked[unpackedIdx];
+    } else {
+      // extract the patch value
+      long patchedVal = unpacked[unpackedIdx] | (curPatch << bitSize);
+
+      // add base to patched value
+      data[pos] = base + patchedVal;
+
+      // increment the patch to point to next entry in patch list
+      ++patchIdx;
+
+      if (patchIdx < unpackedPatch.size()) {
+        adjustGapAndPatch();
+
+        // next gap is relative to the current gap
+        actualGap += unpackedIdx;
+      }
     }
   }
 
@@ -257,7 +385,7 @@ unsigned long RleDecoderV2::nextDelta(long* const data,
 
   if (runRead == runLength) {
     // extract the number of fixed bits
-    unsigned char fbo = (((unsigned char) firstByte) >> 1) & 0x1f;
+    unsigned char fbo = (firstByte >> 1) & 0x1f;
     if (fbo != 0) {
       bitSize = decodeBitWidth(fbo);
     }
@@ -305,7 +433,7 @@ unsigned long RleDecoderV2::nextDelta(long* const data,
     // write the unpacked values, add it to previous value and store final
     // value to result buffer. if the delta base value is negative then it
     // is a decreasing sequence else an increasing sequence
-    readLongs(data, offset, remaining);
+    readLongs(data, offset, remaining, bitSize);
     if (deltaBase < 0) {
       for (unsigned long pos = offset; pos < offset + remaining; ++pos) {
         prevValue = data[pos] = prevValue - data[pos];
