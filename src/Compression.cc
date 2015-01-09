@@ -145,7 +145,8 @@ namespace orc {
       zs.next_in = (Bytef*)in.data();
       zs.avail_in = in.size();
 
-      if (deflateInit(&zs, compr_level) != Z_OK)
+      // zip, refer to zlib manual for params
+      if (deflateInit2(&zs, compr_level, Z_DEFLATED/*default*/, -15, 8 /*default*/, Z_DEFAULT_STRATEGY /*default*/ ) != Z_OK)
           throw(std::string("deflateInit failed while compressing."));
 
       int ret;
@@ -169,7 +170,24 @@ namespace orc {
       if (ret != Z_STREAM_END) 
           throw(std::string("Exception during Zlib compression"));
 
+      //addORCCompressionHeader(in, out); // add header
+
       return out;
+  }
+
+  void ZlibCodec::addORCCompressionHeader(string& in, string& out) {
+      bool isOriginal = out.size() < in.size(); // TODO: how to tell exactly?
+      unsigned long compressedLen = out.size();
+      compressedLen *= 2;
+      if(isOriginal) 
+          compressedLen += 1;
+
+      string header;
+      for(int i = 0; i < 3; i++) 
+          header = header + static_cast<char> ( * ((char*) (&compressedLen) + i));
+
+      out = header + out;
+
   }
 
   string ZlibCodec::decompress(string& in) {
@@ -181,7 +199,8 @@ namespace orc {
       zs.next_in = (Bytef*)in.data();
       zs.avail_in = in.size();
 
-      if (inflateInit(&zs) != Z_OK)
+      //if (inflateInit(&zs) != Z_OK)
+      if (inflateInit2(&zs, -15) != Z_OK) // Hive use zip compression
           throw(std::string("inflateInit failed while decompressing."));
 
       int ret;
@@ -306,14 +325,18 @@ namespace orc {
   std::unique_ptr<SeekableInputStream> 
      createCodec(CompressionKind kind,
                  std::unique_ptr<SeekableInputStream> input,
-                 unsigned long) {
+                 unsigned long blockSize) {
     switch (kind) {
     case CompressionKind_NONE:
       return std::move(input);
     case CompressionKind_LZO:
+      break;
     case CompressionKind_SNAPPY:
+      break;
     case CompressionKind_ZLIB: {
       // PASS
+      //return new ZlibCodec2(input, blockSize);
+      return std::unique_ptr<SeekableInputStream> ( new ZlibCodec2(move(input), blockSize));
     }
     }
     throw NotImplementedYet("compression codec");

@@ -321,11 +321,14 @@ namespace orc {
     for(unsigned int i=0; i < bytes.size(); ++i) {
       EXPECT_EQ(static_cast<char>(i), static_cast<const char*>(ptr)[i]);
     }
+    // jfu: comment out for now, working on zlib decompressor
+    /*
     EXPECT_THROW(createCodec(CompressionKind_ZLIB,
                              std::unique_ptr<SeekableInputStream>
                              (new SeekableArrayInputStream(bytes.data(),
                                                            bytes.size())),
                              32768), NotImplementedYet);
+                             */
     EXPECT_THROW(createCodec(CompressionKind_SNAPPY,
                              std::unique_ptr<SeekableInputStream>
                              (new SeekableArrayInputStream(bytes.data(),
@@ -337,4 +340,93 @@ namespace orc {
                                                            bytes.size())),
                              32768), NotImplementedYet);
   }
+
+string readfile(string filename, long long offset, long long length = -1) {
+    std::ifstream t(filename);
+    std::stringstream buffer;
+    buffer << t.rdbuf();
+    //EXPECT_EQ(buffer.str().size(), 45979);
+    int len;
+    if (length <= -1) { // means read till EOF
+        len = buffer.str().size() - offset;
+    }
+    else 
+        len = length;
+    string output = buffer.str().substr(offset, len);
+
+    return output;
+}
+
+TEST(Zlib, zlibOrcFooterTest) {
+    string content = readfile("../../examples/demo-12-zlib.orc", 45735, 218);
+
+    ZlibCodec2* zlib = new ZlibCodec2(256*1024);  // TODO: what does blksz do to compress func?
+    string footer = zlib->decompress(content);
+
+    EXPECT_EQ(346, footer.size());
+}
+
+TEST(Zlib, inflateDeflateUnitTest) {
+    // compress/decompress a tiny string
+    std::string input("abcdefg");
+    ZlibCodec* zlib = new ZlibCodec(256*1024);  // TODO: what does blksz do to compress func?
+    ZlibCodec2* zlib2 = new ZlibCodec2(256*1024);  // TODO: what does blksz do to compress func?
+
+    string comp_str = zlib->compress(input);
+    string decomp_str = zlib->decompress(comp_str);
+
+    EXPECT_EQ(input, decomp_str);
+
+    // try to compress/decompress a 5MB file
+    std::ifstream t("../../examples/demo-11-none.orc");
+    std::stringstream buffer;
+    buffer << t.rdbuf();
+    EXPECT_EQ(buffer.str().size(), 5147970);
+    input = buffer.str();
+
+    comp_str = zlib->compress(input);
+    decomp_str = zlib->decompress(comp_str);
+
+    EXPECT_EQ(buffer.str(), decomp_str);
+}
+
+TEST(Zlib, testZlibBackup) {
+    string bytes(0, 200); // size 200
+    for(size_t i=0; i < bytes.size(); ++i) {
+      bytes[i] = static_cast<char>(i);
+    }
+    ZlibCodec* zlib = new ZlibCodec(256*1024);  // TODO: what does blksz do to compress func?
+
+    string comp_str = zlib->compress(bytes);
+
+    cout << "before adding header, comp_str.size() = " << comp_str.size() << ", content is:" << comp_str << endl;
+
+    // TODO: direct decompress from here would result empty output, why?
+
+    zlib->addORCCompressionHeader(bytes, comp_str);
+
+    std::vector<char> comp_vec(comp_str.size() ); // string to vector for a contiguous array
+    for(size_t i = 0; i < comp_str.size(); i++) {
+        comp_vec[i] = static_cast<char> (comp_str[i]);
+    }
+
+    // now this comp_str should be input to a SeekableArrayInputStream..
+    SeekableArrayInputStream* stream = new SeekableArrayInputStream(comp_vec.data(), comp_vec.size(), 20);
+    ZlibCodec2 zlib2(std::unique_ptr<SeekableInputStream> (stream), 256*1024);
+    const void *ptr;
+    int len;
+    EXPECT_EQ(true, zlib2.Next(&ptr, &len));
+    //EXPECT_EQ(comp_vec.data(), static_cast<const char *>(ptr));
+    EXPECT_EQ(20, len);
+}
+
+/*
+TEST(Zlib, simpleTest) {
+    ZlibCodec* zlib = new ZlibCodec( block_size );
+    vector<char> outstream(1024*1024, 0); // should be config decompressor size
+    // it would fail, since orc file is not entirely compressed (postscript not compressed)
+    //zlib->decompress(buffer.str(), outstream);
+}
+*/
+
 }

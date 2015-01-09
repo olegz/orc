@@ -46,42 +46,6 @@ TEST(RLEv1, simpleTest) {
   EXPECT_EQ(11, data[104]);
 };
 
-TEST(Zlib, inflateDeflateUnitTest) {
-    // compress/decompress a tiny string
-    string input("abcdefg");
-    ZlibCodec* zlib = new ZlibCodec(256*1024);  // TODO: what does blksz do to compress func?
-
-    string comp_str = zlib->compress(input);
-    string decomp_str = zlib->decompress(comp_str);
-
-    EXPECT_EQ(input, decomp_str);
-
-    // try to compress/decompress a 5MB file
-    std::ifstream t("../../examples/demo-11-none.orc");
-    std::stringstream buffer;
-    buffer << t.rdbuf();
-    EXPECT_EQ(buffer.str().size(), 5147970);
-    input = buffer.str();
-
-    comp_str = zlib->compress(input);
-    decomp_str = zlib->decompress(comp_str);
-
-    EXPECT_EQ(buffer.str(), decomp_str);
-}
-
-TEST(Zlib, simpleTest) {
-    std::ifstream t("../../examples/demo-12-zlib.orc");
-    std::stringstream buffer;
-    buffer << t.rdbuf();
-    EXPECT_EQ(buffer.str().size(), 45979);
-
-    int block_size = 256 * 1024; // default value
-    ZlibCodec* zlib = new ZlibCodec( block_size );
-    vector<char> outstream(1024*1024, 0); // should be config decompressor size
-    // it would fail, since orc file is not entirely compressed (postscript not compressed)
-    //zlib->decompress(buffer.str(), outstream);
-}
-
 TEST(RLEv1, signedNullLiteralTest) {
   std::unique_ptr<RleDecoder> rle =
       createRleDecoder(

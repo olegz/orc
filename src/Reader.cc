@@ -381,6 +381,8 @@ namespace orc {
     //get length of PostScript
     postscriptLength = buffer[readSize - 1] & 0xff;
 
+    cout << "jfu: postscript length = " << postscriptLength << endl;
+
     ensureOrcFooter(buffer, readSize);
 
     if (!postscript.ParseFromArray(buffer+readSize-1-postscriptLength, 
@@ -402,6 +404,7 @@ namespace orc {
   void ReaderImpl::readFooter(char* buffer, unsigned long readSize,
                               unsigned long) {
     unsigned long footerSize = postscript.footerlength();
+    cout << "jfu: footerSize = " << footerSize << endl;
     //check if extra bytes need to be read
     unsigned long tailSize = 1 + postscriptLength + footerSize;
     if (tailSize > readSize) {
@@ -419,6 +422,7 @@ namespace orc {
       throw ParseError("bad footer parse");
     }
     numberOfStripes = static_cast<unsigned long>(footer.stripes_size());
+    cout << "jfu: footer # of stripes: " << numberOfStripes << endl;
   }
 
   proto::StripeFooter ReaderImpl::getStripeFooter
