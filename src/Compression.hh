@@ -224,6 +224,7 @@ namespace orc {
     void BackUp(int count) {
         if (count >= 0) {
             unsigned long unsignedCount = static_cast<unsigned long>(count);
+            cout << "zlib backup(): count = " << count << ", position = " << position << endl;
             if (unsignedCount <= blockSize && unsignedCount <= position) {
                 position -= unsignedCount;
             } else {
@@ -248,11 +249,11 @@ namespace orc {
       zs.zfree = Z_NULL;
       zs.opaque = Z_NULL;
       zs.next_in = (Bytef*)in.data();
-	  /*
+      /*
       vector<char> vecbuf(in.size());
       for(size_t i = 0; i < in.size(); i++) vecbuf[i] = in[i];
       zs.next_in = (Bytef*)vecbuf.data();
-	  */
+      */
 
       zs.avail_in = in.size();
 
@@ -319,7 +320,6 @@ namespace orc {
 
   public:
       // ctor takes max uncompressed size per block
-      ZlibCodec(SeekableInputStream* input, int blksz) : blk_sz (blksz) {};
       ZlibCodec(int blksz) : blk_sz (blksz) {};
 
       int getBlockSize() { return blk_sz; }

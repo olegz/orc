@@ -412,8 +412,14 @@ TEST(Zlib, testZlibBackup) {
     const void *ptr;
     int len;
     EXPECT_EQ(true, zlib2.Next(&ptr, &len));
-    //EXPECT_EQ(comp_vec.data(), static_cast<const char *>(ptr)); // not zero copy 
+    //EXPECT_EQ(comp_vec.data(), static_cast<const char *>(ptr)); // not zero copy if compressed
     EXPECT_EQ(20, len);
+    zlib2.BackUp(0);
+    //len = 0; // reset on purpose
+    EXPECT_EQ(true, zlib2.Next(&ptr, &len));
+    //EXPECT_EQ(bytes.data() + 20, static_cast<const char *>(ptr));
+    EXPECT_EQ(20, len);
+    zlib2.BackUp(10);
 }
 
 /*

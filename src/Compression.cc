@@ -174,7 +174,7 @@ namespace orc {
   }
 
   void ZlibCodec::addORCCompressionHeader(string& in, string& out) {
-      bool isOriginal = true; // Zlib always compresses
+      bool isOriginal = false; // Zlib always compresses
       unsigned long compressedLen = out.size();
       compressedLen *= 2;
       if(isOriginal) 
