@@ -170,13 +170,11 @@ namespace orc {
       if (ret != Z_STREAM_END) 
           throw(std::string("Exception during Zlib compression"));
 
-      //addORCCompressionHeader(in, out); // add header
-
       return out;
   }
 
   void ZlibCodec::addORCCompressionHeader(string& in, string& out) {
-      bool isOriginal = out.size() < in.size(); // TODO: how to tell exactly?
+      bool isOriginal = true; // Zlib always compresses
       unsigned long compressedLen = out.size();
       compressedLen *= 2;
       if(isOriginal) 
@@ -187,7 +185,6 @@ namespace orc {
           header = header + static_cast<char> ( * ((char*) (&compressedLen) + i));
 
       out = header + out;
-
   }
 
   string ZlibCodec::decompress(string& in) {

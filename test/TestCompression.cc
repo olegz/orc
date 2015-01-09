@@ -391,17 +391,13 @@ TEST(Zlib, inflateDeflateUnitTest) {
 }
 
 TEST(Zlib, testZlibBackup) {
-    string bytes(0, 200); // size 200
+    string bytes(200, 0); // size 200
     for(size_t i=0; i < bytes.size(); ++i) {
       bytes[i] = static_cast<char>(i);
     }
-    ZlibCodec* zlib = new ZlibCodec(256*1024);  // TODO: what does blksz do to compress func?
+    ZlibCodec* zlib = new ZlibCodec(256*1024);  
 
     string comp_str = zlib->compress(bytes);
-
-    cout << "before adding header, comp_str.size() = " << comp_str.size() << ", content is:" << comp_str << endl;
-
-    // TODO: direct decompress from here would result empty output, why?
 
     zlib->addORCCompressionHeader(bytes, comp_str);
 
@@ -416,7 +412,7 @@ TEST(Zlib, testZlibBackup) {
     const void *ptr;
     int len;
     EXPECT_EQ(true, zlib2.Next(&ptr, &len));
-    //EXPECT_EQ(comp_vec.data(), static_cast<const char *>(ptr));
+    //EXPECT_EQ(comp_vec.data(), static_cast<const char *>(ptr)); // not zero copy 
     EXPECT_EQ(20, len);
 }
 

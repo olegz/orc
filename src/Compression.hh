@@ -188,7 +188,7 @@ namespace orc {
             input->BackUp(extra);
             in.erase(compressedLen);
             
-            cout << "gonna decom now, in.size() =  " << in.size() << ", content is:" << in <<  endl;
+            //cout << "gonna decom now, in.size() =  " << in.size() << ", content is:" << in <<  endl;
             // now decomp
             string out = decompress(in);
             
@@ -247,10 +247,12 @@ namespace orc {
       zs.zalloc = Z_NULL;
       zs.zfree = Z_NULL;
       zs.opaque = Z_NULL;
-      //zs.next_in = (Bytef*)in.data();
+      zs.next_in = (Bytef*)in.data();
+	  /*
       vector<char> vecbuf(in.size());
       for(size_t i = 0; i < in.size(); i++) vecbuf[i] = in[i];
       zs.next_in = (Bytef*)vecbuf.data();
+	  */
 
       zs.avail_in = in.size();
 
