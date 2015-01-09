@@ -90,23 +90,23 @@ void RleDecoderV2::readLongs(long *data, unsigned long offset, unsigned len,
                              unsigned fb) {
   // TODO: unroll to improve performance
   for(unsigned long i = offset; i < (offset + len); i++) {
-      unsigned long result = 0;
-      int bitsLeftToRead = fb;
-      while (bitsLeftToRead > bitsLeft) {
-        result <<= bitsLeft;
-        result |= curByte & ((1 << bitsLeft) - 1);
-        bitsLeftToRead -= bitsLeft;
-        curByte = readByte();
-        bitsLeft = 8;
-      }
+    unsigned long result = 0;
+    int bitsLeftToRead = fb;
+    while (bitsLeftToRead > bitsLeft) {
+      result <<= bitsLeft;
+      result |= curByte & ((1 << bitsLeft) - 1);
+      bitsLeftToRead -= bitsLeft;
+      curByte = readByte();
+      bitsLeft = 8;
+    }
 
-      // handle the left over bits
-      if (bitsLeftToRead > 0) {
-        result <<= bitsLeftToRead;
-        bitsLeft -= bitsLeftToRead;
-        result |= (curByte >> bitsLeft) & ((1 << bitsLeftToRead) - 1);
-      }
-      data[i] = static_cast<long>(result);
+    // handle the left over bits
+    if (bitsLeftToRead > 0) {
+      result <<= bitsLeftToRead;
+      bitsLeft -= bitsLeftToRead;
+      result |= (curByte >> bitsLeft) & ((1 << bitsLeftToRead) - 1);
+    }
+    data[i] = static_cast<long>(result);
   }
 }
 
