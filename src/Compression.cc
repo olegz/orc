@@ -62,6 +62,17 @@ namespace orc {
     // PASS
   }
 
+#if __cplusplus >= 201103L
+  SeekableArrayInputStream::SeekableArrayInputStream
+      (std::initializer_list<unsigned char> values,
+       long blkSize): ownedData(values.size()), data(0) {
+    length = values.size();
+    memcpy(ownedData.data(), values.begin(), values.size());
+    position = 0;
+    blockSize = blkSize == -1 ? length : static_cast<unsigned long>(blkSize);
+  }
+#endif
+
   SeekableArrayInputStream::SeekableArrayInputStream
      (std::vector<unsigned char> values,
       long blkSize): ownedData(values.size()), data(0) {

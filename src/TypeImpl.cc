@@ -138,15 +138,10 @@ namespace orc {
     return std::auto_ptr<Type>(new TypeImpl(DECIMAL, precision, scale));
   }
 
-  std::auto_ptr<Type>
-      createStructType(std::vector<Type*> types,
+  std::auto_ptr<Type> createStructType(std::vector<Type*> types,
                        std::vector<std::string> fieldNames) {
-    std::vector<Type*> typeVector(types.size());
-    typeVector.assign(types.begin(), types.end());
-
-    std::vector<std::string> fieldVector(types.size());
-    fieldVector.insert(fieldVector.end(), fieldNames.begin(),
-                       fieldNames.end());
+    std::vector<Type*> typeVector(types.begin(), types.end());
+    std::vector<std::string> fieldVector(fieldNames.begin(), fieldNames.end());
 
     return std::auto_ptr<Type>(new TypeImpl(STRUCT, typeVector,
                                               fieldVector));
@@ -168,8 +163,7 @@ namespace orc {
 
   std::auto_ptr<Type>
       createUnionType(std::vector<Type*> types) {
-    std::vector<Type*> typeVector(types.size());
-    typeVector.assign(types.begin(), types.end());
+    std::vector<Type*> typeVector(types.begin(), types.end());
 
     return std::auto_ptr<Type>(new TypeImpl(UNION, typeVector));
   }

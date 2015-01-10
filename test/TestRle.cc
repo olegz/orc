@@ -16,6 +16,8 @@
  * limitations under the License.
  */
 
+#include "TestAdapterC11.hh"
+
 #include "Compression.hh"
 #include "RLE.hh"
 #include "RLEs.hh"
@@ -34,7 +36,7 @@ TEST(RLEv1, simpleTest) {
                   {0x61, 0xff, 0x64, 0xfb, 0x02, 0x03, 0x5, 0x7, 0xb})),
           false, RleVersion_1);
   std::vector<long> data(105);
-  rle->next(data.data(), 105, NULL);
+  rle->next(data.data(), 105, nullptr);
 
   for (size_t i = 0; i < 100; ++i) {
     EXPECT_EQ(100 - i, data[i]) << "Output wrong at " << i;
@@ -70,7 +72,7 @@ TEST(RLEv1, splitHeader) {
               new SeekableArrayInputStream({0x0, 0x00, 0xdc, 0xba, 0x98, 0x76}, 4)),
   false, RleVersion_1);
   std::vector<long> data(200);
-  rle->next(data.data(), 3, NULL);
+  rle->next(data.data(), 3, nullptr);
 
   for (size_t i = 0; i < 3; ++i) {
     EXPECT_EQ(247864668, data[i]) << "Output wrong at " << i;
@@ -87,21 +89,21 @@ TEST(RLEv1, splitRuns) {
                             false, RleVersion_1);
   std::vector<long> data(200);
   for (size_t i = 0; i < 42; ++i) {
-    rle->next(data.data(), 3, NULL);
+    rle->next(data.data(), 3, nullptr);
     for (size_t j = 0; j < 3; ++j) {
       EXPECT_EQ(255 + i * 3 + j, data[j])
       << "Wrong output at " << i << ", " << j;
     }
   }
-  rle->next(data.data(), 3, NULL);
+  rle->next(data.data(), 3, nullptr);
   EXPECT_EQ(381, data[0]);
   EXPECT_EQ(382, data[1]);
   EXPECT_EQ(1, data[2]);
-  rle->next(data.data(), 3, NULL);
+  rle->next(data.data(), 3, nullptr);
   EXPECT_EQ(2, data[0]);
   EXPECT_EQ(3, data[1]);
   EXPECT_EQ(4, data[2]);
-  rle->next(data.data(), 1, NULL);
+  rle->next(data.data(), 1, nullptr);
   EXPECT_EQ(5, data[0]);
 }
 
@@ -113,11 +115,11 @@ TEST(RLEv1, testSigned) {
                                      (stream)),
                        true, RleVersion_1);
   std::vector<long> data(100);
-  rle->next(data.data(), data.size(), NULL);
+  rle->next(data.data(), data.size(), nullptr);
   for (size_t i = 0; i < data.size(); ++i) {
     EXPECT_EQ(16 - i, data[i]) << "Wrong output at " << i;
   }
-  rle->next(data.data(), 30, NULL);
+  rle->next(data.data(), 30, nullptr);
   for(size_t i = 0; i < 30; ++i) {
     EXPECT_EQ(16 - 100 - static_cast<long>(i), data[i]) 
       << "Wrong output at " << (i + 100);
@@ -395,7 +397,7 @@ TEST(RLEv1, skipTest) {
                        true, RleVersion_1);
   std::vector<long> data(1);
   for (size_t i = 0; i < 2048; i += 10) {
-    rle->next(data.data(), 1, NULL);
+    rle->next(data.data(), 1, nullptr);
     if (i < 1024) {
       EXPECT_EQ(i, data[0]) << "Wrong output at " << i;
     } else {
@@ -2100,7 +2102,7 @@ TEST(RLEv1, seekTest) {
       createRleDecoder(std::move(std::auto_ptr<SeekableInputStream>(stream)),
                        true, RleVersion_1);
   std::vector<long> data(2048);
-  rle->next(data.data(), data.size(), NULL);
+  rle->next(data.data(), data.size(), nullptr);
   for (size_t i = 0; i < data.size(); ++i) {
     if (i < 1024) {
       EXPECT_EQ(i/4, data[i]) << "Wrong output at " << i;
@@ -2108,7 +2110,7 @@ TEST(RLEv1, seekTest) {
       EXPECT_EQ(2 * i, data[i]) << "Wrong output at " << i;
     }
   }
-  rle->next(data.data(), data.size(), NULL);
+  rle->next(data.data(), data.size(), nullptr);
   for (size_t i = 0; i < data.size(); ++i) {
     EXPECT_EQ(junk[i], data[i]) << "Wrong output at " << i;
   }
@@ -2117,7 +2119,7 @@ TEST(RLEv1, seekTest) {
     --i;
     PositionProvider location(positions[i]);
     rle->seek(location);
-    rle->next(data.data(), 1, NULL);
+    rle->next(data.data(), 1, nullptr);
       if (i < 1024) {
         EXPECT_EQ(i/4, data[0]) << "Wrong output at " << i;
       } else if (i < 2048) {

@@ -27,7 +27,7 @@ namespace orc {
 
 class RleDecoderV1 : public RleDecoder {
 public:
-    RleDecoderV1(std::auto_ptr<SeekableInputStream> input,
+    RleDecoderV1(std::auto_ptr<SeekableInputStream>& input,
                  bool isSigned);
 
     /**

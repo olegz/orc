@@ -86,12 +86,18 @@ namespace orc {
   void ColumnReader::next(ColumnVectorBatch& rowBatch,
                           unsigned long numValues,
                           char* incomingMask) {
+    if(DEBUG) { std::cout << "Entering ColumnReader::next(); batch=" << rowBatch.toString()
+      << "; numValues=" << numValues
+      << std::endl ; }
+
     if (numValues > rowBatch.capacity) {
+      if(DEBUG) { std::cout << "in ColumnReader::next(): resizing batch to" << numValues << std::endl; }
       rowBatch.resize(numValues);
     }
     rowBatch.numElements = numValues;
     ByteRleDecoder* decoder = notNullDecoder.get();
     if (decoder) {
+      if(DEBUG) { std::cout << "in ColumnReader::next(): decoding with" << decoder << std::endl; }
       char* notNullArray = rowBatch.notNull.data();
       decoder->next(notNullArray, numValues, incomingMask);
       // check to see if there are nulls in this batch
@@ -103,6 +109,7 @@ namespace orc {
       }
     }
     rowBatch.hasNulls = false;
+    if(DEBUG) { std::cout << "Exiting ColumnReader::next(); batch is " << rowBatch.toString() << std::endl ; }
   }
 
   /**
@@ -245,8 +252,16 @@ namespace orc {
                                  unsigned long numValues,
                                  char *notNull) {
     ColumnReader::next(rowBatch, numValues, notNull);
+    if(DEBUG) { std::cout << "Entering IntegerColumnReader::next(); batch=" << rowBatch.toString()
+      << "; numValues=" << numValues
+      << std::endl ; }
+
     rle->next(dynamic_cast<LongVectorBatch&>(rowBatch).data.data(),
               numValues, rowBatch.hasNulls ? rowBatch.notNull.data() : 0);
+
+    if(DEBUG) { std::cout << "Exiting IntegerColumnReader::next(); batch=" << rowBatch.toString()
+      << "; numValues=" << numValues
+      << std::endl ; }
   }
 
   void readFully(char* buffer, long bufferSize, SeekableInputStream* stream) {
@@ -589,13 +604,9 @@ namespace orc {
                                 unsigned long numValues,
                                 char *notNull) {
     ColumnReader::next(rowBatch, numValues, notNull);
-    ColumnVectorBatch* childBatch =
-        *(dynamic_cast<StructVectorBatch&>(rowBatch).fields.data());
     unsigned int i=0;
-    for(std::vector<ColumnReader*>::iterator ptr=children.begin();
-        ptr != children.end(); ++ptr, ++i) {
-      (*ptr)->next(childBatch[i], numValues,
-                       rowBatch.hasNulls ? rowBatch.notNull.data(): 0);
+    for(std::vector<ColumnReader*>::iterator ptr=children.begin(); ptr != children.end(); ++ptr, ++i) {
+      (*ptr)->next(*(dynamic_cast<StructVectorBatch&>(rowBatch).fields[i]), numValues, rowBatch.hasNulls ? rowBatch.notNull.data(): 0);
     }
   }
 

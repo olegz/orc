@@ -25,6 +25,10 @@
 #include <list>
 #include <memory>
 #include <vector>
+#if __cplusplus >= 201103L
+#include <initializer_list>
+#endif
+
 
 namespace orc {
 
@@ -64,6 +68,11 @@ namespace orc {
     unsigned long blockSize;
 
   public:
+    #if __cplusplus >= 201103L
+    SeekableArrayInputStream(std::initializer_list<unsigned char> list,
+                             long block_size = -1);
+    #endif
+
     SeekableArrayInputStream(std::vector<unsigned char> list,
                              long block_size = -1);
     SeekableArrayInputStream(const char* list,

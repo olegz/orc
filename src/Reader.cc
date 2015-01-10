@@ -184,7 +184,7 @@ namespace orc {
      * @param stream the stream to read from
      * @param options options for reading
      */
-    ReaderImpl(std::auto_ptr<InputStream> stream, 
+    ReaderImpl(std::auto_ptr<InputStream>& stream, 
                const ReaderOptions& options);
 
     CompressionKind getCompression() const;
@@ -230,7 +230,7 @@ namespace orc {
     // PASS
   };
 
-  ReaderImpl::ReaderImpl(std::auto_ptr<InputStream> input,
+  ReaderImpl::ReaderImpl(std::auto_ptr<InputStream>& input,
                          const ReaderOptions& opts
                          ): stream(input), options(opts) {
     isMetadataLoaded = false;
@@ -241,8 +241,7 @@ namespace orc {
 
     //read last bytes into buffer to get PostScript
     unsigned long readSize = std::min(size, DIRECTORY_SIZE_GUESS);
-    std::vector<char> buffer;
-    buffer.resize(readSize);
+    std::vector<char> buffer(readSize);
     stream->read(buffer.data(), size - readSize, readSize);
     readPostscript(buffer.data(), readSize);
     readFooter(buffer.data(), readSize, size);
@@ -536,10 +535,16 @@ namespace orc {
     if (currentRowInStripe == 0) {
       startNextStripe();
     }
+
     unsigned long rowsToRead = 
       std::min(data.capacity, rowsInCurrentStripe - currentRowInStripe);
     data.numElements = rowsToRead;
+
+    if(DEBUG) { std::cout << "Works till here" << std::endl ; }
     reader->next(data, rowsToRead, 0);
+
+    if(DEBUG) { std::cout << "Getting next batch from stripe " << currentStripe << std::endl ; }
+
     // update row number
     previousRow = firstRowOfStripe[currentStripe] + currentRowInStripe;
     currentRowInStripe += rowsToRead;
@@ -581,7 +586,7 @@ namespace orc {
         for(unsigned int i=0; i < type.getSubtypeCount(); ++i) {
             const Type& child = type.getSubtype(i);
             if (selectedColumns[child.getColumnId()]) {
-                batch->fields.push_back((createRowBatch(child, capacity)).get());
+                batch->fields.push_back((createRowBatch(child, capacity)).release());
             }
         }
         return std::auto_ptr<ColumnVectorBatch>( dynamic_cast<ColumnVectorBatch*>(batch));

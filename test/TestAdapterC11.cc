@@ -16,32 +16,27 @@
  * limitations under the License.
  */
 
-//#include "orc/OrcFile.hh"
-#include "ColumnPrinter.hh"
+#include "TestAdapterC11.hh"
 
-#include <string>
-#include <memory>
-#include <iostream>
-#include <string>
+namespace orc {
 
-int main(int argc, char* argv[]) {
-  if (argc < 2) {
-    std::cout << "Usage: file-scan <filename>\n";
+  std::auto_ptr<Type> createStructType(std::initializer_list<std::unique_ptr<Type> > types,
+      std::initializer_list<std::string> fieldNames) {
+    std::vector<Type*> typeVector(types.size());
+    std::vector<std::string> fieldVector(types.size());
+    auto currentType = types.begin();
+    auto endType = types.end();
+    size_t current = 0;
+    while (currentType != endType) {
+      typeVector[current++] =
+          const_cast<std::unique_ptr<Type>*>(currentType)->release();
+      ++currentType;
+    }
+    fieldVector.insert(fieldVector.end(), fieldNames.begin(),
+        fieldNames.end());
+
+    return std::auto_ptr<Type>(new TypeImpl(STRUCT, typeVector,
+        fieldVector));
   }
-  orc::ReaderOptions opts;
-  // opts.include({1});
-  std::auto_ptr<orc::Reader> reader =
-    orc::createReader(orc::readLocalFile(std::string(argv[1])), opts);
-  std::auto_ptr<orc::ColumnVectorBatch> batch = reader->createRowBatch(1024);
+}  // namespace orc
 
-  unsigned long rows = 0;
-  unsigned long batches = 0;
-  while (reader->next(*batch)) {
-    batches += 1;
-    if(DEBUG) { std::cout << "Reading batch " << batches << std::endl; }
-    rows += batch->numElements;
-  }
-  std::cout << "Rows: " << rows << "\n";
-  std::cout << "Batches: " << batches << "\n";
-  return 0;
-}

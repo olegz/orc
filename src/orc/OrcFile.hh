@@ -20,6 +20,7 @@
 #define ORC_FILE_HH
 
 #include <string>
+#include <iostream> // Included here for debugging only
 
 #include "Reader.hh"
 
@@ -28,6 +29,8 @@
 */
 
 namespace orc {
+
+#define DEBUG false
 
   /**
    * An abstract interface for providing ORC readers a stream of bytes.

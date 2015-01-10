@@ -34,7 +34,7 @@ namespace orc {
 
   class ByteRleDecoderImpl: public ByteRleDecoder {
   public:
-    ByteRleDecoderImpl(std::auto_ptr<SeekableInputStream> input);
+    ByteRleDecoderImpl(std::auto_ptr<SeekableInputStream>& input);
 
     virtual ~ByteRleDecoderImpl();
 
@@ -96,7 +96,7 @@ namespace orc {
     }
   }
 
-  ByteRleDecoderImpl::ByteRleDecoderImpl(std::auto_ptr<SeekableInputStream>
+  ByteRleDecoderImpl::ByteRleDecoderImpl(std::auto_ptr<SeekableInputStream>&
                                          input) {
     inputStream = input;
     repeating = false;
@@ -215,7 +215,7 @@ namespace orc {
 
   class BooleanRleDecoderImpl: public ByteRleDecoderImpl {
   public:
-    BooleanRleDecoderImpl(std::auto_ptr<SeekableInputStream> input);
+    BooleanRleDecoderImpl(std::auto_ptr<SeekableInputStream>& input);
 
     virtual ~BooleanRleDecoderImpl();
 
@@ -240,7 +240,7 @@ namespace orc {
   };
 
   BooleanRleDecoderImpl::BooleanRleDecoderImpl
-                                (std::auto_ptr<SeekableInputStream> input
+                                (std::auto_ptr<SeekableInputStream>& input
                                  ): ByteRleDecoderImpl(input) {
     remainingBits = 0;
     lastByte = 0;

@@ -16,32 +16,18 @@
  * limitations under the License.
  */
 
-//#include "orc/OrcFile.hh"
-#include "ColumnPrinter.hh"
+#ifndef ORC_TEST_ADAPTER_HH
+#define ORC_TEST_ADAPTER_HH
 
-#include <string>
+#include "TypeImpl.hh"
+
 #include <memory>
-#include <iostream>
-#include <string>
+#include <initializer_list>
 
-int main(int argc, char* argv[]) {
-  if (argc < 2) {
-    std::cout << "Usage: file-scan <filename>\n";
-  }
-  orc::ReaderOptions opts;
-  // opts.include({1});
-  std::auto_ptr<orc::Reader> reader =
-    orc::createReader(orc::readLocalFile(std::string(argv[1])), opts);
-  std::auto_ptr<orc::ColumnVectorBatch> batch = reader->createRowBatch(1024);
+namespace orc {
 
-  unsigned long rows = 0;
-  unsigned long batches = 0;
-  while (reader->next(*batch)) {
-    batches += 1;
-    if(DEBUG) { std::cout << "Reading batch " << batches << std::endl; }
-    rows += batch->numElements;
-  }
-  std::cout << "Rows: " << rows << "\n";
-  std::cout << "Batches: " << batches << "\n";
-  return 0;
-}
+  std::auto_ptr<Type> createStructType(std::initializer_list<std::unique_ptr<Type> > types,
+      std::initializer_list<std::string> fieldNames);
+}  // namespace orc
+
+#endif // ORC_TEST_ADAPTER_HH

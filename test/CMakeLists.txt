@@ -21,9 +21,10 @@ if(NOT MSVC)
   set (CXX11_FLAGS "-std=c++11")
 endif(NOT MSVC)
 
-set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g ${CXX11_FLAGS} ${WARN_FLAGS}")
+set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -Wno-deprecated-declarations ${CXX11_FLAGS} ${WARN_FLAGS}")
 
 add_executable (test-orc
+  TestAdapterC11
   TestByteRle.cc
   TestColumnReader.cc
   TestCompression.cc

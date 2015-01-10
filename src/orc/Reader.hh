@@ -46,7 +46,7 @@ namespace orc {
     std::auto_ptr<ColumnStatisticsPrivate> privateBits;
 
   public:
-    ColumnStatistics(std::auto_ptr<ColumnStatisticsPrivate> data);
+    ColumnStatistics(std::auto_ptr<ColumnStatisticsPrivate>& data);
     virtual ~ColumnStatistics();
 
     /**
@@ -62,7 +62,7 @@ namespace orc {
    */
   class BinaryColumnStatistics: public ColumnStatistics {
   public:
-    BinaryColumnStatistics(std::auto_ptr<ColumnStatisticsPrivate> data);
+    BinaryColumnStatistics(std::auto_ptr<ColumnStatisticsPrivate>& data);
     virtual ~BinaryColumnStatistics();
 
     long getTotalLength() const;
@@ -73,7 +73,7 @@ namespace orc {
    */
   class BooleanColumnStatistics: public ColumnStatistics {
   public:
-    BooleanColumnStatistics(std::auto_ptr<ColumnStatisticsPrivate> data);
+    BooleanColumnStatistics(std::auto_ptr<ColumnStatisticsPrivate>& data);
     virtual ~BooleanColumnStatistics();
 
     long getFalseCount() const;
@@ -85,7 +85,7 @@ namespace orc {
    */
   class DateColumnStatistics: public ColumnStatistics {
   public:
-    DateColumnStatistics(std::auto_ptr<ColumnStatisticsPrivate> data);
+    DateColumnStatistics(std::auto_ptr<ColumnStatisticsPrivate>& data);
     virtual ~DateColumnStatistics();
 
     /**
@@ -106,7 +106,7 @@ namespace orc {
    */
   class DecimalColumnStatistics: public ColumnStatistics {
   public:
-    DecimalColumnStatistics(std::auto_ptr<ColumnStatisticsPrivate> data);
+    DecimalColumnStatistics(std::auto_ptr<ColumnStatisticsPrivate>& data);
     virtual ~DecimalColumnStatistics();
 
     /**
@@ -133,7 +133,7 @@ namespace orc {
    */
   class DoubleColumnStatistics: public ColumnStatistics {
   public:
-    DoubleColumnStatistics(std::auto_ptr<ColumnStatisticsPrivate> data);
+    DoubleColumnStatistics(std::auto_ptr<ColumnStatisticsPrivate>& data);
     virtual ~DoubleColumnStatistics();
 
     /**
@@ -163,7 +163,7 @@ namespace orc {
    */
   class IntegerColumnStatistics: public ColumnStatistics {
   public:
-    IntegerColumnStatistics(std::auto_ptr<ColumnStatisticsPrivate> data);
+    IntegerColumnStatistics(std::auto_ptr<ColumnStatisticsPrivate>& data);
     virtual ~IntegerColumnStatistics();
 
     /**
@@ -199,7 +199,7 @@ namespace orc {
    */
   class StringColumnStatistics: public ColumnStatistics {
   public:
-    StringColumnStatistics(std::auto_ptr<ColumnStatisticsPrivate> data);
+    StringColumnStatistics(std::auto_ptr<ColumnStatisticsPrivate>& data);
     virtual ~StringColumnStatistics();
 
     /**
@@ -226,7 +226,7 @@ namespace orc {
    */
   class TimestampColumnStatistics: public ColumnStatistics {
   public:
-    TimestampColumnStatistics(std::auto_ptr<ColumnStatisticsPrivate> data);
+    TimestampColumnStatistics(std::auto_ptr<ColumnStatisticsPrivate>& data);
     virtual ~TimestampColumnStatistics();
 
     /**
