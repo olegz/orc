@@ -44,11 +44,11 @@ target_link_libraries (orc
   ${PROTOBUF_LITE_LIBRARIES}
   )
 
-add_executable (dump-file
+add_executable (file-dump
   LocalFileReader.cc
   )
 
-target_link_libraries (dump-file
+target_link_libraries (file-dump
   orc
   ${PROTOBUF_LIBRARIES}
   )

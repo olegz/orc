@@ -41,11 +41,12 @@ enable_testing()
 
 find_package (Protobuf REQUIRED)
 
-if(NOT MSVC) # Visual studio enables C++11 support by default.
-  # Enable C++11 support only if you need to run tests with 'make test'
-  set (CXX11_FLAGS "-std=c++11")
-  set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -Wno-deprecated-declarations ${CXX11_FLAGS} ${WARN_FLAGS}")
-endif(NOT MSVC)
+if(TEST)
+  if(NOT MSVC) # Visual studio enables C++11 support by default.
+    # Enable C++11 support only if you need to run tests with 'make test'
+    set (CXX11_FLAGS "-std=c++11")
+  endif(NOT MSVC)
+endif(TEST)
 
 if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
   set (COVERAGE_FLAGS "--coverage -g -O0")
@@ -62,11 +63,14 @@ if(MSVC)
   set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /MTd")
 endif(MSVC)
 
-set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g")
+#set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g")
+set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -Wno-deprecated-declarations ${CXX11_FLAGS} ${WARN_FLAGS}")
 #set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${COVERAGE_FLAGS}")
 
 set (EXAMPLE_DIRECTORY ${CMAKE_SOURCE_DIR}/examples)
 
 add_subdirectory(libs)
 add_subdirectory(src)
-add_subdirectory(test)
+if(TEST)
+  add_subdirectory(test)
+endif(TEST)
