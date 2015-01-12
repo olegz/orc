@@ -114,28 +114,7 @@ namespace orc {
     virtual std::string getName() const override;
   };
 
-  /** 
-   * Compression base class, round 2 (need to be a derived class from SeekableInputStream, and take a SeekalbeInputStream as input
-   */
-  class CompressionCodec2 : public SeekableInputStream {
-  public:
-     //CompressionCodec2(std::unique_ptr<SeekableInputStream> input, int blksz );
-     //CompressionCodec2(std::unique_ptr<SeekableInputStream> input, int blksz );
-
-     virtual ~CompressionCodec2() {}
-
-     virtual void seek(PositionProvider& position) {}
-    virtual std::string getName() const {return string("getName not implemented!");}
-
-    virtual bool Next(const void** data, int*size) {
-        return true;
-    }
-    virtual void BackUp(int count) {};
-    virtual bool Skip(int count) { return true;}
-    virtual google::protobuf::int64 ByteCount() const { return -1;}
-  };
-
-  class ZlibCodec2: public CompressionCodec2 {
+  class ZlibCodec2: public SeekableInputStream{
   private:
       //SeekableInputStream* input;
       std::unique_ptr<SeekableInputStream> input; // dont care if it's an array stream, or file stream
@@ -149,7 +128,11 @@ namespace orc {
 
   public:
 
-     //virtual void seek(PositionProvider& position) {};
+    virtual bool Skip(int count) { return true;}
+    virtual google::protobuf::int64 ByteCount() const { return -1;}
+    virtual void seek(PositionProvider& position) {}
+    virtual std::string getName() const {return string("getName not implemented!");}
+
      ZlibCodec2(int bs) : blockSize(bs) {}
      ZlibCodec2( std::unique_ptr<SeekableInputStream> in, int blksz) : input (std::move(in)), position(0), length(0), blockSize(blksz) {
          buffer.reset(new char[2* blockSize]); // double allocate
