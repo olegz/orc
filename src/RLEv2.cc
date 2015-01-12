@@ -86,10 +86,17 @@ inline int getClosestFixedBits(int n) {
   }
 }
 
-void RleDecoderV2::readLongs(long *data, unsigned long offset, unsigned len,
-                             unsigned fb) {
+unsigned long RleDecoderV2::readLongs(long *data, unsigned long offset,
+                                      unsigned len, unsigned fb,
+                                      const char *notNull) {
+  unsigned long ret = 0;
+
   // TODO: unroll to improve performance
   for(unsigned long i = offset; i < (offset + len); i++) {
+    // skip null positions
+    if (notNull && !notNull[i]) {
+      continue;
+    }
     unsigned long result = 0;
     int bitsLeftToRead = fb;
     while (bitsLeftToRead > bitsLeft) {
@@ -107,7 +114,10 @@ void RleDecoderV2::readLongs(long *data, unsigned long offset, unsigned len,
       result |= (curByte >> bitsLeft) & ((1 << bitsLeftToRead) - 1);
     }
     data[i] = static_cast<long>(result);
+    ++ret;
   }
+
+  return ret;
 }
 
 unsigned char RleDecoderV2::readByte() {
@@ -175,17 +185,22 @@ RleDecoderV2::RleDecoderV2(std::unique_ptr<SeekableInputStream> input,
 }
 
 void RleDecoderV2::seek(PositionProvider& location) {
-  // TODO: implement
+  // move the input stream
+  inputStream->seek(location);
+  // clear state
+  bufferEnd = bufferStart = 0;
+  runRead = runLength = 0;
+  // skip ahead the given number of records
+  skip(location.next());
 }
 
 void RleDecoderV2::skip(unsigned long numValues) {
-  // TODO: implement
+
 }
 
 void RleDecoderV2::next(long* const data,
                         const unsigned long numValues,
                         const char* const notNull) {
-  // TODO: handle nulls
   unsigned long nRead = 0;
   while (nRead < numValues) {
     if (runRead == runLength) {
@@ -238,11 +253,21 @@ unsigned long RleDecoderV2::nextShortRepeats(long* const data,
   }
 
   unsigned long nRead = std::min(runLength - runRead, numValues);
-  for(unsigned long pos = offset; pos < offset + nRead; ++pos) {
-    data[pos] = firstValue;
+
+  if (notNull) {
+    for(unsigned long pos = offset; pos < offset + nRead; ++pos) {
+      if (notNull[pos]) {
+          data[pos] = firstValue;
+          ++runRead;
+      }
+    }
+  } else {
+    for(unsigned long pos = offset; pos < offset + nRead; ++pos) {
+      data[pos] = firstValue;
+      ++runRead;
+    }
   }
 
-  runRead += nRead;
   return nRead;
 }
 
@@ -267,15 +292,21 @@ unsigned long RleDecoderV2::nextDirect(long* const data,
 
   unsigned long nRead = std::min(runLength - runRead, numValues);
 
-  readLongs(data, offset, nRead, bitSize);
-  if (isSigned) { 
-    // write the unpacked values and zigzag decode to result buffer
-    for(unsigned long pos = offset; pos < offset + nRead; ++pos) {
-      data[pos] = unZigZag(data[pos]);
+  runRead += readLongs(data, offset, nRead, bitSize, notNull);
+  if (isSigned) {
+    if (notNull) {
+      for (unsigned pos = offset; pos < offset + nRead; ++pos) {
+        if (notNull[pos]) {
+          data[pos] = unZigZag(data[pos]);
+        }
+      }
+    } else {
+      for (unsigned pos = offset; pos < offset + nRead; ++pos) {
+        data[pos] = unZigZag(data[pos]);
+      }
     }
   }
 
-  runRead += nRead;
   return nRead;
 }
 
@@ -351,7 +382,11 @@ unsigned long RleDecoderV2::nextPatched(long* const data,
 
   unsigned long nRead = std::min(runLength - runRead, numValues);
 
-  for(unsigned long pos = offset; pos < offset + nRead; ++pos, ++unpackedIdx) {
+  for(unsigned long pos = offset; pos < offset + nRead; ++pos) {
+    // skip null positions
+    if (notNull && !notNull[pos]) {
+      continue;
+    }
     if (static_cast<long>(unpackedIdx) != actualGap) {
       // no patching required. add base to unpacked value to get final value
       data[pos] = base + unpacked[unpackedIdx];
@@ -372,9 +407,11 @@ unsigned long RleDecoderV2::nextPatched(long* const data,
         actualGap += unpackedIdx;
       }
     }
+
+    ++runRead;
+    ++unpackedIdx;
   }
 
-  runRead += nRead;
   return nRead;
 }
 
@@ -382,7 +419,6 @@ unsigned long RleDecoderV2::nextDelta(long* const data,
                                       unsigned long offset,
                                       unsigned long numValues,
                                       const char* const notNull) {
-
   if (runRead == runLength) {
     // extract the number of fixed bits
     unsigned char fbo = (firstByte >> 1) & 0x1f;
@@ -403,49 +439,70 @@ unsigned long RleDecoderV2::nextDelta(long* const data,
       firstValue = static_cast<long>(readVulong());
     }
 
-    data[offset++] = prevValue = firstValue;
+    prevValue = firstValue;
+
+    // read the fixed delta value stored as vint (deltas can be negative even
+    // if all number are positive)
+    deltaBase = static_cast<long>(readVslong());
   }
 
   unsigned long nRead = std::min(runLength - runRead, numValues);
-  unsigned long remaining = runRead == 0 ? nRead - 1 : nRead;
 
-  if (remaining == 0) {
-    ; // already read the first value
-  } else if (bitSize == 0) {
-    if (runRead < 2) {
-      // read the fixed delta value stored as vint (deltas can be negative even
-      // if all number are positive)
-      deltaBase = static_cast<long>(readVslong());
-    }
+  unsigned long pos = offset;
+  for ( ; pos < offset + nRead; ++pos) {
+    // skip null positions
+    if (!notNull || notNull[pos]) break;
+  }
+  if (runRead == 0 && pos < offset + nRead) {
+    data[pos++] = firstValue;
+    ++runRead;
+  }
 
+  if (bitSize == 0) {
     // add fixed deltas to adjacent values
-    for (unsigned long pos = offset; pos < offset + remaining; ++pos) {
+    for ( ; pos < offset + nRead; ++pos) {
+      // skip null positions
+      if (notNull && !notNull[pos]) {
+        continue;
+      }
       prevValue = data[pos] = prevValue + deltaBase;
+      ++runRead;
     }
   } else {
-    if (runRead < 2) {
-      deltaBase = static_cast<long>(readVslong());
+    for ( ; pos < offset + nRead; ++pos) {
+      // skip null positions
+      if (!notNull || notNull[pos]) break;
+    }
+    if (runRead < 2 && pos < offset + nRead) {
       // add delta base and first value
-      prevValue = data[offset++] = firstValue + deltaBase;
-      --remaining;
+      prevValue = data[pos++] = firstValue + deltaBase;
+      ++runRead;
     }
 
     // write the unpacked values, add it to previous value and store final
     // value to result buffer. if the delta base value is negative then it
     // is a decreasing sequence else an increasing sequence
-    readLongs(data, offset, remaining, bitSize);
+    unsigned long remaining = (offset + nRead) - pos;
+    runRead += readLongs(data, pos, remaining, bitSize, notNull);
     if (deltaBase < 0) {
-      for (unsigned long pos = offset; pos < offset + remaining; ++pos) {
+      for ( ; pos < offset + nRead; ++pos) {
+        // skip null positions
+        if (notNull && !notNull[pos]) {
+          continue;
+        }
         prevValue = data[pos] = prevValue - data[pos];
       }
     } else {
-      for (unsigned long pos = offset; pos < offset + remaining; ++pos) {
+      for ( ; pos < offset + nRead; ++pos) {
+        // skip null positions
+        if (notNull && !notNull[pos]) {
+          continue;
+        }
         prevValue = data[pos] = prevValue + data[pos];
       }
     }
   }
 
-  runRead += nRead;
   return nRead;
 }
 

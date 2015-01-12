@@ -73,8 +73,8 @@ private:
   unsigned long readLongBE(unsigned bsz);
   unsigned long readVslong();
   unsigned long readVulong();
-  void readLongs(long *data, unsigned long offset, unsigned len,
-                 unsigned fb);
+  unsigned long readLongs(long *data, unsigned long offset, unsigned len,
+                          unsigned fb, const char* notNull = nullptr);
 
   unsigned long nextShortRepeats(long* data, unsigned long offset,
                                  unsigned long numValues,
