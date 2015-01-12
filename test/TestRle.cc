@@ -29,7 +29,8 @@ namespace orc {
 std::vector<long> decodeRLEv2(const unsigned char *bytes,
                               unsigned long l,
                               size_t n,
-                              size_t count) {
+                              size_t count,
+                              const char* notNull = nullptr) {
   std::unique_ptr<RleDecoder> rle =
     createRleDecoder(
         std::unique_ptr<SeekableInputStream>(
@@ -39,7 +40,10 @@ std::vector<long> decodeRLEv2(const unsigned char *bytes,
     size_t remaining = count - i;
     size_t nread = std::min(n, remaining);
     std::vector<long> data(nread);
-    rle->next(data.data(), nread, nullptr);
+    rle->next(data.data(), nread, notNull);
+    if (notNull) {
+      notNull += nread;
+    }
     results.insert(results.end(), data.begin(), data.end());
   }
 
@@ -47,10 +51,12 @@ std::vector<long> decodeRLEv2(const unsigned char *bytes,
 }
 
 void checkResults(const std::vector<long> &e, const std::vector<long> &a,
-                  int n) {
+                  int n, const char* notNull = nullptr) {
   EXPECT_EQ(e.size(), a.size()) << "vectors differ in size";
   for (size_t i = 0; i < e.size(); ++i) {
-    EXPECT_EQ(e[i], a[i]) << "Output wrong at " << i << ", n=" << n;
+    if (!notNull || notNull[i]) {
+      EXPECT_EQ(e[i], a[i]) << "Output wrong at " << i << ", n=" << n;
+    }
   }
 }
 
@@ -140,6 +146,34 @@ TEST(RLEv2, basicDelta4) {
   checkResults(values, decodeRLEv2(bytes, l, 7, values.size()), 7);
   checkResults(values, decodeRLEv2(bytes, l, values.size(), values.size()),
                values.size());
+};
+
+TEST(RLEv2, basicDelta0WithNulls) {
+  std::vector<long> values;
+  std::vector<char> notNull;
+  for (size_t i = 0; i < 20; ++i) {
+    values.push_back(i);
+    notNull.push_back(true);
+    // throw in a null every third value
+    bool addNull = (i % 3 == 0);
+    if (addNull) {
+      values.push_back(-1);
+      notNull.push_back(false);
+    }
+  }
+
+  const unsigned char bytes[] = {0xc0,0x13,0x00,0x02};
+  unsigned long l = sizeof(bytes) / sizeof(char);
+  const size_t count = values.size();
+  // Read 1 at a time, then 3 at a time, etc.
+  checkResults(values, decodeRLEv2(bytes, l, 1, count, notNull.data()),
+               1, notNull.data());
+  checkResults(values, decodeRLEv2(bytes, l, 3, count, notNull.data()),
+               3, notNull.data());
+  checkResults(values, decodeRLEv2(bytes, l, 7, count, notNull.data()),
+               7, notNull.data());
+  checkResults(values, decodeRLEv2(bytes, l, count, count, notNull.data()),
+               count, notNull.data());
 };
 
 TEST(RLEv2, shortRepeats) {
