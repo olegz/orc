@@ -406,6 +406,38 @@ TEST(RLEv2, mixedPatchedAndShortRepeats) {
                values.size());
 };
 
+TEST(RLEv2, basicDirectSeek) {
+  // 0,1 repeated 10 times (signed ints) followed by
+  // 0,2 repeated 10 times (signed ints)
+  const unsigned char bytes[] = {0x42,0x13,0x22,0x22,0x22,0x22,0x22,
+                                 0x46,0x13,0x04,0x04,0x04,0x04,0x04,
+                                 0x04,0x04,0x04,0x04,0x04};
+  unsigned long l = sizeof(bytes) / sizeof(char);
+
+  std::unique_ptr<RleDecoder> rle =
+    createRleDecoder(
+        std::unique_ptr<SeekableInputStream>(
+            new SeekableArrayInputStream(bytes,l)), true, RleVersion_2);
+  std::list<unsigned long> position;
+  position.push_back(7); // byte position; skip first 20 [0 to 19]
+  position.push_back(13); // value position; skip 13 more [20 to 32]
+
+  PositionProvider location(position);
+  rle->seek(location);
+  std::vector<long> data(3);
+  rle->next(data.data(), 3, nullptr);
+  EXPECT_EQ(2, data[0]);
+  EXPECT_EQ(0, data[1]);
+  EXPECT_EQ(2, data[2]);
+  rle->next(data.data(), 3, nullptr);
+  EXPECT_EQ(0, data[0]);
+  EXPECT_EQ(2, data[1]);
+  EXPECT_EQ(0, data[2]);
+  rle->next(data.data(), 1, nullptr);
+  EXPECT_EQ(2, data[0]);
+};
+
+
 TEST(RLEv1, simpleTest) {
   std::unique_ptr<RleDecoder> rle =
       createRleDecoder(

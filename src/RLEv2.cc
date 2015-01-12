@@ -195,7 +195,16 @@ void RleDecoderV2::seek(PositionProvider& location) {
 }
 
 void RleDecoderV2::skip(unsigned long numValues) {
+  // simple for now, until perf tests indicate something encoding specific is
+  // needed
+  const unsigned long N = 64;
+  long dummy[N];
 
+  while (numValues) {
+    unsigned long nRead = std::min(N, numValues);
+    next(dummy, nRead, nullptr);
+    numValues -= nRead;
+  }
 }
 
 void RleDecoderV2::next(long* const data,
@@ -257,8 +266,8 @@ unsigned long RleDecoderV2::nextShortRepeats(long* const data,
   if (notNull) {
     for(unsigned long pos = offset; pos < offset + nRead; ++pos) {
       if (notNull[pos]) {
-          data[pos] = firstValue;
-          ++runRead;
+        data[pos] = firstValue;
+        ++runRead;
       }
     }
   } else {
