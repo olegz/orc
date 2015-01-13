@@ -136,7 +136,25 @@ namespace orc {
       throw NotImplementedYet("Zlib decompress not implemented yet!");
   }
 
-  string ZlibCodec::compress(string& in, int compr_level /* = Z_BEST_COMPRESSION */) {
+  string ZlibCodec::compress(string& in ){
+	  string out;
+	  size_t curLen = 0;
+	  while( curLen < in.size() ) {
+		  string inBlock = in.substr(curLen, in.size() - curLen > blk_sz ? blk_sz : in.size() - curLen);
+		  string outBlock;
+		  outBlock = compressBlock( inBlock );
+		  cout << "compressed " << blk_sz << " bytes" << endl;
+		  // add ORC header for each compressed block
+		  addORCCompressionHeader(inBlock, outBlock);
+		  out = out + outBlock;
+
+		  // update curLen
+		  curLen += blk_sz;
+	  }
+	  return out;
+  }
+
+  string ZlibCodec::compressBlock(string& in) {
       // zlib control struct
       z_stream zs;
       zs.zalloc = Z_NULL;
@@ -144,6 +162,7 @@ namespace orc {
       zs.opaque = Z_NULL;
       zs.next_in = (Bytef*)in.data();
       zs.avail_in = in.size();
+	  int compr_level  = Z_BEST_COMPRESSION ;
 
       // zip, refer to zlib manual for params
       if (deflateInit2(&zs, compr_level, Z_DEFLATED/*default*/, -15, 8 /*default*/, Z_DEFAULT_STRATEGY /*default*/ ) != Z_OK)

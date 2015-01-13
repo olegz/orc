@@ -372,7 +372,7 @@ TEST(Zlib, inflateDeflateUnitTest) {
     ZlibCodec* zlib = new ZlibCodec(256*1024);  // TODO: what does blksz do to compress func?
     SeekableCompressionInputStream* zlib2 = new SeekableCompressionInputStream(256*1024);  // TODO: what does blksz do to compress func?
 
-    string comp_str = zlib->compress(input);
+    string comp_str = zlib->compressBlock(input);
     string decomp_str = zlib->decompress(comp_str);
 
     EXPECT_EQ(input, decomp_str);
@@ -384,7 +384,7 @@ TEST(Zlib, inflateDeflateUnitTest) {
     EXPECT_EQ(buffer.str().size(), 5147970);
     input = buffer.str();
 
-    comp_str = zlib->compress(input);
+    comp_str = zlib->compressBlock(input);
     decomp_str = zlib->decompress(comp_str);
 
     EXPECT_EQ(buffer.str(), decomp_str);
@@ -395,11 +395,11 @@ TEST(Zlib, testZlibBackup) {
     for(size_t i=0; i < bytes.size(); ++i) {
       bytes[i] = static_cast<char>(i);
     }
-    ZlibCodec* zlib = new ZlibCodec(256*1024);  
+    ZlibCodec* zlib = new ZlibCodec(20);
 
     string comp_str = zlib->compress(bytes);
 
-    zlib->addORCCompressionHeader(bytes, comp_str);
+    //zlib->addORCCompressionHeader(bytes, comp_str);
 
     std::vector<char> comp_vec(comp_str.size() ); // string to vector for a contiguous array
     for(size_t i = 0; i < comp_str.size(); i++) {

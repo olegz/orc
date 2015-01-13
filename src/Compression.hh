@@ -141,9 +141,9 @@ namespace orc {
    * Zlib codec
    */
   class ZlibCodec: public CompressionCodec {
-      int blk_sz; // max uncompressed buffer size per block
-
   public:
+      size_t blk_sz; // max uncompressed buffer size per block
+
       // ctor takes max uncompressed size per block
       ZlibCodec(int blksz) : blk_sz (blksz) {};
 
@@ -155,16 +155,17 @@ namespace orc {
 
       void decompress(SeekableInputStream* in, SeekableInputStream* out);
 
+      string compressBlock(string& in);
+
       void addORCCompressionHeader(string& in, string& out);
 
       // unit functions
-      string compress(string& in, int compr_level = Z_BEST_COMPRESSION);
+      string compress(string& in);
       string decompress(string& in);
   };
 
   class SeekableCompressionInputStream: public SeekableInputStream{
   private:
-      //SeekableInputStream* input;
       std::unique_ptr<SeekableInputStream> input; // dont care if it's an array stream, or file stream
       std::unique_ptr<CompressionCodec> codec; // use it to keep ptr to the real underlying codec
       const unsigned long blockSize;
@@ -241,7 +242,6 @@ namespace orc {
             unsigned long currentSize = std::min(length - position, blockSize);
             if (currentSize > 0) {
                 *data = &buffer[position];
-                //*buffer = (data ? data : ownedData.data()) + position;
                 *size = static_cast<int>(currentSize);
                 position += currentSize;
                 return true;
