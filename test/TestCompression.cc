@@ -397,9 +397,7 @@ TEST(Zlib, testZlibBackup) {
     }
     ZlibCodec* zlib = new ZlibCodec(20);
 
-    string comp_str = zlib->compress(bytes);
-
-    //zlib->addORCCompressionHeader(bytes, comp_str);
+    string comp_str = zlib->compress(bytes); // TODO: a little misleading.. compress() will add ORC Header too
 
     std::vector<char> comp_vec(comp_str.size() ); // string to vector for a contiguous array
     for(size_t i = 0; i < comp_str.size(); i++) {
@@ -407,20 +405,19 @@ TEST(Zlib, testZlibBackup) {
     }
 
     // now this comp_str should be input to a SeekableArrayInputStream..
-    SeekableArrayInputStream* stream = new SeekableArrayInputStream(comp_vec.data(), comp_vec.size(), 20);
-    //SeekableCompressionInputStream zlib2(std::unique_ptr<SeekableInputStream> (stream), 256*1024);
-    SeekableCompressionInputStream zlib2(std::unique_ptr<SeekableInputStream> (stream), 20); // should take inputstream's block size
+    SeekableArrayInputStream* bytestream = new SeekableArrayInputStream(comp_vec.data(), comp_vec.size(), 20);
+    SeekableCompressionInputStream stream(std::unique_ptr<SeekableInputStream> (bytestream), 20); // inputstream and compression should have same block size
+    //SeekableCompressionInputStream stream(std::unique_ptr<SeekableInputStream> (bytestream), CompressionKind_ZLIB, 20);  // TODO: this one should be used..
     const void *ptr;
     int len;
-    EXPECT_EQ(true, zlib2.Next(&ptr, &len));
-    //EXPECT_EQ(comp_vec.data(), static_cast<const char *>(ptr)); // not zero copy if compressed
+    EXPECT_EQ(true, stream.Next(&ptr, &len));
     EXPECT_EQ(20, len);
-    zlib2.BackUp(0);
-    //len = 0; // reset on purpose
-    EXPECT_EQ(true, zlib2.Next(&ptr, &len));
-    //EXPECT_EQ(bytes.data() + 20, static_cast<const char *>(ptr));
+    EXPECT_EQ(bytes[0], static_cast<const char*>(ptr)[0]); // compare value
+    stream.BackUp(0);
+    EXPECT_EQ(true, stream.Next(&ptr, &len));
     EXPECT_EQ(20, len);
-    zlib2.BackUp(10);
+    EXPECT_EQ(bytes[20], static_cast<const char *>(ptr)[0]);
+    stream.BackUp(10);
 }
 
 /*

@@ -208,7 +208,7 @@ namespace orc {
         //      b) if not, decompress a block and copy to zlib buffer
 
         // if 1)
-        if( length - position >= blockSize ) {
+        if( length >= position + blockSize ) {
             *data = &buffer[position];
             *size = static_cast<int>(blockSize);
             position += blockSize;
@@ -216,29 +216,29 @@ namespace orc {
         }
         // decompress header to see if it is original
         const void *ptr;
-        int length;
-        input->Next(&ptr, &length);
+        int len;
+        input->Next(&ptr, &len);
 
-        if(length < 3) 
+        if(len < 3) 
             return false; // can't get a basic header
 
-        cout << "first Next() read " << length << " bytes" << endl;
+        cout << "first Next() read " << len << " bytes" << endl;
 
-        parseCompressionHeader(ptr, length); // read 3 bytes header
-        input->BackUp(length - 3); // back to begin of compressed block
+        parseCompressionHeader(ptr, len); // read 3 bytes header
+        input->BackUp(len - 3); // back to begin of compressed block
 
         // if is original, return input itself (its position etc would be updated accordingly, too)
         if(isOriginal) {
-            // TODO: copy block to zlib buffer and return on zlib buffer
-            //return input->Next(data, size);
+
             const void *ptr;
-            int length;
+            int len;
+            input->Next(&ptr, &len);
 
-            input->Next(&ptr, &length);
-
-            for(int i = 0; i < length; i++)
+            // deep copy input block to internal buffer and return 
+            for(int i = 0; i < len; i++)
                 buffer[length+i] =  (((char*)ptr)[i]);
-            // check if have enough for a block 
+            length += len; //TODO: need a circular buffer here...
+            // TODO: what if we still have less than a block (compare with decompress func)
             unsigned long currentSize = std::min(length - position, blockSize);
             if (currentSize > 0) {
                 *data = &buffer[position];
@@ -246,7 +246,7 @@ namespace orc {
                 position += currentSize;
                 return true;
             }
-            // TODO: otherwise keep asking for more from input?
+
             *size = 0;
             return false;
         }
@@ -254,19 +254,22 @@ namespace orc {
             string in;
             int ret = true;
             do {
-                ret = input->Next(&ptr, &length);
+                ret = input->Next(&ptr, &len);
                 //if (!ret) return false;
-                in.append(static_cast<const char*>(ptr), length);
-                cout << "ret = " << ret << "read another " << length << " bytes in the loop... " << endl;
+                in.append(static_cast<const char*>(ptr), len);
+                cout << "ret = " << ret << "read another " << len << " bytes in the loop... " << endl;
             } while (ret && in.size() < compressedLen);
 
             int extra = in.size() - compressedLen;
             input->BackUp(extra);
             in.erase(compressedLen);
             
-            //cout << "gonna decom now, in.size() =  " << in.size() << ", content is:" << in <<  endl;
+            cout << "gonna decom now, in.size() =  " << in.size() << ", content is:" << in <<  endl;
             // now decomp
             string out = decompress(in);
+            //string out = codec->decompress(input);
+
+            cout << "decomp output content is:" << out <<  endl;
             
             // copy output to data
             for(size_t i =0; i < out.size(); i++) {
@@ -293,7 +296,7 @@ namespace orc {
     void BackUp(int count) {
         if (count >= 0) {
             unsigned long unsignedCount = static_cast<unsigned long>(count);
-            cout << "zlib backup(): count = " << count << ", position = " << position << endl;
+            cout << "zlib backup(): count = " << count << ", position = " << position << ", length = " << length <<  endl;
             if (unsignedCount <= blockSize && unsignedCount <= position) {
                 position -= unsignedCount;
             } else {
