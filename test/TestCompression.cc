@@ -360,7 +360,7 @@ string readfile(string filename, long long offset, long long length = -1) {
 TEST(Zlib, zlibOrcFooterTest) {
     string content = readfile("../../examples/demo-12-zlib.orc", 45735, 218);
 
-    ZlibCodec2* zlib = new ZlibCodec2(256*1024);  // TODO: what does blksz do to compress func?
+    SeekableCompressionInputStream* zlib = new SeekableCompressionInputStream(256*1024);  // TODO: what does blksz do to compress func?
     string footer = zlib->decompress(content);
 
     EXPECT_EQ(346, footer.size());
@@ -370,7 +370,7 @@ TEST(Zlib, inflateDeflateUnitTest) {
     // compress/decompress a tiny string
     std::string input("abcdefg");
     ZlibCodec* zlib = new ZlibCodec(256*1024);  // TODO: what does blksz do to compress func?
-    ZlibCodec2* zlib2 = new ZlibCodec2(256*1024);  // TODO: what does blksz do to compress func?
+    SeekableCompressionInputStream* zlib2 = new SeekableCompressionInputStream(256*1024);  // TODO: what does blksz do to compress func?
 
     string comp_str = zlib->compress(input);
     string decomp_str = zlib->decompress(comp_str);
@@ -408,8 +408,8 @@ TEST(Zlib, testZlibBackup) {
 
     // now this comp_str should be input to a SeekableArrayInputStream..
     SeekableArrayInputStream* stream = new SeekableArrayInputStream(comp_vec.data(), comp_vec.size(), 20);
-    //ZlibCodec2 zlib2(std::unique_ptr<SeekableInputStream> (stream), 256*1024);
-    ZlibCodec2 zlib2(std::unique_ptr<SeekableInputStream> (stream), 20); // should take inputstream's block size
+    //SeekableCompressionInputStream zlib2(std::unique_ptr<SeekableInputStream> (stream), 256*1024);
+    SeekableCompressionInputStream zlib2(std::unique_ptr<SeekableInputStream> (stream), 20); // should take inputstream's block size
     const void *ptr;
     int len;
     EXPECT_EQ(true, zlib2.Next(&ptr, &len));

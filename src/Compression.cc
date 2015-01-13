@@ -129,11 +129,11 @@ namespace orc {
   }
 
   bool ZlibCodec::compress(SeekableInputStream* in, SeekableInputStream* out) {
-      throw string("Zlib compression not implemented yet!");
+      throw NotImplementedYet("Zlib compression not implemented yet!");
   }
 
   void ZlibCodec::decompress(SeekableInputStream* in, SeekableInputStream* out) {
-      throw string("Zlib decompress not implemented yet!");
+      throw NotImplementedYet("Zlib decompress not implemented yet!");
   }
 
   string ZlibCodec::compress(string& in, int compr_level /* = Z_BEST_COMPRESSION */) {
@@ -332,8 +332,9 @@ namespace orc {
       break;
     case CompressionKind_ZLIB: {
       // PASS
-      //return new ZlibCodec2(input, blockSize);
-      return std::unique_ptr<SeekableInputStream> ( new ZlibCodec2(move(input), blockSize));
+      //return new SeekableCompressionInputStream(input, blockSize);
+      return std::unique_ptr<SeekableInputStream> ( new SeekableCompressionInputStream(move(input), blockSize));
+      //return std::unique_ptr<SeekableInputStream> ( new CompressionCodec(move(input), CompressionKind_ZLIB, blockSize));
     }
     }
     throw NotImplementedYet("compression codec");

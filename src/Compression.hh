@@ -114,15 +114,16 @@ namespace orc {
     virtual std::string getName() const override;
   };
 
-  class ZlibCodec2: public SeekableInputStream{
+  class SeekableCompressionInputStream: public SeekableInputStream{
   private:
       //SeekableInputStream* input;
       std::unique_ptr<SeekableInputStream> input; // dont care if it's an array stream, or file stream
+      //std::unique_ptr<CompressionCodec> codec; // use it to keep ptr to the real underlying codec
+      const unsigned long blockSize;
       std::unique_ptr<char[]> buffer;
       unsigned long offset;
       unsigned long position;
       unsigned long length;
-      const unsigned long blockSize;
       bool isOriginal; // literal or not
       unsigned long compressedLen; // default 256K, max 2^23, i.e. 8MB
 
@@ -133,8 +134,8 @@ namespace orc {
     virtual void seek(PositionProvider& position) {}
     virtual std::string getName() const {return string("getName not implemented!");}
 
-     ZlibCodec2(int bs) : blockSize(bs) {}
-     ZlibCodec2( std::unique_ptr<SeekableInputStream> in, int blksz) : input (std::move(in)), position(0), length(0), blockSize(blksz) {
+     SeekableCompressionInputStream(int bs) : blockSize(bs) {}
+     SeekableCompressionInputStream( std::unique_ptr<SeekableInputStream> in, int blksz) : input (std::move(in)), blockSize(blksz), position(0), length(0) {
          buffer.reset(new char[2* blockSize]); // double allocate
      }
 
