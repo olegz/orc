@@ -405,6 +405,7 @@ namespace orc {
                               unsigned long) {
     unsigned long footerSize = postscript.footerlength();
     cout << "jfu: footerSize = " << footerSize << endl;
+    cout << "jfu: block size = " << blockSize << endl;
     //check if extra bytes need to be read
     unsigned long tailSize = 1 + postscriptLength + footerSize;
     if (tailSize > readSize) {

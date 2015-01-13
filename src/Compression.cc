@@ -220,7 +220,7 @@ namespace orc {
           throw(std::string("inflateInit failed while decompressing."));
 
       int ret;
-      char buf[getBlockSize()];
+      char buf[getBlockSize()]; // TODO:  use compressioninputstream internal buffer
       string out; // output string
 
       // TODO: decompress whole thing
