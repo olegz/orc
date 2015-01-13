@@ -331,10 +331,8 @@ namespace orc {
     case CompressionKind_SNAPPY:
       break;
     case CompressionKind_ZLIB: {
-      // PASS
-      //return new SeekableCompressionInputStream(input, blockSize);
-      return std::unique_ptr<SeekableInputStream> ( new SeekableCompressionInputStream(move(input), blockSize));
-      //return std::unique_ptr<SeekableInputStream> ( new CompressionCodec(move(input), CompressionKind_ZLIB, blockSize));
+      //return std::unique_ptr<SeekableInputStream> ( new SeekableCompressionInputStream(move(input), blockSize));
+      return std::unique_ptr<SeekableInputStream> ( new SeekableCompressionInputStream(move(input), kind, blockSize));
     }
     }
     throw NotImplementedYet("compression codec");

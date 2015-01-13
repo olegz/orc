@@ -114,11 +114,59 @@ namespace orc {
     virtual std::string getName() const override;
   };
 
+  /**
+   * Compression base class
+   */
+  class CompressionCodec {
+  public:
+
+  /**
+   * Compress the in buffer to the out buffer.
+   * @param in the bytes to compress
+   * @param out the uncompressed bytes
+   * @return true if the output is smaller than input
+   */
+  virtual bool compress(SeekableInputStream* in, SeekableInputStream* out) = 0;
+
+  /**
+   * Decompress the in buffer to the out buffer.
+   * @param in the bytes to decompress
+   * @param out the decompressed bytes
+   */
+  virtual void decompress(SeekableInputStream* in, SeekableInputStream* out) = 0;
+
+  };
+
+  /**
+   * Zlib codec
+   */
+  class ZlibCodec: public CompressionCodec {
+      int blk_sz; // max uncompressed buffer size per block
+
+  public:
+      // ctor takes max uncompressed size per block
+      ZlibCodec(int blksz) : blk_sz (blksz) {};
+
+      int getBlockSize() { return blk_sz; }
+
+      // compress need input/output, and compression level
+      // impl need a vector<char> buf(blk_size) to hold each pass, see http://panthema.net/2007/0328-ZLibString.html
+      bool compress(SeekableInputStream* in, SeekableInputStream* out);
+
+      void decompress(SeekableInputStream* in, SeekableInputStream* out);
+
+      void addORCCompressionHeader(string& in, string& out);
+
+      // unit functions
+      string compress(string& in, int compr_level = Z_BEST_COMPRESSION);
+      string decompress(string& in);
+  };
+
   class SeekableCompressionInputStream: public SeekableInputStream{
   private:
       //SeekableInputStream* input;
       std::unique_ptr<SeekableInputStream> input; // dont care if it's an array stream, or file stream
-      //std::unique_ptr<CompressionCodec> codec; // use it to keep ptr to the real underlying codec
+      std::unique_ptr<CompressionCodec> codec; // use it to keep ptr to the real underlying codec
       const unsigned long blockSize;
       std::unique_ptr<char[]> buffer;
       unsigned long offset;
@@ -137,6 +185,16 @@ namespace orc {
      SeekableCompressionInputStream(int bs) : blockSize(bs) {}
      SeekableCompressionInputStream( std::unique_ptr<SeekableInputStream> in, int blksz) : input (std::move(in)), blockSize(blksz), position(0), length(0) {
          buffer.reset(new char[2* blockSize]); // double allocate
+     }
+
+     SeekableCompressionInputStream( std::unique_ptr<SeekableInputStream> in, CompressionKind kind, int blksz) : input (std::move(in)), blockSize(blksz), position(0), length(0) {
+         buffer.reset(new char[2* blockSize]); // double allocate
+         if ( kind == CompressionKind_ZLIB) {
+            codec = std::unique_ptr<CompressionCodec> (new ZlibCodec(blockSize));
+         }
+         else {
+         throw std::string("Only ZLIB decompression is implemented");
+         }
      }
 
      unsigned long getBlockSize() { return blockSize; }
@@ -298,54 +356,6 @@ namespace orc {
 
       return out;
   }
-  };
-
-  /**
-   * Compression base class
-   */
-  class CompressionCodec {
-  public:
-
-  /**
-   * Compress the in buffer to the out buffer.
-   * @param in the bytes to compress
-   * @param out the uncompressed bytes
-   * @return true if the output is smaller than input
-   */
-  virtual bool compress(SeekableInputStream* in, SeekableInputStream* out) = 0;
-
-  /**
-   * Decompress the in buffer to the out buffer.
-   * @param in the bytes to decompress
-   * @param out the decompressed bytes
-   */
-  virtual void decompress(SeekableInputStream* in, SeekableInputStream* out) = 0;
-
-  };
-
-  /**
-   * Zlib codec
-   */
-  class ZlibCodec: public CompressionCodec {
-      int blk_sz; // max uncompressed buffer size per block
-
-  public:
-      // ctor takes max uncompressed size per block
-      ZlibCodec(int blksz) : blk_sz (blksz) {};
-
-      int getBlockSize() { return blk_sz; }
-
-      // compress need input/output, and compression level
-      // impl need a vector<char> buf(blk_size) to hold each pass, see http://panthema.net/2007/0328-ZLibString.html
-      bool compress(SeekableInputStream* in, SeekableInputStream* out);
-
-      void decompress(SeekableInputStream* in, SeekableInputStream* out);
-
-      void addORCCompressionHeader(string& in, string& out);
-
-      // unit functions
-      string compress(string& in, int compr_level = Z_BEST_COMPRESSION);
-      string decompress(string& in);
   };
 
   /**
