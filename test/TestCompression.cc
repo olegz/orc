@@ -360,19 +360,17 @@ string readfile(string filename, long long offset, long long length = -1) {
 TEST(Zlib, zlibOrcFooterTest) {
     string content = readfile("../../examples/demo-12-zlib.orc", 45735, 218);
 
-    /*
-    SeekableCompressionInputStream* zlib = new SeekableCompressionInputStream(256*1024);  // TODO: what does blksz do to compress func?
+    SeekableCompressionInputStream* zlib = new SeekableCompressionInputStream(256*1024);
     string footer = zlib->decompress(content);
 
     EXPECT_EQ(346, footer.size());
-    */
 }
 
 TEST(Zlib, inflateDeflateUnitTest) {
     // compress/decompress a tiny string
     std::string input("abcdefg");
-    ZlibCodec* zlib = new ZlibCodec(256*1024);  // TODO: what does blksz do to compress func?
-    //SeekableCompressionInputStream* zlib2 = new SeekableCompressionInputStream(256*1024);  // TODO: what does blksz do to compress func?
+    ZlibCodec* zlib = new ZlibCodec(256*1024);
+    //SeekableCompressionInputStream* zlib2 = new SeekableCompressionInputStream(256*1024);
 
     string comp_str = zlib->compressBlock(input);
     string decomp_str = zlib->decompress(comp_str);
