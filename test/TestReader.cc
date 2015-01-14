@@ -107,7 +107,7 @@ TEST(ZlibReader, zlibOrcFileReaderTest) {
   EXPECT_EQ(385, reader->getNumberOfStripes());
   EXPECT_EQ(1920800, reader->getNumberOfRows());
   EXPECT_EQ(10000, reader->getRowIndexStride());
-  //EXPECT_EQ(5069718, reader->getContentLength());
+  EXPECT_EQ(396823, reader->getContentLength());
   EXPECT_EQ(filename.str(), reader->getStreamName());
   EXPECT_THAT(reader->getMetadataKeys(), IsEmpty());
   EXPECT_FALSE(reader->hasMetadataValue("foo"));

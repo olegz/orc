@@ -288,7 +288,7 @@ namespace orc {
             string out = decompress(in);
             //string out = codec->decompress(input);
 
-            cout << "decomp output content is:" << out <<  endl;
+            //cout << "decomp output content is:" << out <<  endl;
             
             // deep copy output to data
             copyToBuffer((const void*) out.data(), out.size());
