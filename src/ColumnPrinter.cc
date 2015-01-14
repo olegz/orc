@@ -131,6 +131,7 @@ namespace orc {
     if (fields.size() > 0) {
       for (std::vector<ColumnPrinter*>::iterator ptr = fields.begin(); ptr != fields.end(); ++ptr) {
         (*ptr)->printRow(rowId);
+
         std::cout << "\t";
       }
       std::cout << "\n";
