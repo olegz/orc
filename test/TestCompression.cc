@@ -437,6 +437,41 @@ TEST(Zlib, testZlibBackup) {
     EXPECT_EQ(200, stream.ByteCount());
 }
 
+TEST(Zlib, testZlibSkip) {
+    string bytes(200, 0); // size 200
+    for(size_t i=0; i < bytes.size(); ++i) {
+      bytes[i] = static_cast<char>(i);
+    }
+    ZlibCodec* zlib = new ZlibCodec(20);
+
+    string comp_str = zlib->compress(bytes); // TODO: a little misleading.. compress() will add ORC Header too
+
+    std::vector<char> comp_vec(comp_str.size() ); // string to vector for a contiguous array
+    for(size_t i = 0; i < comp_str.size(); i++) {
+        comp_vec[i] = static_cast<char> (comp_str[i]);
+    }
+
+    // now this comp_str should be input to a SeekableArrayInputStream..
+    SeekableArrayInputStream* bytestream = new SeekableArrayInputStream(comp_vec.data(), comp_vec.size(), 20);
+    SeekableCompressionInputStream stream(std::unique_ptr<SeekableInputStream> (bytestream), CompressionKind_ZLIB, 20); 
+    const void *ptr;
+    int len;
+    ASSERT_EQ(true, stream.Next(&ptr, &len));
+    EXPECT_EQ(bytes[0], static_cast<const char *>(ptr)[0]);
+    EXPECT_EQ(20, len);
+    ASSERT_EQ(false, stream.Skip(-10));
+    ASSERT_EQ(true, stream.Skip(80));
+    ASSERT_EQ(true, stream.Next(&ptr, &len));
+    EXPECT_EQ(bytes[100], static_cast<const char *>(ptr)[0]);
+    EXPECT_EQ(20, len);
+    ASSERT_EQ(true, stream.Skip(80));
+    ASSERT_EQ(false, stream.Next(&ptr, &len));
+    ASSERT_EQ(false, stream.Skip(181));
+    std::ostringstream result;
+    result << "memory from " << std::hex << bytes.data() << " for 200";
+    //EXPECT_EQ(result.str(), stream.getName());
+}
+
 /*
 TEST(Zlib, simpleTest) {
     ZlibCodec* zlib = new ZlibCodec( block_size );

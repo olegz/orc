@@ -180,9 +180,7 @@ namespace orc {
 
   public:
 
-    virtual bool Skip(int count) { return true;}
     virtual void seek(PositionProvider& position) {}
-    virtual std::string getName() const {return string("getName not implemented!");}
 
      SeekableCompressionInputStream(int bs) : blockSize(bs) {}
      /*
@@ -238,7 +236,9 @@ namespace orc {
                 size -= currentSize;
                 return true;
             }
-            //return false; // can't get a basic header
+            // can't get a basic header, let's return 
+            *sz = 0;
+            return false;
         }
 
         cout << "first Next() read " << len << " bytes" << endl;
@@ -323,8 +323,46 @@ namespace orc {
         }
     }
 
+    virtual bool Skip(int count) {
+        cout << "jfu: CompressionInputStream Skip("<<count <<"), offset = " << offset << ", size = " << size << endl;
+        // if negative, do nothing
+        if(count < 0)
+            return false;
+
+        unsigned long unsignedCount = static_cast<unsigned long>(count);
+
+        // if have enough to skip, do it
+        if (unsignedCount <= size ) {
+            offset += unsignedCount;
+            byteCount += unsignedCount;
+            size -= unsignedCount;
+            return true;
+        }
+
+        // have more than one pass to skip
+        unsigned long skipped = 0;
+        while ( skipped < unsignedCount ) {
+            const void *ptr;
+            int len;
+            Next(&ptr, &len);
+            if( len == 0)
+                break; // done
+            skipped += len;
+        }
+
+        return skipped == unsignedCount;
+    }
+
     virtual google::protobuf::int64 ByteCount() const {
         return static_cast<google::protobuf::int64>(byteCount);
+    }
+
+    // TODO jfu: actually I'm not quite sure what I'm doing here
+    virtual std::string getName() const {
+        std::ostringstream result;
+        result << "memory from " << std::hex << buffer[offset]
+          << std::dec << " for " << offset + size;
+        return result.str();
     }
 
     void copyToBuffer(const void *ptr, size_t len) {
