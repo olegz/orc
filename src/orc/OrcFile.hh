@@ -30,8 +30,6 @@
 
 namespace orc {
 
-#define DEBUG false
-
   /**
    * An abstract interface for providing ORC readers a stream of bytes.
    */

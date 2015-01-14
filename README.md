@@ -13,6 +13,7 @@ To compile in C++09:
 % mkdir build
 % cd build
 % cmake ..
+% make
 
 To compile with tests, in C++11:
 % mkdir build

@@ -124,10 +124,6 @@ void RleDecoderV1::next(long* const data,
                         const unsigned long numValues,
                         const char* const notNull) {
 
-  if(DEBUG) { std::cout << "Entering RleDecoderV1::next(); data[0]=" << data[0]
-    << "; numValues=" << numValues
-    << std::endl ; }
-
   unsigned long position = 0;
 
   // skipNulls
@@ -195,12 +191,6 @@ void RleDecoderV1::next(long* const data,
       }
     }
   }
-
-  if(DEBUG) { std::cout << "Exiting RleDecoderV1::next(); data[0]=" << data[0]
-    << "; numValues=" << numValues
-    << std::endl ; }
-
-
 }
 
 

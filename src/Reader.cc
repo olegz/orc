@@ -540,10 +540,7 @@ namespace orc {
       std::min(data.capacity, rowsInCurrentStripe - currentRowInStripe);
     data.numElements = rowsToRead;
 
-    if(DEBUG) { std::cout << "Works till here" << std::endl ; }
     reader->next(data, rowsToRead, 0);
-
-    if(DEBUG) { std::cout << "Getting next batch from stripe " << currentStripe << std::endl ; }
 
     // update row number
     previousRow = firstRowOfStripe[currentStripe] + currentRowInStripe;

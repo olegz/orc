@@ -38,7 +38,6 @@ int main(int argc, char* argv[]) {
   unsigned long batches = 0;
   while (reader->next(*batch)) {
     batches += 1;
-    if(DEBUG) { std::cout << "Reading batch " << batches << std::endl; }
     rows += batch->numElements;
   }
   std::cout << "Rows: " << rows << "\n";
