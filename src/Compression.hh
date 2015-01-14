@@ -171,25 +171,29 @@ namespace orc {
       const unsigned long blockSize;
       std::unique_ptr<char[]> buffer;
       unsigned long offset;
-      unsigned long position;
-      unsigned long length;
+      //unsigned long position;
+      unsigned long size; // current # of bytes on buffer
+      unsigned long capacity; // max size
+      unsigned long byteCount; // count effective bytes seen so far
       bool isOriginal; // literal or not
       unsigned long compressedLen; // default 256K, max 2^23, i.e. 8MB
 
   public:
 
     virtual bool Skip(int count) { return true;}
-    virtual google::protobuf::int64 ByteCount() const { return -1;}
     virtual void seek(PositionProvider& position) {}
     virtual std::string getName() const {return string("getName not implemented!");}
 
      SeekableCompressionInputStream(int bs) : blockSize(bs) {}
-     SeekableCompressionInputStream( std::unique_ptr<SeekableInputStream> in, int blksz) : input (std::move(in)), blockSize(blksz), position(0), length(0) {
+     /*
+     SeekableCompressionInputStream( std::unique_ptr<SeekableInputStream> in, int blksz) : input (std::move(in)), blockSize(blksz), position(0), size(0) {
          buffer.reset(new char[2* blockSize]); // double allocate
      }
+     */
 
-     SeekableCompressionInputStream( std::unique_ptr<SeekableInputStream> in, CompressionKind kind, int blksz) : input (std::move(in)), blockSize(blksz), position(0), length(0) {
-         buffer.reset(new char[2* blockSize]); // double allocate
+     SeekableCompressionInputStream( std::unique_ptr<SeekableInputStream> in, CompressionKind kind, int blksz) : input (std::move(in)), blockSize(blksz), offset(0), size(0), byteCount(0) {
+         capacity = 2 * blockSize;// double allocate
+         buffer.reset(new char[capacity]);
          if ( kind == CompressionKind_ZLIB) {
             codec = std::unique_ptr<CompressionCodec> (new ZlibCodec(blockSize));
          }
@@ -200,7 +204,7 @@ namespace orc {
 
      unsigned long getBlockSize() { return blockSize; }
 
-    virtual bool Next(const void** data, int*size) {
+    virtual bool Next(const void** data, int*sz) {
         // there are a few cases: 
         // 1) existing buffer has enough available (i.e. >block size). In this case, just return those;
         // 2) if not enough available, then we need to decompress some: check if it is original
@@ -208,10 +212,12 @@ namespace orc {
         //      b) if not, decompress a block and copy to zlib buffer
 
         // if 1)
-        if( length >= position + blockSize ) {
-            *data = &buffer[position];
-            *size = static_cast<int>(blockSize);
-            position += blockSize;
+        if( size >=  blockSize ) {
+            *data = &buffer[offset];
+            *sz = static_cast<int>(blockSize);
+            offset += blockSize;
+            byteCount += blockSize;
+            size -= blockSize;
             return true;
         }
         // decompress header to see if it is original
@@ -219,8 +225,21 @@ namespace orc {
         int len;
         input->Next(&ptr, &len);
 
-        if(len < 3) 
-            return false; // can't get a basic header
+        if(len < 3)  {
+            // not enough compressed data, then give what we have so far...
+
+            input->BackUp(len); // did not use any, back up
+            unsigned long currentSize = std::min(size, blockSize);
+            if (currentSize > 0) {
+                *data = &buffer[offset];
+                *sz = static_cast<int>(currentSize);
+                offset += currentSize;
+                byteCount += currentSize;
+                size -= currentSize;
+                return true;
+            }
+            //return false; // can't get a basic header
+        }
 
         cout << "first Next() read " << len << " bytes" << endl;
 
@@ -235,19 +254,19 @@ namespace orc {
             input->Next(&ptr, &len);
 
             // deep copy input block to internal buffer and return 
-            for(int i = 0; i < len; i++)
-                buffer[length+i] =  (((char*)ptr)[i]);
-            length += len; //TODO: need a circular buffer here...
+            copyToBuffer(ptr, len);
             // TODO: what if we still have less than a block (compare with decompress func)
-            unsigned long currentSize = std::min(length - position, blockSize);
+            unsigned long currentSize = std::min(size, blockSize);
             if (currentSize > 0) {
-                *data = &buffer[position];
-                *size = static_cast<int>(currentSize);
-                position += currentSize;
+                *data = &buffer[offset];
+                *sz = static_cast<int>(currentSize);
+                offset += currentSize;
+                byteCount += currentSize;
+                size -= currentSize;
                 return true;
             }
 
-            *size = 0;
+            *sz = 0;
             return false;
         }
         else { // else, need to uncompress
@@ -271,22 +290,19 @@ namespace orc {
 
             cout << "decomp output content is:" << out <<  endl;
             
-            // copy output to data
-            for(size_t i =0; i < out.size(); i++) {
-                // TODO: check out of bound
-                buffer[length+i] = out[i];
-            }
-            length += out.size();
+            // deep copy output to data
+            copyToBuffer((const void*) out.data(), out.size());
 
-            unsigned long currentSize = std::min(length - position, blockSize);
+            unsigned long currentSize = std::min(size, blockSize);
             if (currentSize > 0) {
-                *data = &buffer[position];
-                //*buffer = (data ? data : ownedData.data()) + position;
-                *size = static_cast<int>(currentSize);
-                position += currentSize;
+                *data = &buffer[offset];
+                *sz = static_cast<int>(currentSize);
+                offset += currentSize;
+                byteCount += currentSize;
+                size -= currentSize;
                 return true;
             }
-            *size = 0;
+            *sz = 0;
             return false;
         }
 
@@ -296,16 +312,42 @@ namespace orc {
     void BackUp(int count) {
         if (count >= 0) {
             unsigned long unsignedCount = static_cast<unsigned long>(count);
-            cout << "zlib backup(): count = " << count << ", position = " << position << ", length = " << length <<  endl;
-            if (unsignedCount <= blockSize && unsignedCount <= position) {
-                position -= unsignedCount;
+            cout << "zlib backup(): count = " << count << ", offset= " << offset << ", size = " << size <<  endl;
+            if (unsignedCount <= blockSize && unsignedCount <= offset) {
+                offset -= unsignedCount;
+                byteCount -= unsignedCount;
+                size += unsignedCount;
             } else {
                 throw std::logic_error("Can't backup that much!");
             }
         }
     }
 
-    void parseCompressionHeader(const void* ptr, int& length) {
+    virtual google::protobuf::int64 ByteCount() const {
+        return static_cast<google::protobuf::int64>(byteCount);
+    }
+
+    void copyToBuffer(const void *ptr, size_t len) {
+        // safe guard, should never happen
+        if ( capacity - size < len) 
+            throw string("Not enough space on SeekableCompressionInputStream's internal buffer!");
+
+        if ( capacity - (offset + size) < len ) { // if not enough space available at end of buffer, move things to beginning first
+            size_t count = 0; 
+            while( count < size) {
+                buffer[count] = buffer[offset + count];
+                count ++;
+            }
+            offset = 0;
+        }
+
+        // now copy again
+        for(size_t i = 0; i < len; i++)
+            buffer[offset + size +i] =  (((char*)ptr)[i]);
+        size += len; 
+    }
+
+    void parseCompressionHeader(const void* ptr, int& len) {
         memset(&compressedLen, 0, sizeof(unsigned long) );
         memcpy(&compressedLen, ptr, 3);
         isOriginal = compressedLen % 2;
