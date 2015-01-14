@@ -129,10 +129,9 @@ namespace orc {
 
   void StructColumnPrinter::printRow(unsigned long rowId) {
     if (fields.size() > 0) {
-      fields[0]->printRow(rowId);
       for (std::vector<ColumnPrinter*>::iterator ptr = fields.begin(); ptr != fields.end(); ++ptr) {
-        std::cout << "\t";
         (*ptr)->printRow(rowId);
+        std::cout << "\t";
       }
       std::cout << "\n";
     }
