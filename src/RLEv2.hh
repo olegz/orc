@@ -31,7 +31,7 @@ public:
 
   enum EncodingType { SHORT_REPEAT=0, DIRECT=1, PATCHED_BASE=2, DELTA=3 };
 
-  RleDecoderV2(std::auto_ptr<SeekableInputStream> input,
+  RleDecoderV2(std::auto_ptr<SeekableInputStream>& input,
                bool isSigned);
 
   /**

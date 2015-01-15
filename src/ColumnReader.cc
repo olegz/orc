@@ -246,7 +246,6 @@ namespace orc {
                                  unsigned long numValues,
                                  char *notNull) {
     ColumnReader::next(rowBatch, numValues, notNull);
-
     rle->next(dynamic_cast<LongVectorBatch&>(rowBatch).data.data(),
               numValues, rowBatch.hasNulls ? rowBatch.notNull.data() : 0);
   }
@@ -448,6 +447,7 @@ namespace orc {
                                       unsigned long numValues,
                                       char *notNull) {
     ColumnReader::next(rowBatch, numValues, notNull);
+
     // update the notNull from the parent class
     notNull = rowBatch.hasNulls ? rowBatch.notNull.data() : 0;
     StringVectorBatch& byteBatch = dynamic_cast<StringVectorBatch&>(rowBatch);

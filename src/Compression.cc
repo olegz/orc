@@ -74,15 +74,6 @@ namespace orc {
 #endif
 
   SeekableArrayInputStream::SeekableArrayInputStream
-     (std::vector<unsigned char> values,
-      long blkSize): ownedData(values.size()), data(0) {
-    length = values.size();
-    memcpy(ownedData.data(), values.data(), values.size());
-    position = 0;
-    blockSize = blkSize == -1 ? length : static_cast<unsigned long>(blkSize);
-  }
-
-  SeekableArrayInputStream::SeekableArrayInputStream
      (const unsigned char* values, unsigned long size,
       long blkSize): ownedData(size), data(0) {
     length = size;

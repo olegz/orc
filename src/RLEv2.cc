@@ -125,13 +125,13 @@ unsigned char RleDecoderV2::readByte() {
     int bufferLength;
     const void* bufferPointer;
     if (!inputStream->Next(&bufferPointer, &bufferLength)) {
-      throw ParseError("bad read in readByte");
+      throw ParseError("bad read in RLEv2 decoder readByte");
     }
     bufferStart = static_cast<const char*>(bufferPointer);
     bufferEnd = bufferStart + bufferLength;
   }
 
-  return *bufferStart++;
+  return *(bufferStart++);
 }
 
 unsigned long RleDecoderV2::readLongBE(unsigned bsz) {
@@ -161,7 +161,7 @@ unsigned long RleDecoderV2::readVulong() {
   return ret;
 }
 
-RleDecoderV2::RleDecoderV2(std::auto_ptr<SeekableInputStream> input,
+RleDecoderV2::RleDecoderV2(std::auto_ptr<SeekableInputStream>& input,
                            bool isSigned)
   : inputStream(input),
     isSigned(isSigned),
