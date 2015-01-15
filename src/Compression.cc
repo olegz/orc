@@ -206,6 +206,7 @@ namespace orc {
       out = header + out;
   }
 
+  // TODO: pass in internal buffers, to avoid extra string memory allocations
   string ZlibCodec::decompress(string& in) {
       // zlib control struct
       z_stream zs;

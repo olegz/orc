@@ -283,8 +283,9 @@ namespace orc {
             input->BackUp(extra);
             in.erase(compressedLen);
             
-            cout << "gonna decom now, in.size() =  " << in.size() << ", content is:" << in <<  endl;
-            // now decomp
+            //cout << "gonna decom now, in.size() =  " << in.size() << ", content is:" << in <<  endl;
+
+            // TODO: use codec's decompress method instead
             string out = decompress(in);
             //string out = codec->decompress(input);
 
@@ -344,7 +345,7 @@ namespace orc {
         while ( skipped < unsignedCount ) {
             const void *ptr;
             int len;
-            Next(&ptr, &len);
+            Next(&ptr, &len); // TODO optimization: get compressedLen of each block and just skip those bytes
             if( len == 0)
                 break; // done
             skipped += len;
