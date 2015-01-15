@@ -155,7 +155,7 @@ namespace orc {
 
       string compressBlock(string& in);
 
-      void addORCCompressionHeader(string& in, string& out);
+      string addORCCompressionHeader(string& in, string& out);
 
       // unit functions
       string compress(string& in);

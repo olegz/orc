@@ -144,9 +144,8 @@ namespace orc {
 		  string outBlock;
 		  outBlock = compressBlock( inBlock );
 		  cout << "compressed " << blk_sz << " bytes" << endl;
-		  // add ORC header for each compressed block
-		  addORCCompressionHeader(inBlock, outBlock);
-		  out = out + outBlock;
+          // add ORC header for each compressed (or original) block
+          out = out + addORCCompressionHeader(inBlock, outBlock);
 
 		  // update curLen
 		  curLen += blk_sz;
@@ -192,9 +191,13 @@ namespace orc {
       return out;
   }
 
-  void ZlibCodec::addORCCompressionHeader(string& in, string& out) {
-      bool isOriginal = false; // Zlib always compresses
+  string ZlibCodec::addORCCompressionHeader(string& in, string& out) {
+      bool isOriginal = out.size() >= in.size(); // if didn't get smaller, keep original
       unsigned long compressedLen = out.size();
+      if( isOriginal )
+          compressedLen = in.size();
+      else 
+          compressedLen = out.size();
       compressedLen *= 2;
       if(isOriginal) 
           compressedLen += 1;
@@ -203,7 +206,10 @@ namespace orc {
       for(int i = 0; i < 3; i++) 
           header = header + static_cast<char> ( * ((char*) (&compressedLen) + i));
 
-      out = header + out;
+      if( isOriginal ) 
+          return header + in;
+      else
+          return header + out;
   }
 
   // TODO: pass in internal buffers, to avoid extra string memory allocations
