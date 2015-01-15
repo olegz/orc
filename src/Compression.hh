@@ -159,7 +159,7 @@ namespace orc {
 
       string addORCCompressionHeader(string& in, string& out);
 
-      string decompress(string& in);
+      string decompressZlibBlock(string& in);
 
       int getBlockSize() { return blk_sz; }
   };

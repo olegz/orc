@@ -251,7 +251,7 @@ namespace orc {
           return header + out;
   }
 
-  string ZlibCodec::decompress(string& in) {
+  string ZlibCodec::decompressZlibBlock(string& in) {
       // zlib control struct
       z_stream zs;
       zs.zalloc = Z_NULL;

@@ -372,7 +372,7 @@ TEST(Zlib, inflateDeflateUnitTest) {
     ZlibCodec* zlib = new ZlibCodec(256*1024);
 
     string comp_str = zlib->compressToZlibBlock(input);
-    string decomp_str = zlib->decompress(comp_str);
+    string decomp_str = zlib->decompressZlibBlock(comp_str);
 
     EXPECT_EQ(input, decomp_str);
 
@@ -384,7 +384,7 @@ TEST(Zlib, inflateDeflateUnitTest) {
     input = buffer.str();
 
     comp_str = zlib->compressToZlibBlock(input);
-    decomp_str = zlib->decompress(comp_str);
+    decomp_str = zlib->decompressZlibBlock(comp_str);
 
     EXPECT_EQ(buffer.str(), decomp_str);
 }
