@@ -242,7 +242,7 @@ namespace orc {
             return true;
         }
         else {
-            *sz = 0; //TODO: isn't this return size redundant with the boolean return value?
+            *sz = 0; //TODO @Owen: isn't this return size redundant with the boolean return value?
             return false;
         }
     }

@@ -128,6 +128,100 @@ namespace orc {
     position = seekPosition.next();
   }
 
+  std::string SeekableArrayInputStream::getName() const {
+    std::ostringstream result;
+    result << "memory from " << std::hex << (data ? data : ownedData.data())
+           << std::dec << " for " << length;
+    return result.str();
+  }
+
+  SeekableFileInputStream::SeekableFileInputStream(InputStream* _input,
+                                                   unsigned long _offset,
+                                                   unsigned long _length,
+                                                   long _blockSize) {
+    input = _input;
+    offset = _offset;
+    length = _length;
+    position = 0;
+    blockSize = std::min(length,
+                         static_cast<unsigned long>(_blockSize < 0 ? 
+                                                    256 * 1024 : _blockSize));
+    buffer.reset(new char[blockSize]);
+    remainder = 0;
+  }
+
+  SeekableFileInputStream::~SeekableFileInputStream() {
+    // PASS
+  }
+
+  bool SeekableFileInputStream::Next(const void** data, int*size) {
+    unsigned long bytesRead = std::min(length - position, blockSize);
+    if (bytesRead > 0) {
+      *data = buffer.get();
+      // read from the file, skipping over the remainder
+      input->read(buffer.get() + remainder, offset + position + remainder, 
+                  bytesRead - remainder);
+      position += bytesRead;
+      remainder = 0;
+    }
+    *size = static_cast<int>(bytesRead);
+    return bytesRead != 0;
+  }
+
+  void SeekableFileInputStream::BackUp(int count) {
+    if (position == 0 || remainder > 0) {
+      throw std::logic_error("can't backup unless we just called Next");
+    }
+    if (static_cast<unsigned long>(count) > blockSize) {
+      throw std::logic_error("can't backup that far");
+    }
+    remainder = static_cast<unsigned long>(count);
+    position -= remainder;
+    memmove(buffer.get(), 
+            buffer.get() + blockSize - static_cast<size_t>(count), 
+            static_cast<size_t>(count));
+  }
+
+  bool SeekableFileInputStream::Skip(int _count) {
+    if (_count < 0) {
+      return false;
+    }
+    unsigned long count = static_cast<unsigned long>(_count);
+    position += count;
+    if (position > length) {
+      position = length;
+      remainder = 0;
+      return false;
+    }
+    if (remainder > count) {
+      remainder -= count;
+      memmove(buffer.get(), buffer.get() + count, remainder);
+    } else {
+      remainder = 0;
+    }
+    return true;
+  }
+  
+  google::protobuf::int64 SeekableFileInputStream::ByteCount() const {
+    return static_cast<google::protobuf::int64>(position);
+  }
+
+  void SeekableFileInputStream::seek(PositionProvider& location) {
+    position = location.next();
+    if (position > length) {
+      position = length;
+      throw std::logic_error("seek too far");
+    }
+    remainder = 0;
+  }
+
+  std::string SeekableFileInputStream::getName() const {
+    std::ostringstream result;
+    result << input->getName() << " from " << offset << " for "
+           << length;
+    return result.str();
+  }
+
   bool ZlibCodec::compress(SeekableInputStream* in, SeekableInputStream* out) {
       throw NotImplementedYet("Zlib compression not implemented yet!");
   }
@@ -286,100 +380,6 @@ namespace orc {
           throw(std::string("Exception during Zlib decompression"));
 
       return out;
-  }
-
-  std::string SeekableArrayInputStream::getName() const {
-    std::ostringstream result;
-    result << "memory from " << std::hex << (data ? data : ownedData.data())
-           << std::dec << " for " << length;
-    return result.str();
-  }
-
-  SeekableFileInputStream::SeekableFileInputStream(InputStream* _input,
-                                                   unsigned long _offset,
-                                                   unsigned long _length,
-                                                   long _blockSize) {
-    input = _input;
-    offset = _offset;
-    length = _length;
-    position = 0;
-    blockSize = std::min(length,
-                         static_cast<unsigned long>(_blockSize < 0 ? 
-                                                    256 * 1024 : _blockSize));
-    buffer.reset(new char[blockSize]);
-    remainder = 0;
-  }
-
-  SeekableFileInputStream::~SeekableFileInputStream() {
-    // PASS
-  }
-
-  bool SeekableFileInputStream::Next(const void** data, int*size) {
-    unsigned long bytesRead = std::min(length - position, blockSize);
-    if (bytesRead > 0) {
-      *data = buffer.get();
-      // read from the file, skipping over the remainder
-      input->read(buffer.get() + remainder, offset + position + remainder, 
-                  bytesRead - remainder);
-      position += bytesRead;
-      remainder = 0;
-    }
-    *size = static_cast<int>(bytesRead);
-    return bytesRead != 0;
-  }
-
-  void SeekableFileInputStream::BackUp(int count) {
-    if (position == 0 || remainder > 0) {
-      throw std::logic_error("can't backup unless we just called Next");
-    }
-    if (static_cast<unsigned long>(count) > blockSize) {
-      throw std::logic_error("can't backup that far");
-    }
-    remainder = static_cast<unsigned long>(count);
-    position -= remainder;
-    memmove(buffer.get(), 
-            buffer.get() + blockSize - static_cast<size_t>(count), 
-            static_cast<size_t>(count));
-  }
-
-  bool SeekableFileInputStream::Skip(int _count) {
-    if (_count < 0) {
-      return false;
-    }
-    unsigned long count = static_cast<unsigned long>(_count);
-    position += count;
-    if (position > length) {
-      position = length;
-      remainder = 0;
-      return false;
-    }
-    if (remainder > count) {
-      remainder -= count;
-      memmove(buffer.get(), buffer.get() + count, remainder);
-    } else {
-      remainder = 0;
-    }
-    return true;
-  }
-  
-  google::protobuf::int64 SeekableFileInputStream::ByteCount() const {
-    return static_cast<google::protobuf::int64>(position);
-  }
-
-  void SeekableFileInputStream::seek(PositionProvider& location) {
-    position = location.next();
-    if (position > length) {
-      position = length;
-      throw std::logic_error("seek too far");
-    }
-    remainder = 0;
-  }
-
-  std::string SeekableFileInputStream::getName() const {
-    std::ostringstream result;
-    result << input->getName() << " from " << offset << " for "
-           << length;
-    return result.str();
   }
 
   std::unique_ptr<SeekableInputStream> 
