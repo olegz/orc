@@ -149,8 +149,6 @@ namespace orc {
 
       int getBlockSize() { return blk_sz; }
 
-      // compress need input/output, and compression level
-      // impl need a vector<char> buf(blk_size) to hold each pass, see http://panthema.net/2007/0328-ZLibString.html
       bool compress(SeekableInputStream* in, SeekableInputStream* out);
 
       void decompress(SeekableInputStream* in, SeekableInputStream* out);
@@ -247,14 +245,16 @@ namespace orc {
 
                     //cout << "gonna decom now, in.size() =  " << in.size() << ", content is:" << in <<  endl;
 
-                    // TODO: use codec's decompress method instead
                     string out = decompress(in);
-                    //string out = codec->decompress(input);
 
                     //cout << "decomp output content is:" << out <<  endl;
 
                     // deep copy output to data
                     copyToBuffer((const void*) out.data(), out.size());
+
+                    // TODO: use codec's decompress method instead
+                    // resort to compression codec to take care of things
+                    //codec->decompress(input.get(), this);
                 }
             }
         }
