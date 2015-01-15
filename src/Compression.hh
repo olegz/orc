@@ -209,6 +209,74 @@ namespace orc {
         //      a) if original, copy to zlib buffer and return (optimization: if current zlib buffer empty, can return input directly)
         //      b) if not, decompress a block and copy to zlib buffer
 
+        // new logic: if we have less than block size, we should try to decompress some, if possible
+        if ( size < blockSize ) {
+            // decompress header to see if it is original
+            const void *ptr;
+            int len;
+            input->Next(&ptr, &len);
+
+            // if we can't get a basic compression block header, let's not do anything (and later return what we have available)
+            if( len < 3 ) {
+                input->BackUp(len);
+            }
+            // else, let's try to decompress some
+            else {
+                parseCompressionHeader(ptr, len); // read 3 bytes header (note: use buffer first, before operating on input again, e.g. don't BackUp before consuming ptr
+                input->BackUp(len - 3); // back to begin of compressed block
+                // if it is original, get a block and copy to our internal buffer
+                if( isOriginal ) {
+                    input->Next(&ptr, &len);
+                    // deep copy input block to internal buffer and return
+                    copyToBuffer(ptr, len);
+                }
+                // not original, need to decompress
+                else {
+                    string in;
+                    int ret = true;
+                    do {
+                        ret = input->Next(&ptr, &len);
+                        //if (!ret) return false;
+                        in.append(static_cast<const char*>(ptr), len);
+                        cout << "ret = " << ret << "read another " << len << " bytes in the loop... " << endl;
+                    } while (ret && in.size() < compressedLen);
+
+                    int extra = in.size() - compressedLen;
+                    input->BackUp(extra);
+                    in.erase(compressedLen);
+
+                    //cout << "gonna decom now, in.size() =  " << in.size() << ", content is:" << in <<  endl;
+
+                    // TODO: use codec's decompress method instead
+                    string out = decompress(in);
+                    //string out = codec->decompress(input);
+
+                    //cout << "decomp output content is:" << out <<  endl;
+
+                    // deep copy output to data
+                    copyToBuffer((const void*) out.data(), out.size());
+                }
+            }
+        }
+
+        // Now, we've tried things, now let's return something
+        // TODO: what if we still have less than a block (compare with decompress func)
+        unsigned long currentSize = std::min(size, blockSize);
+        if (currentSize > 0) {
+            *data = &buffer[offset];
+            *sz = static_cast<int>(currentSize);
+            offset += currentSize;
+            byteCount += currentSize;
+            size -= currentSize;
+            return true;
+        }
+        else {
+            *sz = 0; //TODO: isn't this return size redundant with the boolean return value?
+            return false;
+        }
+        
+          /*
+        /////////////////////////////////////////////// previous version//////
         // if 1)
         if( size >=  blockSize ) {
             *data = &buffer[offset];
@@ -308,6 +376,7 @@ namespace orc {
         }
 
         return false;
+        */ 
     }
 
     void BackUp(int count) {
