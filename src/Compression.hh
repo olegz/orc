@@ -435,11 +435,8 @@ namespace orc {
         return result.str();
     }
 
-    void copyToBuffer(const void *ptr, size_t len) {
-        // safe guard, should never happen
-        if ( capacity - size < len) 
-            throw string("Not enough space on SeekableCompressionInputStream's internal buffer!");
-
+    // need contiguous buffer space of len, move leftover to beginning if necessary
+    void alignBuffer(size_t len) { 
         if ( capacity - (offset + size) < len ) { // if not enough space available at end of buffer, move things to beginning first
             size_t count = 0; 
             while( count < size) {
@@ -448,6 +445,14 @@ namespace orc {
             }
             offset = 0;
         }
+    }
+
+    void copyToBuffer(const void *ptr, size_t len) {
+        // safe guard, should never happen
+        if ( capacity - size < len) 
+            throw string("Not enough space on SeekableCompressionInputStream's internal buffer!");
+
+        alignBuffer(len);
 
         // now copy again
         for(size_t i = 0; i < len; i++)
