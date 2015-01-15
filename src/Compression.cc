@@ -175,7 +175,7 @@ namespace orc {
       output->size += produced;
   }
 
-  string ZlibCodec::compress(string& in ){
+  string ZlibCodec::compressToOrcBlocks(string& in ){
       string out;
       size_t curLen = 0;
       while( curLen < in.size() ) {
@@ -251,7 +251,6 @@ namespace orc {
           return header + out;
   }
 
-  // TODO: pass in internal buffers, to avoid extra string memory allocations
   string ZlibCodec::decompress(string& in) {
       // zlib control struct
       z_stream zs;
@@ -261,15 +260,14 @@ namespace orc {
       zs.next_in = (Bytef*)in.data();
       zs.avail_in = in.size();
 
-      //if (inflateInit(&zs) != Z_OK)
       if (inflateInit2(&zs, -15) != Z_OK) // Hive use zip compression
           throw(std::string("inflateInit failed while decompressing."));
 
       int ret;
-      char buf[getBlockSize()]; // TODO:  use compressioninputstream internal buffer
+      char buf[getBlockSize()]; 
       string out; // output string
 
-      // TODO: decompress whole thing
+      // decompress till input used up
       do {
           zs.next_out = reinterpret_cast<Bytef*>(buf);
           zs.avail_out = sizeof(buf);

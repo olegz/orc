@@ -145,22 +145,23 @@ namespace orc {
   public:
       size_t blk_sz; // max uncompressed buffer size per block
 
-      // ctor takes max uncompressed size per block
       ZlibCodec(int blksz) : blk_sz (blksz) {};
-
-      int getBlockSize() { return blk_sz; }
 
       bool compress(SeekableInputStream* in, SeekableInputStream* out);
 
       void decompress(SeekableInputStream* in, SeekableCompressionInputStream* out);
 
+      // utility functions
+      // TODO: maybe make more sense to move these into some ORC-gen object other than ZlibCodec...
+      string compressToOrcBlocks(string& in);
+
       string compressBlock(string& in);
 
       string addORCCompressionHeader(string& in, string& out);
 
-      // unit functions
-      string compress(string& in);
       string decompress(string& in);
+
+      int getBlockSize() { return blk_sz; }
   };
 
   class SeekableCompressionInputStream: public SeekableInputStream{
@@ -170,7 +171,6 @@ namespace orc {
       const unsigned long blockSize;
       std::unique_ptr<char[]> buffer;
       unsigned long offset;
-      //unsigned long position;
       unsigned long size; // current # of bytes on buffer
       unsigned long capacity; // max size
       unsigned long byteCount; // count effective bytes seen so far
@@ -180,11 +180,6 @@ namespace orc {
     virtual void seek(PositionProvider& position) {}
 
      SeekableCompressionInputStream(int bs) : blockSize(bs) {}
-     /*
-     SeekableCompressionInputStream( std::unique_ptr<SeekableInputStream> in, int blksz) : input (std::move(in)), blockSize(blksz), position(0), size(0) {
-         buffer.reset(new char[2* blockSize]); // double allocate
-     }
-     */
 
      SeekableCompressionInputStream( std::unique_ptr<SeekableInputStream> in, CompressionKind kind, int blksz) : input (std::move(in)), blockSize(blksz), offset(0), size(0), byteCount(0) {
          capacity = 2 * blockSize;// double allocate

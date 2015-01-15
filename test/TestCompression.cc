@@ -397,7 +397,7 @@ TEST(Zlib, testZlibBackup) {
     }
     ZlibCodec* zlib = new ZlibCodec(20);
 
-    string comp_str = zlib->compress(bytes); // TODO: a little misleading.. compress() will add ORC Header too
+    string comp_str = zlib->compressToOrcBlocks(bytes); 
 
     std::vector<char> comp_vec(comp_str.size() ); // string to vector for a contiguous array
     for(size_t i = 0; i < comp_str.size(); i++) {
@@ -442,7 +442,7 @@ TEST(Zlib, testZlibSkip) {
     }
     ZlibCodec* zlib = new ZlibCodec(20);
 
-    string comp_str = zlib->compress(bytes); // TODO: a little misleading.. compress() will add ORC Header too
+    string comp_str = zlib->compressToOrcBlocks(bytes); 
 
     std::vector<char> comp_vec(comp_str.size() ); // string to vector for a contiguous array
     for(size_t i = 0; i < comp_str.size(); i++) {
