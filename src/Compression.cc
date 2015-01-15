@@ -132,25 +132,64 @@ namespace orc {
       throw NotImplementedYet("Zlib compression not implemented yet!");
   }
 
-  void ZlibCodec::decompress(SeekableInputStream* in, SeekableInputStream* out) {
-      throw NotImplementedYet("Zlib decompress not implemented yet!");
+  void ZlibCodec::decompress(SeekableInputStream* input, SeekableCompressionInputStream* output) {
+      const void *ptr;
+      int len = 0;
+      int ret = input->Next(&ptr, &len); // can't BackUp unless we just called Next..
+      while (ret && len < (int) output->compressedLen) {
+          input->BackUp(len); // back up, and try again
+          ret = input->Next(&ptr, &len);
+          cout << "ret = " << ret << "read another " << len << " bytes in the loop... " << endl;
+      };
+      // give back extra we don't need
+      int extra = len - output->compressedLen;
+      input->BackUp(extra);
+      len -= extra;
+
+      // prepare output buffer
+      output->alignBuffer(output->blockSize);
+
+      // zlib control struct
+      z_stream zs;
+      zs.zalloc = Z_NULL;
+      zs.zfree = Z_NULL;
+      zs.opaque = Z_NULL;
+      zs.next_in = (Bytef*)ptr;
+      zs.avail_in = len;
+
+      if (inflateInit2(&zs, -15) != Z_OK) // Hive use zip compression
+          throw(std::string("inflateInit failed while decompressing."));
+
+      // only 1 pass of inflate function, because we always decompress one block at a time
+      zs.next_out = reinterpret_cast<Bytef*>(&(output->buffer[output->offset]));
+      zs.avail_out = output->blockSize;
+
+      ret = inflate(&zs, 0);
+      // did not finish (reach EOF) properly
+      if (ret != Z_STREAM_END) 
+          throw(std::string("Exception during Zlib decompression"));
+
+      inflateEnd(&zs);
+
+      int produced = output->blockSize - zs.avail_out;
+      output->size += produced;
   }
 
   string ZlibCodec::compress(string& in ){
-	  string out;
-	  size_t curLen = 0;
-	  while( curLen < in.size() ) {
-		  string inBlock = in.substr(curLen, in.size() - curLen > blk_sz ? blk_sz : in.size() - curLen);
-		  string outBlock;
-		  outBlock = compressBlock( inBlock );
-		  cout << "compressed " << blk_sz << " bytes" << endl;
+      string out;
+      size_t curLen = 0;
+      while( curLen < in.size() ) {
+          string inBlock = in.substr(curLen, in.size() - curLen > blk_sz ? blk_sz : in.size() - curLen);
+          string outBlock;
+          outBlock = compressBlock( inBlock );
+          cout << "compressed " << blk_sz << " bytes" << endl;
           // add ORC header for each compressed (or original) block
           out = out + addORCCompressionHeader(inBlock, outBlock);
 
-		  // update curLen
-		  curLen += blk_sz;
-	  }
-	  return out;
+          // update curLen
+          curLen += blk_sz;
+      }
+      return out;
   }
 
   string ZlibCodec::compressBlock(string& in) {
@@ -161,7 +200,7 @@ namespace orc {
       zs.opaque = Z_NULL;
       zs.next_in = (Bytef*)in.data();
       zs.avail_in = in.size();
-	  int compr_level  = Z_BEST_COMPRESSION ;
+      int compr_level  = Z_BEST_COMPRESSION ;
 
       // zip, refer to zlib manual for params
       if (deflateInit2(&zs, compr_level, Z_DEFLATED/*default*/, -15, 8 /*default*/, Z_DEFAULT_STRATEGY /*default*/ ) != Z_OK)

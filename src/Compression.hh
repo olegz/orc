@@ -117,6 +117,7 @@ namespace orc {
   /**
    * Compression base class
    */
+  class SeekableCompressionInputStream;
   class CompressionCodec {
   public:
 
@@ -133,7 +134,7 @@ namespace orc {
    * @param in the bytes to decompress
    * @param out the decompressed bytes
    */
-  virtual void decompress(SeekableInputStream* in, SeekableInputStream* out) = 0;
+  virtual void decompress(SeekableInputStream* in, SeekableCompressionInputStream* out) = 0;
 
   };
 
@@ -151,7 +152,7 @@ namespace orc {
 
       bool compress(SeekableInputStream* in, SeekableInputStream* out);
 
-      void decompress(SeekableInputStream* in, SeekableInputStream* out);
+      void decompress(SeekableInputStream* in, SeekableCompressionInputStream* out);
 
       string compressBlock(string& in);
 
@@ -163,7 +164,7 @@ namespace orc {
   };
 
   class SeekableCompressionInputStream: public SeekableInputStream{
-  private:
+  public:
       std::unique_ptr<SeekableInputStream> input; // dont care if it's an array stream, or file stream
       std::unique_ptr<CompressionCodec> codec; // use it to keep ptr to the real underlying codec
       const unsigned long blockSize;
@@ -175,8 +176,6 @@ namespace orc {
       unsigned long byteCount; // count effective bytes seen so far
       bool isOriginal; // literal or not
       unsigned long compressedLen; // default 256K, max 2^23, i.e. 8MB
-
-  public:
 
     virtual void seek(PositionProvider& position) {}
 
@@ -230,31 +229,8 @@ namespace orc {
                 }
                 // not original, need to decompress
                 else {
-                    string in;
-                    int ret = true;
-                    do {
-                        ret = input->Next(&ptr, &len);
-                        //if (!ret) return false;
-                        in.append(static_cast<const char*>(ptr), len);
-                        cout << "ret = " << ret << "read another " << len << " bytes in the loop... " << endl;
-                    } while (ret && in.size() < compressedLen);
-
-                    int extra = in.size() - compressedLen;
-                    input->BackUp(extra);
-                    in.erase(compressedLen);
-
-                    //cout << "gonna decom now, in.size() =  " << in.size() << ", content is:" << in <<  endl;
-
-                    string out = decompress(in);
-
-                    //cout << "decomp output content is:" << out <<  endl;
-
-                    // deep copy output to data
-                    copyToBuffer((const void*) out.data(), out.size());
-
-                    // TODO: use codec's decompress method instead
                     // resort to compression codec to take care of things
-                    //codec->decompress(input.get(), this);
+                    codec->decompress(input.get(), this);
                 }
             }
         }
