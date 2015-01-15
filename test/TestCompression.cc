@@ -370,9 +370,8 @@ TEST(Zlib, inflateDeflateUnitTest) {
     // compress/decompress a tiny string
     std::string input("abcdefg");
     ZlibCodec* zlib = new ZlibCodec(256*1024);
-    //SeekableCompressionInputStream* zlib2 = new SeekableCompressionInputStream(256*1024);
 
-    string comp_str = zlib->compressBlock(input);
+    string comp_str = zlib->compressToZlibBlock(input);
     string decomp_str = zlib->decompress(comp_str);
 
     EXPECT_EQ(input, decomp_str);
@@ -384,7 +383,7 @@ TEST(Zlib, inflateDeflateUnitTest) {
     EXPECT_EQ(buffer.str().size(), 5147970);
     input = buffer.str();
 
-    comp_str = zlib->compressBlock(input);
+    comp_str = zlib->compressToZlibBlock(input);
     decomp_str = zlib->decompress(comp_str);
 
     EXPECT_EQ(buffer.str(), decomp_str);

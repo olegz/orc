@@ -181,7 +181,7 @@ namespace orc {
       while( curLen < in.size() ) {
           string inBlock = in.substr(curLen, in.size() - curLen > blk_sz ? blk_sz : in.size() - curLen);
           string outBlock;
-          outBlock = compressBlock( inBlock );
+          outBlock = compressToZlibBlock( inBlock );
           cout << "compressed " << blk_sz << " bytes" << endl;
           // add ORC header for each compressed (or original) block
           out = out + addORCCompressionHeader(inBlock, outBlock);
@@ -192,7 +192,7 @@ namespace orc {
       return out;
   }
 
-  string ZlibCodec::compressBlock(string& in) {
+  string ZlibCodec::compressToZlibBlock(string& in) {
       // zlib control struct
       z_stream zs;
       zs.zalloc = Z_NULL;

@@ -155,7 +155,7 @@ namespace orc {
       // TODO: maybe make more sense to move these into some ORC-gen object other than ZlibCodec...
       string compressToOrcBlocks(string& in);
 
-      string compressBlock(string& in);
+      string compressToZlibBlock(string& in);
 
       string addORCCompressionHeader(string& in, string& out);
 
