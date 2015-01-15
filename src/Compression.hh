@@ -337,51 +337,6 @@ namespace orc {
         std::cout << "isOriginal = " << isOriginal << ", compress len = " << compressedLen << std::endl;
     }
 
-  string decompress(string& in) {
-      // zlib control struct
-      z_stream zs;
-      zs.zalloc = Z_NULL;
-      zs.zfree = Z_NULL;
-      zs.opaque = Z_NULL;
-      zs.next_in = (Bytef*)in.data();
-      /*
-      vector<char> vecbuf(in.size());
-      for(size_t i = 0; i < in.size(); i++) vecbuf[i] = in[i];
-      zs.next_in = (Bytef*)vecbuf.data();
-      */
-
-      zs.avail_in = in.size();
-
-      //if (inflateInit(&zs) != Z_OK)
-      if (inflateInit2(&zs, -15) != Z_OK) // Hive use zip compression
-          throw(std::string("inflateInit failed while decompressing."));
-
-      int ret;
-      char buf[getBlockSize()];
-      string out; // output string
-
-      // TODO: break inflate loop on input/output availability (since input is a stream)
-      do {
-          zs.next_out = reinterpret_cast<Bytef*>(buf);
-          zs.avail_out = sizeof(buf);
-
-          ret = inflate(&zs, 0);
-
-          // take everything out of output buf every call
-          int have = sizeof(buf) - zs.avail_out; 
-          out.append(buf, have);
-      } while (ret == Z_OK) ;
-
-      inflateEnd(&zs);
-
-      // did not finish (reach EOF) properly
-      if (ret != Z_STREAM_END) 
-          throw(std::string("Exception during Zlib decompression"));
-
-      cout << "jfu: decompress() string done, out.size() = " << out.size() << ", ret = " << ret << endl;
-
-      return out;
-  }
   };
 
   /**
