@@ -177,7 +177,14 @@ namespace orc {
       bool isOriginal; // literal or not
       unsigned long compressedLen; // default 256K, max 2^23, i.e. 8MB
 
-    virtual void seek(PositionProvider& position) {}
+    bool Next(const void** data, int*size) override;
+    void BackUp(int count) override;
+    bool Skip(int count) override;
+    google::protobuf::int64 ByteCount() const override;
+    std::string getName() const override;
+
+    // Oops.. forgot this one..
+    void seek(PositionProvider& position) {}
 
      SeekableCompressionInputStream(int bs) : blockSize(bs) {}
 
@@ -193,115 +200,6 @@ namespace orc {
      }
 
      unsigned long getBlockSize() { return blockSize; }
-
-    virtual bool Next(const void** data, int*sz) {
-        // there are a few cases: 
-        // 1) existing buffer has enough available (i.e. >block size). In this case, just return those;
-        // 2) if not enough available, then we need to decompress some: check if it is original
-        //      a) if original, copy to zlib buffer and return (optimization: if current zlib buffer empty, can return input directly)
-        //      b) if not, decompress a block and copy to zlib buffer
-
-        // new logic: if we have less than block size, we should try to decompress some, if possible
-        if ( size < blockSize ) {
-            // decompress header to see if it is original
-            const void *ptr;
-            int len;
-            input->Next(&ptr, &len);
-
-            // if we can't get a basic compression block header, let's not do anything (and later return what we have available)
-            if( len < 3 ) {
-                input->BackUp(len);
-            }
-            // else, let's try to decompress some
-            else {
-                parseCompressionHeader(ptr, len); // read 3 bytes header (note: use buffer first, before operating on input again, e.g. don't BackUp before consuming ptr
-                input->BackUp(len - 3); // back to begin of compressed block
-                // if it is original, get a block and copy to our internal buffer
-                if( isOriginal ) {
-                    input->Next(&ptr, &len);
-                    // deep copy input block to internal buffer and return
-                    copyToBuffer(ptr, len);
-                }
-                // not original, need to decompress
-                else {
-                    // resort to compression codec to take care of things
-                    codec->decompress(input.get(), this);
-                }
-            }
-        }
-
-        // Now, we've tried things, now let's return something
-        // TODO: what if we still have less than a block (compare with decompress func)
-        unsigned long currentSize = std::min(size, blockSize);
-        if (currentSize > 0) {
-            *data = &buffer[offset];
-            *sz = static_cast<int>(currentSize);
-            offset += currentSize;
-            byteCount += currentSize;
-            size -= currentSize;
-            return true;
-        }
-        else {
-            *sz = 0; //TODO @Owen: isn't this return size redundant with the boolean return value?
-            return false;
-        }
-    }
-
-    void BackUp(int count) {
-        if (count >= 0) {
-            unsigned long unsignedCount = static_cast<unsigned long>(count);
-            cout << "zlib backup(): count = " << count << ", offset= " << offset << ", size = " << size <<  endl;
-            if (unsignedCount <= blockSize && unsignedCount <= offset) {
-                offset -= unsignedCount;
-                byteCount -= unsignedCount;
-                size += unsignedCount;
-            } else {
-                throw std::logic_error("Can't backup that much!");
-            }
-        }
-    }
-
-    virtual bool Skip(int count) {
-        cout << "jfu: CompressionInputStream Skip("<<count <<"), offset = " << offset << ", size = " << size << endl;
-        // if negative, do nothing
-        if(count < 0)
-            return false;
-
-        unsigned long unsignedCount = static_cast<unsigned long>(count);
-
-        // if have enough to skip, do it
-        if (unsignedCount <= size ) {
-            offset += unsignedCount;
-            byteCount += unsignedCount;
-            size -= unsignedCount;
-            return true;
-        }
-
-        // have more than one pass to skip
-        unsigned long skipped = 0;
-        while ( skipped < unsignedCount ) {
-            const void *ptr;
-            int len;
-            Next(&ptr, &len); // TODO optimization: get compressedLen of each block and just skip those bytes
-            if( len == 0)
-                break; // done
-            skipped += len;
-        }
-
-        return skipped == unsignedCount;
-    }
-
-    virtual google::protobuf::int64 ByteCount() const {
-        return static_cast<google::protobuf::int64>(byteCount);
-    }
-
-    // TODO jfu: actually I'm not quite sure what I'm doing here
-    virtual std::string getName() const {
-        std::ostringstream result;
-        result << "memory from " << std::hex << buffer[offset]
-          << std::dec << " for " << offset + size;
-        return result.str();
-    }
 
     // need contiguous buffer space of len, move leftover to beginning if necessary
     void alignBuffer(size_t len) { 
