@@ -19,6 +19,7 @@
 #include "ByteRLE.hh"
 #include "ColumnReader.hh"
 #include "Exceptions.hh"
+#include "orc/Int128.hh"
 #include "RLE.hh"
 
 #include <math.h>
@@ -917,6 +918,18 @@ namespace orc {
     ColumnReader *rawElementReader = elementReader.get();
     if (rawElementReader) {
       rawElementReader->next(*(mapBatch.elements.get()), totalChildren, 0);
+    }
+  }
+
+  /**
+   * Destructively convert the number from zigzag encoding to the
+   * natural signed representation.
+   */
+  void zigzagDecode(Int128& value) {
+    bool needsNegate = value.getLowBits() & 1;
+    value >>= 1;
+    if (needsNegate) {
+      value.negate();
     }
   }
 

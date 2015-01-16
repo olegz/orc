@@ -24,6 +24,7 @@ add_executable (test-orc
   TestColumnReader.cc
   TestCompression.cc
   TestDriver.cc
+  TestInt128.cc
   TestReader.cc
   TestRle.cc
 )

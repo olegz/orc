@@ -31,6 +31,7 @@ add_library (orc STATIC
   ColumnReader.cc
   Compression.cc
   Exceptions.cc
+  Int128.cc
   OrcFile.cc
   Reader.cc
   RLEv1.cc

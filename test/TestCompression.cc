@@ -336,16 +336,7 @@ namespace orc {
                              32768), NotImplementedYet);
   }
 
-  class Zlib : public ::testing::Test {
-  public:
-    ~Zlib();
-  };
-
-  Zlib::~Zlib() {
-    // PASS
-  }
-
-  TEST_F(Zlib, testCreateZlib) {
+  TEST(Zlib, testCreateZlib) {
     std::unique_ptr<SeekableInputStream> result =
       createDecompressor(CompressionKind_ZLIB,
                          std::unique_ptr<SeekableInputStream>
@@ -371,7 +362,7 @@ namespace orc {
     }
   }
 
-  TEST_F(Zlib, testLiteralBlocks) {
+  TEST(Zlib, testLiteralBlocks) {
     std::unique_ptr<SeekableInputStream> result =
       createDecompressor(CompressionKind_ZLIB,
                          std::unique_ptr<SeekableInputStream>
@@ -414,7 +405,7 @@ namespace orc {
     EXPECT_EQ(16, static_cast<const char*>(ptr)[2]);
   }
 
-  TEST_F(Zlib, testInflate) {
+  TEST(Zlib, testInflate) {
     std::unique_ptr<SeekableInputStream> result =
       createDecompressor(CompressionKind_ZLIB,
                          std::unique_ptr<SeekableInputStream>
@@ -432,7 +423,7 @@ namespace orc {
     }
   }
 
-  TEST_F(Zlib, testInflateSequence) {
+  TEST(Zlib, testInflateSequence) {
     std::unique_ptr<SeekableInputStream> result =
       createDecompressor(CompressionKind_ZLIB,
                          std::unique_ptr<SeekableInputStream>
@@ -467,7 +458,7 @@ namespace orc {
     }
   }
 
-  TEST_F(Zlib, testSkip) {
+  TEST(Zlib, testSkip) {
     std::unique_ptr<SeekableInputStream> result =
       createDecompressor(CompressionKind_ZLIB,
                          std::unique_ptr<SeekableInputStream>
