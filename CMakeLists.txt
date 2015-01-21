@@ -15,13 +15,6 @@ cmake_minimum_required (VERSION 2.6)
 project(ORC)
 set (ORC_VERSION "1.0.0")
 
-set (LIBUV_VERSION "0.11.29")
-include_directories(${CMAKE_SOURCE_DIR}/libs/libuv-${LIBUV_VERSION}/include)
-set (LIBUV_LIB "${CMAKE_BINARY_DIR}/libs/libuv-${LIBUV_VERSION}/libuv.a")
-if (NOT APPLE)
-  list (APPEND LIBUV_LIB pthread rt)
-endif (NOT APPLE)
-
 set (GMOCK_VERSION "1.7.0")
 include_directories(
   ${CMAKE_SOURCE_DIR}/libs/gmock-${GMOCK_VERSION}/include

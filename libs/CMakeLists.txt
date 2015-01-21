@@ -11,4 +11,3 @@
 # limitations under the License.
 
 add_subdirectory(gmock-${GMOCK_VERSION})
-add_subdirectory(libuv-${LIBUV_VERSION})
