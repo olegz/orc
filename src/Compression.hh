@@ -24,7 +24,15 @@
 
 #include <initializer_list>
 #include <list>
+#include <vector>
+#include <fstream>
+#include <iostream>
+#include <sstream>
 #include <memory>
+
+#include "zlib.h"
+
+using namespace std;
 
 namespace orc {
 
@@ -107,6 +115,129 @@ namespace orc {
     virtual google::protobuf::int64 ByteCount() const override;
     virtual void seek(PositionProvider& position) override;
     virtual std::string getName() const override;
+  };
+
+  /**
+   * Compression base class
+   */
+  class SeekableCompressionInputStream;
+  class CompressionCodec {
+  public:
+
+  /**
+   * Compress the in buffer to the out buffer.
+   * @param in the bytes to compress
+   * @param out the uncompressed bytes
+   * @return true if the output is smaller than input
+   */
+  virtual bool compress(SeekableInputStream* in, SeekableInputStream* out) = 0;
+
+  /**
+   * Decompress the in buffer to the out buffer.
+   * @param in the bytes to decompress
+   * @param out the decompressed bytes
+   */
+  virtual void decompress(SeekableInputStream* in, SeekableCompressionInputStream* out) = 0;
+
+  };
+
+  /**
+   * Zlib codec
+   */
+  class ZlibCodec: public CompressionCodec {
+  public:
+      size_t blk_sz; // max uncompressed buffer size per block
+
+      ZlibCodec(int blksz) : blk_sz (blksz) {};
+
+      bool compress(SeekableInputStream* in, SeekableInputStream* out);
+
+      void decompress(SeekableInputStream* in, SeekableCompressionInputStream* out);
+
+      // utility functions
+      // TODO: maybe make more sense to move these into some ORC-gen object other than ZlibCodec...
+      string compressToOrcBlocks(string& in);
+
+      string compressToZlibBlock(string& in);
+
+      string addORCCompressionHeader(string& in, string& out);
+
+      string decompressZlibBlock(string& in);
+
+      int getBlockSize() { return blk_sz; }
+  };
+
+  class SeekableCompressionInputStream: public SeekableInputStream{
+  public:
+      std::unique_ptr<SeekableInputStream> input; // dont care if it's an array stream, or file stream
+      std::unique_ptr<CompressionCodec> codec; // use it to keep ptr to the real underlying codec
+      const unsigned long blockSize;
+      std::unique_ptr<char[]> buffer;
+      unsigned long offset;
+      unsigned long size; // current # of bytes on buffer
+      unsigned long capacity; // max size
+      unsigned long byteCount; // count effective bytes seen so far
+      bool isOriginal; // literal or not
+      unsigned long compressedLen; // default 256K, max 2^23, i.e. 8MB
+
+    bool Next(const void** data, int*size) override;
+    void BackUp(int count) override;
+    bool Skip(int count) override;
+    google::protobuf::int64 ByteCount() const override;
+    std::string getName() const override;
+
+    // Oops.. forgot this one..
+    void seek(PositionProvider& position) {}
+
+     SeekableCompressionInputStream(int bs) : blockSize(bs) {}
+
+     SeekableCompressionInputStream( std::unique_ptr<SeekableInputStream> in, CompressionKind kind, int blksz) : input (std::move(in)), blockSize(blksz), offset(0), size(0), byteCount(0) {
+         capacity = 2 * blockSize;// double allocate
+         buffer.reset(new char[capacity]);
+         if ( kind == CompressionKind_ZLIB) {
+            codec = std::unique_ptr<CompressionCodec> (new ZlibCodec(blockSize));
+         }
+         else {
+         throw std::string("Only ZLIB decompression is implemented");
+         }
+     }
+
+     unsigned long getBlockSize() { return blockSize; }
+
+    // need contiguous buffer space of len, move leftover to beginning if necessary
+    void alignBuffer(size_t len) { 
+        // safe guard, should never happen
+        if ( capacity - size < len)
+            throw string("Not enough space on SeekableCompressionInputStream's internal buffer!");
+
+        if ( capacity - (offset + size) < len ) { // if not enough space available at end of buffer, move things to beginning first
+            size_t count = 0; 
+            while( count < size) {
+                buffer[count] = buffer[offset + count];
+                count ++;
+            }
+            offset = 0;
+        }
+    }
+
+    void copyToBuffer(const void *ptr, size_t len) {
+        alignBuffer(len);
+
+        // now copy again
+        for(size_t i = 0; i < len; i++)
+            buffer[offset + size +i] =  (((char*)ptr)[i]);
+        size += len; 
+    }
+
+    void parseCompressionHeader(const void* ptr, int& len) {
+        memset(&compressedLen, 0, sizeof(unsigned long) );
+        memcpy(&compressedLen, ptr, 3);
+        isOriginal = compressedLen % 2;
+        compressedLen /= 2;
+
+        std::cout << "isOriginal = " << isOriginal << ", compress len = " << compressedLen << std::endl;
+    }
+
   };
 
   /**

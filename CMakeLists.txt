@@ -41,6 +41,16 @@ enable_testing()
 
 find_package (Protobuf REQUIRED)
 
+find_package(ZLIB REQUIRED)
+if (NOT ZLIB_FOUND)
+    # hack: if can't find zlib, or want to share common third-party lib, set path explicitly
+    set(ZLIB_INCLUDE_DIR $ENV{ZLIB_INCLUDE_DIR})
+    set(ZLIB_LIBRARIES $ENV{ZLIB_LIBRARIES})
+endif(NOT ZLIB_FOUND)
+MESSAGE( STATUS "ZLIB_INCLUDE_DIR:         " ${ZLIB_INCLUDE_DIR} )
+MESSAGE( STATUS "ZLIB_LIBRARIES:         " ${ZLIB_LIBRARIES} )
+include_directories(${ZLIB_INCLUDE_DIR})
+
 if(NOT MSVC)
   # Visual studio enables C++11 support by default.
   set (CXX11_FLAGS "-std=c++11")
