@@ -43,6 +43,7 @@ add_library (orc STATIC
 
 target_link_libraries (orc
   ${PROTOBUF_LITE_LIBRARIES}
+  ${ZLIB_LIBRARIES}
   )
 
 add_executable (file-dump

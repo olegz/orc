@@ -48,6 +48,16 @@ if(TEST)
   endif(NOT MSVC)
 endif(TEST)
 
+find_package(ZLIB REQUIRED)
+if (NOT ZLIB_FOUND)
+    # hack: if can't find zlib, or want to share common third-party lib, set path explicitly
+    set(ZLIB_INCLUDE_DIR $ENV{ZLIB_INCLUDE_DIR})
+    set(ZLIB_LIBRARIES $ENV{ZLIB_LIBRARIES})
+endif(NOT ZLIB_FOUND)
+MESSAGE( STATUS "ZLIB_INCLUDE_DIR:         " ${ZLIB_INCLUDE_DIR} )
+MESSAGE( STATUS "ZLIB_LIBRARIES:         " ${ZLIB_LIBRARIES} )
+include_directories(${ZLIB_INCLUDE_DIR})
+
 if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
   set (COVERAGE_FLAGS "--coverage -g -O0")
   set (CXX11_FLAGS "${CXX11_FLAGS}")
