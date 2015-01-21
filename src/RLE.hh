@@ -19,37 +19,57 @@
 #ifndef ORC_RLE_HH
 #define ORC_RLE_HH
 
+#include "Compression.hh"
+
 #include <memory>
 
 namespace orc {
 
-class PositionProvider;
-class SeekableInputStream;
+  inline int64_t unZigZag(uint64_t value) {
+    return value >> 1 ^ -(value & 1);
+  }
 
-class RleDecoder {
-public:
-  // must be non-inline!
-  virtual ~RleDecoder();
+  class RleDecoder {
+  public:
+    // must be non-inline!
+    virtual ~RleDecoder();
+
+    /**
+     * Seek to a particular spot.
+     */
+    virtual void seek(PositionProvider&) = 0;
+
+    /**
+     * Seek over a given number of values.
+     */
+    virtual void skip(unsigned long numValues) = 0;
+
+    /**
+     * Read a number of values into the batch.
+     * @param data the array to read into
+     * @param numValues the number of values to read
+     * @param notNull If the pointer is null, all values are read. If the
+     *    pointer is not null, positions that are false are skipped.
+     */
+    virtual void next(int64_t* data, unsigned long numValues, 
+                      const char* notNull) = 0;
+  };
+
+  enum RleVersion {
+    RleVersion_1,
+    RleVersion_2
+  };
 
   /**
-  * Seek to a particular spot.
-  */
-  virtual void seek(PositionProvider&) = 0;
-
-  /**
-  * Seek over a given number of values.
-  */
-  virtual void skip(unsigned long numValues) = 0;
-
-  /**
-  * Read a number of values into the batch.
-  * @param data the array to read into
-  * @param numValues the number of values to read
-  * @param notNull If the pointer is null, all values are read. If the
-  *    pointer is not null, positions that are false are skipped.
-  */
-  virtual void next(long* data, unsigned long numValues, const char* notNull) = 0;
-};
+   * Create an RLE decoder.
+   * @param input the input stream to read from
+   * @param isSigned true if the number sequence is signed
+   * @param version version of RLE decoding to do
+   */
+  std::unique_ptr<RleDecoder> createRleDecoder(
+    std::unique_ptr<SeekableInputStream> input,
+    bool isSigned,
+    RleVersion version);
 
 }  // namespace orc
 

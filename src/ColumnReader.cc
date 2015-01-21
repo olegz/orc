@@ -19,7 +19,7 @@
 #include "ByteRLE.hh"
 #include "ColumnReader.hh"
 #include "Exceptions.hh"
-#include "RLEs.hh"
+#include "RLE.hh"
 
 #include <iostream>
 
@@ -112,7 +112,7 @@ namespace orc {
    *        expanded
    * @param numValues the number of bytes to convert to longs
    */
-  void expandBytesToLongs(long* buffer, unsigned long numValues) {
+  void expandBytesToLongs(int64_t* buffer, uint64_t numValues) {
     for(size_t i=numValues - 1; i < numValues; --i) {
       buffer[i] = reinterpret_cast<char *>(buffer)[i];
     }
@@ -156,7 +156,7 @@ namespace orc {
     ColumnReader::next(rowBatch, numValues, notNull);
     // Since the byte rle places the output in a char* instead of long*,
     // we cheat here and use the long* and then expand it in a second pass.
-    long *ptr = dynamic_cast<LongVectorBatch&>(rowBatch).data.data();
+    int64_t *ptr = dynamic_cast<LongVectorBatch&>(rowBatch).data.data();
     rle->next(reinterpret_cast<char*>(ptr),
               numValues, rowBatch.hasNulls ? rowBatch.notNull.data() : 0);
     expandBytesToLongs(ptr, numValues);
@@ -200,7 +200,7 @@ namespace orc {
     ColumnReader::next(rowBatch, numValues, notNull);
     // Since the byte rle places the output in a char* instead of long*,
     // we cheat here and use the long* and then expand it in a second pass.
-    long *ptr = dynamic_cast<LongVectorBatch&>(rowBatch).data.data();
+    int64_t *ptr = dynamic_cast<LongVectorBatch&>(rowBatch).data.data();
     rle->next(reinterpret_cast<char*>(ptr),
               numValues, rowBatch.hasNulls ? rowBatch.notNull.data() : 0);
     expandBytesToLongs(ptr, numValues);
@@ -264,7 +264,7 @@ namespace orc {
   class StringDictionaryColumnReader: public ColumnReader {
   private:
     std::unique_ptr<char[]> dictionaryBlob;
-    std::unique_ptr<long[]> dictionaryOffset;
+    std::unique_ptr<int64_t[]> dictionaryOffset;
     std::unique_ptr<RleDecoder> rle;
     unsigned int dictionaryCount;
     
@@ -293,8 +293,9 @@ namespace orc {
       createRleDecoder(stripe.getStream(columnId,
                                         proto::Stream_Kind_LENGTH),
                        false, rleVersion);
-    dictionaryOffset = std::unique_ptr<long[]>(new long[dictionaryCount+1]);
-    long* lengthArray = dictionaryOffset.get();
+    dictionaryOffset =
+      std::unique_ptr<int64_t[]>(new int64_t[dictionaryCount+1]);
+    int64_t* lengthArray = dictionaryOffset.get();
     lengthDecoder->next(lengthArray + 1, dictionaryCount, 0);
     lengthArray[0] = 0;
     for(unsigned int i=1; i < dictionaryCount + 1; ++i) {
@@ -325,9 +326,9 @@ namespace orc {
     notNull = rowBatch.hasNulls ? rowBatch.notNull.data() : 0;
     StringVectorBatch& byteBatch = dynamic_cast<StringVectorBatch&>(rowBatch);
     char *blob = dictionaryBlob.get();
-    long *dictionaryOffsets = dictionaryOffset.get();
+    int64_t *dictionaryOffsets = dictionaryOffset.get();
     char **outputStarts = byteBatch.data.data();
-    long *outputLengths = byteBatch.length.data();
+    int64_t *outputLengths = byteBatch.length.data();
     rle->next(outputLengths, numValues, notNull);
     if (notNull) {
       for(unsigned int i=0; i < numValues; ++i) {
@@ -363,8 +364,8 @@ namespace orc {
      * @param numValues the lengths of the arrays
      * @return the total number of bytes for the non-null values
      */
-    size_t computeSize(const long *lengths, const char *notNull,
-                       unsigned long numValues);
+    size_t computeSize(const int64_t *lengths, const char *notNull,
+                       uint64_t numValues);
 
   public:
     StringDirectColumnReader(const Type& type, StripeStreams& stipe);
@@ -398,8 +399,8 @@ namespace orc {
   unsigned long StringDirectColumnReader::skip(unsigned long numValues) {
     const size_t BUFFER_SIZE = 1024;
     numValues = ColumnReader::skip(numValues);
-    long buffer[BUFFER_SIZE];
-    unsigned long done = 0;
+    int64_t buffer[BUFFER_SIZE];
+    uint64_t done = 0;
     size_t totalBytes = 0;
     // read the lengths, so we know haw many bytes to skip
     while (done < numValues) {
@@ -423,9 +424,9 @@ namespace orc {
     return numValues;
   }
 
-  size_t StringDirectColumnReader::computeSize(const long* lengths,
+  size_t StringDirectColumnReader::computeSize(const int64_t* lengths,
                                                const char* notNull,
-                                               unsigned long numValues) {
+                                               uint64_t numValues) {
     size_t totalLength = 0;
     if (notNull) {
       for(size_t i=0; i < numValues; ++i) {
@@ -449,7 +450,7 @@ namespace orc {
     notNull = rowBatch.hasNulls ? rowBatch.notNull.data() : 0;
     StringVectorBatch& byteBatch = dynamic_cast<StringVectorBatch&>(rowBatch);
     char **startPtr = byteBatch.data.data();
-    long *lengthPtr = byteBatch.length.data();
+    int64_t *lengthPtr = byteBatch.length.data();
 
     // read the length vector
     lengthRle->next(lengthPtr, numValues, notNull);
@@ -633,12 +634,12 @@ namespace orc {
     numValues = ColumnReader::skip(numValues);
     ColumnReader *childReader = child.get();
     if (childReader) {
-      const unsigned long BUFFER_SIZE = 1024;
-      long buffer[BUFFER_SIZE];
-      unsigned long childrenElements = 0;
-      unsigned long lengthsRead = 0;
+      const uint64_t BUFFER_SIZE = 1024;
+      int64_t buffer[BUFFER_SIZE];
+      uint64_t childrenElements = 0;
+      uint64_t lengthsRead = 0;
       while (lengthsRead < numValues) {
-        unsigned long chunk = std::min(numValues - lengthsRead, BUFFER_SIZE);
+        uint64_t chunk = std::min(numValues - lengthsRead, BUFFER_SIZE);
         rle->next(buffer, chunk, 0);
         for(size_t i=0; i < chunk; ++i) {
           childrenElements += static_cast<size_t>(buffer[i]);
@@ -657,7 +658,7 @@ namespace orc {
                               char *notNull) {
     ColumnReader::next(rowBatch, numValues, notNull);
     ListVectorBatch &listBatch = dynamic_cast<ListVectorBatch&>(rowBatch);
-    long* offsets = listBatch.offsets.data();
+    int64_t* offsets = listBatch.offsets.data();
     if (listBatch.hasNulls) {
       notNull = listBatch.notNull.data();
     } else {
@@ -734,10 +735,10 @@ namespace orc {
     ColumnReader *rawKeyReader = keyReader.get();
     ColumnReader *rawElementReader = elementReader.get();
     if (rawKeyReader || rawElementReader) {
-      const unsigned long BUFFER_SIZE = 1024;
-      long buffer[BUFFER_SIZE];
-      unsigned long childrenElements = 0;
-      unsigned long lengthsRead = 0;
+      const uint64_t BUFFER_SIZE = 1024;
+      int64_t buffer[BUFFER_SIZE];
+      uint64_t childrenElements = 0;
+      uint64_t lengthsRead = 0;
       while (lengthsRead < numValues) {
         unsigned long chunk = std::min(numValues - lengthsRead, BUFFER_SIZE);
         rle->next(buffer, chunk, 0);
@@ -763,7 +764,7 @@ namespace orc {
                              char *notNull) {
     ColumnReader::next(rowBatch, numValues, notNull);
     MapVectorBatch &mapBatch = dynamic_cast<MapVectorBatch&>(rowBatch);
-    long* offsets = mapBatch.offsets.data();
+    int64_t* offsets = mapBatch.offsets.data();
     if (mapBatch.hasNulls) {
       notNull = mapBatch.notNull.data();
     } else {

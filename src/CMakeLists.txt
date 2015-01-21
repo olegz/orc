@@ -35,7 +35,7 @@ add_library (orc STATIC
   Reader.cc
   RLEv1.cc
   RLEv2.cc
-  RLEs.cc
+  RLE.cc
   TypeImpl.cc
   Vector.cc
   ColumnPrinter.cc

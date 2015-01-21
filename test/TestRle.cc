@@ -18,7 +18,6 @@
 
 #include "Compression.hh"
 #include "RLE.hh"
-#include "RLEs.hh"
 #include "wrap/gtest-wrapper.h"
 
 #include <iostream>
@@ -26,20 +25,20 @@
 
 namespace orc {
 
-std::vector<long> decodeRLEv2(const unsigned char *bytes,
-                              unsigned long l,
-                              size_t n,
-                              size_t count,
-                              const char* notNull = nullptr) {
+std::vector<int64_t> decodeRLEv2(const unsigned char *bytes,
+                                 unsigned long l,
+                                 size_t n,
+                                 size_t count,
+                                 const char* notNull = nullptr) {
   std::unique_ptr<RleDecoder> rle =
     createRleDecoder(
         std::unique_ptr<SeekableInputStream>(
             new SeekableArrayInputStream(bytes,l)), true, RleVersion_2);
-  std::vector<long> results;
+  std::vector<int64_t> results;
   for (size_t i = 0; i < count; i+=n) {
     size_t remaining = count - i;
     size_t nread = std::min(n, remaining);
-    std::vector<long> data(nread);
+    std::vector<int64_t> data(nread);
     rle->next(data.data(), nread, notNull);
     if (notNull) {
       notNull += nread;
@@ -50,8 +49,8 @@ std::vector<long> decodeRLEv2(const unsigned char *bytes,
   return results;
 }
 
-void checkResults(const std::vector<long> &e, const std::vector<long> &a,
-                  int n, const char* notNull = nullptr) {
+void checkResults(const std::vector<int64_t> &e, const std::vector<int64_t> &a,
+                  size_t n, const char* notNull = nullptr) {
   EXPECT_EQ(e.size(), a.size()) << "vectors differ in size";
   for (size_t i = 0; i < e.size(); ++i) {
     if (!notNull || notNull[i]) {
@@ -62,9 +61,9 @@ void checkResults(const std::vector<long> &e, const std::vector<long> &a,
 
 TEST(RLEv2, basicDelta0) {
   const size_t count = 20;
-  std::vector<long> values;
+  std::vector<int64_t> values;
   for (size_t i = 0; i < count; ++i) {
-    values.push_back(i);
+    values.push_back(static_cast<int64_t>(i));
   }
 
   const unsigned char bytes[] = {0xc0,0x13,0x00,0x02};
@@ -77,7 +76,7 @@ TEST(RLEv2, basicDelta0) {
 };
 
 TEST(RLEv2, basicDelta1) {
-  std::vector<long> values(5);
+  std::vector<int64_t> values(5);
   values[0] = -500;
   values[1] = -400;
   values[2] = -350;
@@ -95,7 +94,7 @@ TEST(RLEv2, basicDelta1) {
 };
 
 TEST(RLEv2, basicDelta2) {
-  std::vector<long> values(5);
+  std::vector<int64_t> values(5);
   values[0] = -500;
   values[1] = -600;
   values[2] = -650;
@@ -113,7 +112,7 @@ TEST(RLEv2, basicDelta2) {
 };
 
 TEST(RLEv2, basicDelta3) {
-  std::vector<long> values(5);
+  std::vector<int64_t> values(5);
   values[0] = 500;
   values[1] = 400;
   values[2] = 350;
@@ -131,7 +130,7 @@ TEST(RLEv2, basicDelta3) {
 };
 
 TEST(RLEv2, basicDelta4) {
-  std::vector<long> values(5);
+  std::vector<int64_t> values(5);
   values[0] = 500;
   values[1] = 600;
   values[2] = 650;
@@ -149,10 +148,10 @@ TEST(RLEv2, basicDelta4) {
 };
 
 TEST(RLEv2, basicDelta0WithNulls) {
-  std::vector<long> values;
+  std::vector<int64_t> values;
   std::vector<char> notNull;
   for (size_t i = 0; i < 20; ++i) {
-    values.push_back(i);
+    values.push_back(static_cast<int64_t>(i));
     notNull.push_back(true);
     // throw in a null every third value
     bool addNull = (i % 3 == 0);
@@ -180,10 +179,10 @@ TEST(RLEv2, shortRepeats) {
   const size_t runLength = 7;
   const size_t nVals = 10;
   const size_t count = nVals * runLength;
-  std::vector<long> values;
+  std::vector<int64_t> values;
   for (size_t i = 0; i < nVals; ++i) {
     for (size_t j = 0; j < runLength; ++j) {
-      values.push_back(i);
+      values.push_back(static_cast<int64_t>(i));
     }
   }
 
@@ -202,10 +201,10 @@ TEST(RLEv2, multiByteShortRepeats) {
   const size_t runLength = 7;
   const size_t nVals = 3;
   const size_t count = nVals * runLength;
-  std::vector<long> values;
+  std::vector<int64_t> values;
   for (size_t i = 0; i < nVals; ++i) {
     for (size_t j = 0; j < runLength; ++j) {
-      values.push_back(i+(1L<<62));
+      values.push_back(static_cast<int64_t>(i)+(1L<<62));
     }
   }
 
@@ -227,7 +226,7 @@ TEST(RLEv2, 0to2Repeat1Direct) {
               new SeekableArrayInputStream(
                   {0x46, 0x02, 0x02, 0x40})),
           true, RleVersion_2);
-  std::vector<long> data(3);
+  std::vector<int64_t> data(3);
   rle->next(data.data(), 3, nullptr);
 
   for (size_t i = 0; i < data.size(); ++i) {
@@ -238,7 +237,7 @@ TEST(RLEv2, 0to2Repeat1Direct) {
 TEST(RLEv2, bitSize2Direct) {
   // 0,1 repeated 10 times (signed ints)
   const size_t count = 20;
-  std::vector<long> values;
+  std::vector<int64_t> values;
   for (size_t i = 0; i < count; ++i) {
       values.push_back(i%2);
   }
@@ -255,7 +254,7 @@ TEST(RLEv2, bitSize2Direct) {
 TEST(RLEv2, bitSize4Direct) {
   // 0,2 repeated 10 times (signed ints)
   const size_t count = 20;
-  std::vector<long> values;
+  std::vector<int64_t> values;
   for (size_t i = 0; i < count; ++i) {
       values.push_back((i%2)*2);
   }
@@ -272,7 +271,7 @@ TEST(RLEv2, bitSize4Direct) {
 };
 
 TEST(RLEv2, multipleRunsDirect) {
-  std::vector<long> values;
+  std::vector<int64_t> values;
   // 0,1 repeated 10 times (signed ints)
   for (size_t i = 0; i < 20; ++i) {
       values.push_back(i%2);
@@ -305,7 +304,7 @@ TEST(RLEv2, largeNegativesDirect) {
                   0x00,0x02,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x02,0x99,0xa5,
                   0xcc,0x28,0x03,0xf7,0xe0,0xff})),
           true, RleVersion_2);
-  std::vector<long> data(5);
+  std::vector<int64_t> data(5);
   rle->next(data.data(), 5, nullptr);
 
   EXPECT_EQ(-7486502418706614742, data[0]) << "Output wrong at " << 0;
@@ -316,7 +315,7 @@ TEST(RLEv2, largeNegativesDirect) {
 };
 
 TEST(RLEv2, overflowDirect) {
-  std::vector<long> values(4);
+  std::vector<int64_t> values(4);
   values[0] = 4513343538618202719l;
   values[1] = 4513343538618202711l;
   values[2] = 2911390882471569739l;
@@ -337,7 +336,7 @@ TEST(RLEv2, overflowDirect) {
 
 TEST(RLEv2, basicPatched0) {
   long v[] = {2030,2000,2020,1000000,2040,2050,2060,2070,2080,2090};
-  std::vector<long> values;
+  std::vector<int64_t> values;
   for (size_t i = 0; i < sizeof(v) / sizeof(long); ++i) {
       values.push_back(v[i]);
   }
@@ -360,7 +359,7 @@ TEST(RLEv2, basicPatched1) {
               1, 2, 7, 1, 17, 334, 1, 2, 1, 2, 2, 6, 1, 266, 1, 2, 217, 2, 6, 2,
               13, 2, 2, 1, 2, 3, 5, 1, 2, 1, 7244, 11813, 1, 33, 2, -13, 1, 2, 3,
               13, 1, 92, 3, 13, 5, 14, 9, 141, 12, 6, 15, 25};
-  std::vector<long> values;
+  std::vector<int64_t> values;
   for (size_t i = 0; i < sizeof(v) / sizeof(long); ++i) {
     values.push_back(v[i]);
   }
@@ -391,7 +390,7 @@ TEST(RLEv2, basicPatched1) {
 
 TEST(RLEv2, mixedPatchedAndShortRepeats) {
   long v[] = {20, 2, 3, 2, 1, 3, 17, 71, 35, 2, 1, 139, 2, 2, 3, 1783, 475, 2, 1, 1, 3, 1, 3, 2, 32, 1, 2, 3, 1, 8, 30, 1, 3, 414, 1, 1, 135, 3, 3, 1, 414, 2, 1, 2, 2, 594, 2, 5, 6, 4, 11, 1, 2, 2, 1, 1, 52, 4, 1, 2, 7, 1, 17, 334, 1, 2, 1, 2, 2, 6, 1, 266, 1, 2, 217, 2, 6, 2, 13, 2, 2, 1, 2, 3, 5, 1, 2, 1, 7244, 11813, 1, 33, 2, -13, 1, 2, 3, 13, 1, 92, 3, 13, 5, 14, 9, 141, 12, 6, 15, 25, 1, 1, 1, 46, 2, 1, 1, 141, 3, 1, 1, 1, 1, 2, 1, 4, 34, 5, 78, 8, 1, 2, 2, 1, 9, 10, 2, 1, 4, 13, 1, 5, 4, 4, 19, 5, 1, 1, 1, 68, 33, 399, 1, 1885, 25, 5, 2, 4, 1, 1, 2, 16, 1, 2966, 3, 1, 1, 25501, 1, 1, 1, 66, 1, 3, 8, 131, 14, 5, 1, 2, 2, 1, 1, 8, 1, 1, 2, 1, 5, 9, 2, 3, 112, 13, 2, 2, 1, 5, 10, 3, 1, 1, 13, 2, 3, 4, 1, 3, 1, 1, 2, 1, 1, 2, 4, 2, 207, 1, 1, 2, 4, 3, 3, 2, 2, 16};
-  std::vector<long> values;
+  std::vector<int64_t> values;
   for (size_t i = 0; i < sizeof(v) / sizeof(long); ++i) {
     values.push_back(v[i]);
   }
@@ -424,7 +423,7 @@ TEST(RLEv2, basicDirectSeek) {
 
   PositionProvider location(position);
   rle->seek(location);
-  std::vector<long> data(3);
+  std::vector<int64_t> data(3);
   rle->next(data.data(), 3, nullptr);
   EXPECT_EQ(2, data[0]);
   EXPECT_EQ(0, data[1]);
@@ -445,7 +444,7 @@ TEST(RLEv1, simpleTest) {
               new SeekableArrayInputStream(
                   {0x61, 0xff, 0x64, 0xfb, 0x02, 0x03, 0x5, 0x7, 0xb})),
           false, RleVersion_1);
-  std::vector<long> data(105);
+  std::vector<int64_t> data(105);
   rle->next(data.data(), 105, nullptr);
 
   for (size_t i = 0; i < 100; ++i) {
@@ -465,7 +464,7 @@ TEST(RLEv1, signedNullLiteralTest) {
               new SeekableArrayInputStream(
                   {0xf8, 0x0, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7})),
           true, RleVersion_1);
-  std::vector<long> data(8);
+  std::vector<int64_t> data(8);
   std::vector<char> notNull(8, 1);
   rle->next(data.data(), 8, notNull.data());
 
@@ -481,7 +480,7 @@ TEST(RLEv1, splitHeader) {
           std::unique_ptr<SeekableInputStream>(
               new SeekableArrayInputStream({0x0, 0x00, 0xdc, 0xba, 0x98, 0x76}, 4)),
   false, RleVersion_1);
-  std::vector<long> data(200);
+  std::vector<int64_t> data(200);
   rle->next(data.data(), 3, nullptr);
 
   for (size_t i = 0; i < 3; ++i) {
@@ -497,7 +496,7 @@ TEST(RLEv1, splitRuns) {
       createRleDecoder(std::move(std::unique_ptr<SeekableInputStream>
                                       (stream)),
                             false, RleVersion_1);
-  std::vector<long> data(200);
+  std::vector<int64_t> data(200);
   for (size_t i = 0; i < 42; ++i) {
     rle->next(data.data(), 3, nullptr);
     for (size_t j = 0; j < 3; ++j) {
@@ -524,7 +523,7 @@ TEST(RLEv1, testSigned) {
       createRleDecoder(std::move(std::unique_ptr<SeekableInputStream>
                                      (stream)),
                        true, RleVersion_1);
-  std::vector<long> data(100);
+  std::vector<int64_t> data(100);
   rle->next(data.data(), data.size(), nullptr);
   for (size_t i = 0; i < data.size(); ++i) {
     EXPECT_EQ(16 - i, data[i]) << "Wrong output at " << i;
@@ -543,7 +542,7 @@ TEST(RLEv1, testNull) {
       createRleDecoder(std::move(std::unique_ptr<SeekableInputStream>
                                      (stream)),
                        true, RleVersion_1);
-  std::vector<long> data(24);
+  std::vector<int64_t> data(24);
   std::vector<char> notNull(24);
   for (size_t i = 0; i < notNull.size(); ++i) {
     notNull[i] = (i + 1) % 2;
@@ -572,7 +571,7 @@ TEST(RLEv1, testAllNulls) {
   std::unique_ptr<RleDecoder> rle =
       createRleDecoder(std::move(std::unique_ptr<SeekableInputStream>(stream)),
                        false, RleVersion_1);
-  std::vector<long> data(16, -1);
+  std::vector<int64_t> data(16, -1);
   std::vector<char> allNull(16, 0);
   std::vector<char> noNull(16, 1);
   rle->next(data.data(), 16, allNull.data());
@@ -805,7 +804,7 @@ TEST(RLEv1, skipTest) {
   std::unique_ptr<RleDecoder> rle =
       createRleDecoder(std::move(std::unique_ptr<SeekableInputStream>(stream)),
                        true, RleVersion_1);
-  std::vector<long> data(1);
+  std::vector<int64_t> data(1);
   for (size_t i = 0; i < 2048; i += 10) {
     rle->next(data.data(), 1, nullptr);
     if (i < 1024) {
@@ -2511,7 +2510,7 @@ TEST(RLEv1, seekTest) {
   std::unique_ptr<RleDecoder> rle =
       createRleDecoder(std::move(std::unique_ptr<SeekableInputStream>(stream)),
                        true, RleVersion_1);
-  std::vector<long> data(2048);
+  std::vector<int64_t> data(2048);
   rle->next(data.data(), data.size(), nullptr);
   for (size_t i = 0; i < data.size(); ++i) {
     if (i < 1024) {

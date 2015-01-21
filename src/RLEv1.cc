@@ -27,10 +27,6 @@ namespace orc {
 const unsigned long MINIMUM_REPEAT = 3;
 const unsigned long BASE_128_MASK = 0x7f;
 
-inline long unZigZag(unsigned long value) {
-  return value >> 1 ^ -(value & 1);
-}
-
 signed char RleDecoderV1::readByte() {
   if (bufferStart == bufferEnd) {
     int bufferLength;
@@ -120,7 +116,7 @@ void RleDecoderV1::skip(unsigned long numValues) {
   }
 }
 
-void RleDecoderV1::next(long* const data,
+void RleDecoderV1::next(int64_t* const data,
                         const unsigned long numValues,
                         const char* const notNull) {
   unsigned long position = 0;

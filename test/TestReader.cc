@@ -82,7 +82,7 @@ TEST(Reader, simpleTest) {
   orc::LongVectorBatch* longVector =
     dynamic_cast<orc::LongVectorBatch*>
     (dynamic_cast<orc::StructVectorBatch&>(*batch).fields[0].get());
-  long* idCol = longVector->data.data();
+  int64_t* idCol = longVector->data.data();
   while (reader->next(*batch)) {
     EXPECT_EQ(rowCount, reader->getRowNumber());
     for(unsigned int i=0; i < batch->numElements; ++i) {

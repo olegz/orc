@@ -154,10 +154,10 @@ namespace orc {
     proto::Metadata metadata;
 
     // reading state
-    unsigned long previousRow;
-    unsigned long currentStripe;
-    unsigned long currentRowInStripe;
-    unsigned long rowsInCurrentStripe;
+    uint64_t previousRow;
+    uint64_t currentStripe;
+    uint64_t currentRowInStripe;
+    uint64_t rowsInCurrentStripe;
     proto::StripeInformation currentStripeInfo;
     proto::StripeFooter currentStripeFooter;
     std::unique_ptr<ColumnReader> reader;
@@ -537,8 +537,9 @@ namespace orc {
     if (currentRowInStripe == 0) {
       startNextStripe();
     }
-    unsigned long rowsToRead = 
-      std::min(data.capacity, rowsInCurrentStripe - currentRowInStripe);
+    uint64_t rowsToRead = 
+      std::min(static_cast<uint64_t>(data.capacity), 
+               rowsInCurrentStripe - currentRowInStripe);
     data.numElements = rowsToRead;
     reader->next(data, rowsToRead, 0);
     // update row number

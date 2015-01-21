@@ -22,7 +22,7 @@ namespace orc {
 
   class LongColumnPrinter: public ColumnPrinter {
   private:
-    const long* data;
+    const int64_t* data;
   public:
     LongColumnPrinter(const ColumnVectorBatch& batch);
     ~LongColumnPrinter() {}
@@ -43,7 +43,7 @@ namespace orc {
   class StringColumnPrinter: public ColumnPrinter {
   private:
     const char* const * start;
-    const long* length;
+    const int64_t* length;
   public:
     StringColumnPrinter(const ColumnVectorBatch& batch);
     virtual ~StringColumnPrinter() {}

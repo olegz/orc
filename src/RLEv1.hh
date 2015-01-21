@@ -43,7 +43,7 @@ public:
     /**
     * Read a number of values into the batch.
     */
-    void next(long* data, unsigned long numValues,
+    void next(int64_t* data, unsigned long numValues,
 	      const char* notNull) override;
 
 private:
@@ -58,7 +58,7 @@ private:
     const std::unique_ptr<SeekableInputStream> inputStream;
     const bool isSigned;
     unsigned long remainingValues;
-    long value;
+    int64_t value;
     const char *bufferStart;
     const char *bufferEnd;
     int delta;

@@ -88,13 +88,13 @@ namespace orc {
    * notNull vector.
    */
   struct ColumnVectorBatch {
-    ColumnVectorBatch(unsigned long capacity);
+    ColumnVectorBatch(uint64_t capacity);
     virtual ~ColumnVectorBatch();
 
     // the number of slots available
-    unsigned long capacity;
+    uint64_t capacity;
     // the number of current occupied slots
-    unsigned long numElements;
+    uint64_t numElements;
     // an array of capacity length marking non-null values
     std::vector<char> notNull;
     // whether there are any null values
@@ -109,7 +109,7 @@ namespace orc {
      * Change the number of slots to at least the given capacity.
      * This function is not recursive into subtypes.
      */
-    virtual void resize(unsigned long capacity);
+    virtual void resize(uint64_t capacity);
 
   private:
     ColumnVectorBatch(const ColumnVectorBatch&);
@@ -117,70 +117,70 @@ namespace orc {
   };
 
   struct LongVectorBatch: public ColumnVectorBatch {
-    LongVectorBatch(unsigned long capacity);
+    LongVectorBatch(uint64_t capacity);
     virtual ~LongVectorBatch();
-    std::vector<long> data;
+    std::vector<int64_t> data;
     std::string toString() const;
-    void resize(unsigned long capacity);
+    void resize(uint64_t capacity);
   };
 
   struct DoubleVectorBatch: public ColumnVectorBatch {
-    DoubleVectorBatch(unsigned long capacity);
+    DoubleVectorBatch(uint64_t capacity);
     virtual ~DoubleVectorBatch();
     std::string toString() const;
-    void resize(unsigned long capacity);
+    void resize(uint64_t capacity);
 
     std::vector<double> data;
   };
 
   struct StringVectorBatch: public ColumnVectorBatch {
-    StringVectorBatch(unsigned long capacity);
+    StringVectorBatch(uint64_t capacity);
     virtual ~StringVectorBatch();
     std::string toString() const;
-    void resize(unsigned long capacity);
+    void resize(uint64_t capacity);
 
     // pointers to the start of each string
     std::vector<char*> data;
     // the length of each string
-    std::vector<long> length;
+    std::vector<int64_t> length;
   };
 
   struct StructVectorBatch: public ColumnVectorBatch {
-    StructVectorBatch(unsigned long capacity);
+    StructVectorBatch(uint64_t capacity);
     virtual ~StructVectorBatch();
     std::string toString() const;
-    void resize(unsigned long capacity);
+    void resize(uint64_t capacity);
 
     std::vector<std::unique_ptr<ColumnVectorBatch> > fields;
   };
 
   struct ListVectorBatch: public ColumnVectorBatch {
-    ListVectorBatch(unsigned long capacity);
+    ListVectorBatch(uint64_t capacity);
     virtual ~ListVectorBatch();
     std::string toString() const;
-    void resize(unsigned long capacity);
+    void resize(uint64_t capacity);
 
     /**
      * The offset of the first element of each list.
      * The length of list i is startOffset[i+1] - startOffset[i].
      */
-    std::vector<long> offsets;
+    std::vector<int64_t> offsets;
 
     // the concatenated elements
     std::unique_ptr<ColumnVectorBatch> elements;
   };
 
   struct MapVectorBatch: public ColumnVectorBatch {
-    MapVectorBatch(unsigned long capacity);
+    MapVectorBatch(uint64_t capacity);
     virtual ~MapVectorBatch();
     std::string toString() const;
-    void resize(unsigned long capacity);
+    void resize(uint64_t capacity);
 
     /**
      * The offset of the first element of each list.
      * The length of list i is startOffset[i+1] - startOffset[i].
      */
-    std::vector<long> offsets;
+    std::vector<int64_t> offsets;
 
     // the concatenated keys
     std::unique_ptr<ColumnVectorBatch> keys;

@@ -24,7 +24,7 @@
 
 namespace orc {
 
-  ColumnVectorBatch::ColumnVectorBatch(unsigned long cap
+  ColumnVectorBatch::ColumnVectorBatch(uint64_t cap
                                        ): notNull(cap) {
     capacity = cap;
     numElements = 0;
@@ -35,7 +35,7 @@ namespace orc {
     // PASS
   }
 
-  void ColumnVectorBatch::resize(unsigned long cap) {
+  void ColumnVectorBatch::resize(uint64_t cap) {
     if (capacity < cap) {
       capacity = cap;
       notNull.resize(cap);
@@ -50,7 +50,7 @@ namespace orc {
     throw NotImplementedYet("should not call");
   }
 
-  LongVectorBatch::LongVectorBatch(unsigned long capacity
+  LongVectorBatch::LongVectorBatch(uint64_t capacity
                                    ): ColumnVectorBatch(capacity),
                                       data(capacity) {
     // PASS
@@ -66,14 +66,14 @@ namespace orc {
     return buffer.str();
   }
 
-  void LongVectorBatch::resize(unsigned long cap) {
+  void LongVectorBatch::resize(uint64_t cap) {
     if (capacity < cap) {
       ColumnVectorBatch::resize(cap);
       data.resize(cap);
     }
   }
 
-  DoubleVectorBatch::DoubleVectorBatch(unsigned long capacity
+  DoubleVectorBatch::DoubleVectorBatch(uint64_t capacity
                                        ): ColumnVectorBatch(capacity),
                                           data(capacity) {
     // PASS
@@ -89,14 +89,14 @@ namespace orc {
     return buffer.str();
   }
 
-  void DoubleVectorBatch::resize(unsigned long cap) {
+  void DoubleVectorBatch::resize(uint64_t cap) {
     if (capacity < cap) {
       ColumnVectorBatch::resize(cap);
       data.resize(cap);
     }
   }
 
-  StringVectorBatch::StringVectorBatch(unsigned long capacity
+  StringVectorBatch::StringVectorBatch(uint64_t capacity
                                        ): ColumnVectorBatch(capacity),
                                           data(capacity),
                                           length(capacity) {
@@ -113,7 +113,7 @@ namespace orc {
     return buffer.str();
   }
 
-  void StringVectorBatch::resize(unsigned long cap) {
+  void StringVectorBatch::resize(uint64_t cap) {
     if (capacity < cap) {
       ColumnVectorBatch::resize(cap);
       data.resize(cap);
@@ -121,7 +121,7 @@ namespace orc {
     }
   }
 
-  StructVectorBatch::StructVectorBatch(unsigned long capacity
+  StructVectorBatch::StructVectorBatch(uint64_t capacity
                                        ): ColumnVectorBatch(capacity) {
     // PASS
   }
@@ -142,11 +142,11 @@ namespace orc {
   }
 
 
-  void StructVectorBatch::resize(unsigned long cap) {
+  void StructVectorBatch::resize(uint64_t cap) {
     ColumnVectorBatch::resize(cap);
   }
 
-  ListVectorBatch::ListVectorBatch(unsigned long cap
+  ListVectorBatch::ListVectorBatch(uint64_t cap
                                    ): ColumnVectorBatch(cap),
                                       offsets(cap+1) {
     // PASS
@@ -163,14 +163,14 @@ namespace orc {
     return buffer.str();
   }
 
-  void ListVectorBatch::resize(unsigned long cap) {
+  void ListVectorBatch::resize(uint64_t cap) {
     if (capacity < cap) {
       ColumnVectorBatch::resize(cap);
       offsets.resize(cap + 1);
     }
   }
 
-  MapVectorBatch::MapVectorBatch(unsigned long cap
+  MapVectorBatch::MapVectorBatch(uint64_t cap
                                  ): ColumnVectorBatch(cap),
                                     offsets(cap+1) {
     // PASS
@@ -188,7 +188,7 @@ namespace orc {
     return buffer.str();
   }
 
-  void MapVectorBatch::resize(unsigned long cap) {
+  void MapVectorBatch::resize(uint64_t cap) {
     if (capacity < cap) {
       ColumnVectorBatch::resize(cap);
       offsets.resize(cap + 1);
