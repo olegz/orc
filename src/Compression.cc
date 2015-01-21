@@ -242,7 +242,6 @@ namespace orc {
       while (ret && len < (int) output->compressedLen) {
           input->BackUp(len); // back up, and try again
           ret = input->Next(&ptr, &len);
-          cout << "ret = " << ret << "read another " << len << " bytes in the loop... " << endl;
       };
       // give back extra we don't need
       int extra = len - output->compressedLen;
@@ -285,7 +284,6 @@ namespace orc {
           string inBlock = in.substr(curLen, in.size() - curLen > blk_sz ? blk_sz : in.size() - curLen);
           string outBlock;
           outBlock = compressToZlibBlock( inBlock );
-          cout << "compressed " << blk_sz << " bytes" << endl;
           // add ORC header for each compressed (or original) block
           out = out + addORCCompressionHeader(inBlock, outBlock);
 
@@ -447,7 +445,6 @@ namespace orc {
     void SeekableCompressionInputStream::BackUp(int count) {
         if (count >= 0) {
             unsigned long unsignedCount = static_cast<unsigned long>(count);
-            cout << "zlib backup(): count = " << count << ", offset= " << offset << ", size = " << size <<  endl;
             if (unsignedCount <= blockSize && unsignedCount <= offset) {
                 offset -= unsignedCount;
                 byteCount -= unsignedCount;
