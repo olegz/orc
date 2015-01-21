@@ -234,8 +234,6 @@ namespace orc {
         memcpy(&compressedLen, ptr, 3);
         isOriginal = compressedLen % 2;
         compressedLen /= 2;
-
-        std::cout << "isOriginal = " << isOriginal << ", compress len = " << compressedLen << std::endl;
     }
 
   };

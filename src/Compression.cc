@@ -459,7 +459,6 @@ namespace orc {
     }
 
     bool SeekableCompressionInputStream::Skip(int count) {
-        cout << "jfu: CompressionInputStream Skip("<<count <<"), offset = " << offset << ", size = " << size << endl;
         // if negative, do nothing
         if(count < 0)
             return false;
@@ -492,7 +491,6 @@ namespace orc {
         return static_cast<google::protobuf::int64>(byteCount);
     }
 
-    // TODO jfu: actually I'm not quite sure what I'm doing here
     std::string SeekableCompressionInputStream::getName() const {
         std::ostringstream result;
         result << "memory from " << std::hex << buffer[offset]
