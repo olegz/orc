@@ -478,7 +478,8 @@ namespace orc {
         while ( skipped < unsignedCount ) {
             const void *ptr;
             int len;
-            Next(&ptr, &len); // TODO optimization: get compressedLen of each block and just skip those bytes
+            // TODO optimization: get compressedLen of each block and just skip those bytes
+            Next(&ptr, &len);
             if( len == 0)
                 break; // done
             skipped += len;
