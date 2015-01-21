@@ -20,6 +20,7 @@
 #include "Compression.hh"
 #include "Exceptions.hh"
 #include "wrap/gtest-wrapper.h"
+#include "TestDriver.hh"
 
 #include <cstdio>
 #include <fstream>
@@ -368,7 +369,9 @@ TEST(Zlib, inflateDeflateUnitTest) {
     EXPECT_EQ(input, decomp_str);
 
     // try to compress/decompress a 5MB file
-    std::ifstream t("../../examples/demo-11-none.orc");
+    std::ostringstream filename;
+    filename << exampleDirectory << "/demo-11-none.orc";
+    std::ifstream t(filename.str());
     std::stringstream buffer;
     buffer << t.rdbuf();
     EXPECT_EQ(buffer.str().size(), 5147970);
