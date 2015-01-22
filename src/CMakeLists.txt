@@ -18,6 +18,7 @@ configure_file (
 include_directories (
   ${CMAKE_CURRENT_BINARY_DIR}
   ${PROTOBUF_INCLUDE_DIRS}
+  ${ZLIB_INCLUDE_DIRS}
   )
 
 protobuf_generate_cpp(PROTO_SRCS PROTO_HDRS orc_proto.proto)
