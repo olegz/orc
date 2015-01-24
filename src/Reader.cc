@@ -411,7 +411,8 @@ namespace orc {
     if (tailSize > readSize) {
       throw NotImplementedYet("need more footer data.");
     }
-    std::unique_ptr<SeekableInputStream> pbStream =createCodec(compression,
+    std::unique_ptr<SeekableInputStream> pbStream =
+      createDecompressor(compression,
                           std::unique_ptr<SeekableInputStream>
                           (new SeekableArrayInputStream(buffer +
                                                         (readSize - tailSize),
@@ -431,13 +432,15 @@ namespace orc {
       info.datalength();
     unsigned long footerLength = info.footerlength();
     std::unique_ptr<SeekableInputStream> pbStream = 
-      createCodec(compression,
-                  std::unique_ptr<SeekableInputStream>
-                  (new SeekableFileInputStream(stream.get(), footerStart,
-                                               footerLength, 
-                                               static_cast<long>(blockSize)
-                                               )),
-                  blockSize);
+      createDecompressor(compression,
+                         std::unique_ptr<SeekableInputStream>
+                         (new SeekableFileInputStream(stream.get(), 
+                                                      footerStart,
+                                                      footerLength, 
+                                                      static_cast<long>
+                                                      (blockSize)
+                                                      )),
+                         blockSize);
     proto::StripeFooter result;
     if (!result.ParseFromZeroCopyStream(pbStream.get())) {
       throw ParseError(std::string("bad StripeFooter from ") + 
@@ -501,14 +504,15 @@ namespace orc {
       const proto::Stream& stream = footer.streams(i);
       if (stream.kind() == kind && 
           stream.column() == static_cast<unsigned int>(columnId)) {
-        return createCodec(reader.getCompression(),
-                           std::unique_ptr<SeekableInputStream>
-                           (new SeekableFileInputStream
-                            (&input,
-                             offset,
-                             stream.length(),
-                             static_cast<long>(reader.getCompressionSize()))),
-                           reader.getCompressionSize());
+        return createDecompressor(reader.getCompression(),
+                                  std::unique_ptr<SeekableInputStream>
+                                  (new SeekableFileInputStream
+                                   (&input,
+                                    offset,
+                                    stream.length(),
+                                    static_cast<long>
+                                    (reader.getCompressionSize()))),
+                                  reader.getCompressionSize());
       }
       offset += stream.length();
     }

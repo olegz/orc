@@ -94,7 +94,7 @@ TEST(Reader, simpleTest) {
   EXPECT_EQ(1920000, reader->getRowNumber());
 }
 
-TEST(ZlibReader, zlibOrcFileReaderTest) {
+TEST(Reader, zlibReaderTest) {
   orc::ReaderOptions opts;
   std::ostringstream filename;
   filename << exampleDirectory << "/demo-11-zlib.orc";
@@ -108,6 +108,71 @@ TEST(ZlibReader, zlibOrcFileReaderTest) {
   EXPECT_EQ(1920800, reader->getNumberOfRows());
   EXPECT_EQ(10000, reader->getRowIndexStride());
   EXPECT_EQ(396823, reader->getContentLength());
+  EXPECT_EQ(filename.str(), reader->getStreamName());
+  EXPECT_THAT(reader->getMetadataKeys(), IsEmpty());
+  EXPECT_FALSE(reader->hasMetadataValue("foo"));
+  EXPECT_EQ(18446744073709551615UL, reader->getRowNumber());
+
+  const orc::Type& rootType = reader->getType();
+  EXPECT_EQ(0, rootType.getColumnId());
+  EXPECT_EQ(orc::STRUCT, rootType.getKind());
+  ASSERT_EQ(9, rootType.getSubtypeCount());
+  EXPECT_EQ("_col0", rootType.getFieldName(0));
+  EXPECT_EQ("_col1", rootType.getFieldName(1));
+  EXPECT_EQ("_col2", rootType.getFieldName(2));
+  EXPECT_EQ("_col3", rootType.getFieldName(3));
+  EXPECT_EQ("_col4", rootType.getFieldName(4));
+  EXPECT_EQ("_col5", rootType.getFieldName(5));
+  EXPECT_EQ("_col6", rootType.getFieldName(6));
+  EXPECT_EQ("_col7", rootType.getFieldName(7));
+  EXPECT_EQ("_col8", rootType.getFieldName(8));
+  EXPECT_EQ(orc::INT, rootType.getSubtype(0).getKind());
+  EXPECT_EQ(orc::STRING, rootType.getSubtype(1).getKind());
+  EXPECT_EQ(orc::STRING, rootType.getSubtype(2).getKind());
+  EXPECT_EQ(orc::STRING, rootType.getSubtype(3).getKind());
+  EXPECT_EQ(orc::INT, rootType.getSubtype(4).getKind());
+  EXPECT_EQ(orc::STRING, rootType.getSubtype(5).getKind());
+  EXPECT_EQ(orc::INT, rootType.getSubtype(6).getKind());
+  EXPECT_EQ(orc::INT, rootType.getSubtype(7).getKind());
+  EXPECT_EQ(orc::INT, rootType.getSubtype(8).getKind());
+  for(unsigned int i=0; i < 9; ++i) {
+    EXPECT_EQ(i + 1, rootType.getSubtype(i).getColumnId()) << "fail on " << i;
+  }
+  const bool* const selected = reader->getSelectedColumns();
+  for (size_t i = 0; i < 10; ++i) {
+    EXPECT_EQ(true, selected[i]) << "fail on " << i;
+  }
+
+  unsigned long rowCount = 0;
+  std::unique_ptr<orc::ColumnVectorBatch> batch = reader->createRowBatch(1024);
+  orc::LongVectorBatch* longVector =
+    dynamic_cast<orc::LongVectorBatch*>
+    (dynamic_cast<orc::StructVectorBatch&>(*batch).fields[0].get());
+  while (reader->next(*batch)) {
+    EXPECT_EQ(rowCount, reader->getRowNumber());
+    for(unsigned int i=0; i < batch->numElements; ++i) {
+      EXPECT_EQ(rowCount + i + 1, longVector->data[i]) << "Bad id for " << i;
+    }
+    rowCount += batch->numElements;
+  }
+  EXPECT_EQ(1920800, rowCount);
+  EXPECT_EQ(1920000, reader->getRowNumber());
+}
+
+TEST(Reader, zlibReaderTestRle2) {
+  orc::ReaderOptions opts;
+  std::ostringstream filename;
+  filename << exampleDirectory << "/demo-12-zlib.orc";
+
+  std::unique_ptr<orc::Reader> reader =
+    orc::createReader(orc::readLocalFile(filename.str()), opts);
+
+  EXPECT_EQ(orc::CompressionKind_ZLIB, reader->getCompression());
+  EXPECT_EQ(256 * 1024, reader->getCompressionSize());
+  EXPECT_EQ(1, reader->getNumberOfStripes());
+  EXPECT_EQ(1920800, reader->getNumberOfRows());
+  EXPECT_EQ(10000, reader->getRowIndexStride());
+  EXPECT_EQ(45592, reader->getContentLength());
   EXPECT_EQ(filename.str(), reader->getStreamName());
   EXPECT_THAT(reader->getMetadataKeys(), IsEmpty());
   EXPECT_FALSE(reader->hasMetadataValue("foo"));

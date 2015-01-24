@@ -127,7 +127,8 @@ unsigned char RleDecoderV2::readByte() {
     bufferEnd = bufferStart + bufferLength;
   }
 
-  return static_cast<unsigned char>(*bufferStart++);
+  unsigned char result = static_cast<unsigned char>(*bufferStart++);
+  return result;
 }
 
 long RleDecoderV2::readLongBE(unsigned bsz) {

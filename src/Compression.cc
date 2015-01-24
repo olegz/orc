@@ -139,8 +139,7 @@ namespace orc {
 
   std::string SeekableArrayInputStream::getName() const {
     std::ostringstream result;
-    result << "memory from " << std::hex << (data ? data : ownedData.data())
-           << std::dec << " for " << length;
+    result << "SeekableArrayInputStream " << position << " of " << length;
     return result.str();
   }
 
@@ -153,7 +152,7 @@ namespace orc {
     length = _length;
     position = 0;
     blockSize = std::min(length,
-                         static_cast<unsigned long>(_blockSize < 0 ? 
+                         static_cast<unsigned long>(_blockSize < 0 ?
                                                     256 * 1024 : _blockSize));
     buffer.reset(new char[blockSize]);
     remainder = 0;
@@ -168,7 +167,7 @@ namespace orc {
     if (bytesRead > 0) {
       *data = buffer.get();
       // read from the file, skipping over the remainder
-      input->read(buffer.get() + remainder, offset + position + remainder, 
+      input->read(buffer.get() + remainder, offset + position + remainder,
                   bytesRead - remainder);
       position += bytesRead;
       remainder = 0;
@@ -186,8 +185,8 @@ namespace orc {
     }
     remainder = static_cast<unsigned long>(count);
     position -= remainder;
-    memmove(buffer.get(), 
-            buffer.get() + blockSize - static_cast<size_t>(count), 
+    memmove(buffer.get(),
+            buffer.get() + blockSize - static_cast<size_t>(count),
             static_cast<size_t>(count));
   }
 
@@ -210,7 +209,7 @@ namespace orc {
     }
     return true;
   }
-  
+
   google::protobuf::int64 SeekableFileInputStream::ByteCount() const {
     return static_cast<google::protobuf::int64>(position);
   }
@@ -231,286 +230,289 @@ namespace orc {
     return result.str();
   }
 
-  bool ZlibCodec::compress(SeekableInputStream* in, SeekableInputStream* out) {
-      throw NotImplementedYet("Zlib compression not implemented yet!");
-  }
+  enum DecompressState { DECOMPRESS_HEADER,
+                         DECOMPRESS_START,
+                         DECOMPRESS_CONTINUE,
+                         DECOMPRESS_ORIGINAL,
+                         DECOMPRESS_EOF};
 
-  void ZlibCodec::decompress(SeekableInputStream* input, SeekableCompressionInputStream* output) {
-      const void *ptr;
-      int len = 0;
-      int ret = input->Next(&ptr, &len); // can't BackUp unless we just called Next..
-      while (ret && len < (int) output->compressedLen) {
-          input->BackUp(len); // back up, and try again
-          ret = input->Next(&ptr, &len);
-      };
-      // give back extra we don't need
-      int extra = len - output->compressedLen;
-      input->BackUp(extra);
-      len -= extra;
+  class ZlibDecompressionStream: public SeekableInputStream {
+  public:
+    ZlibDecompressionStream(std::unique_ptr<SeekableInputStream> inStream,
+                            size_t blockSize);
+    ZlibDecompressionStream(const ZlibDecompressionStream&) = delete;
+    ZlibDecompressionStream& operator=(const ZlibDecompressionStream&)
+      = delete;
+    virtual ~ZlibDecompressionStream();
+    virtual bool Next(const void** data, int*size) override;
+    virtual void BackUp(int count) override;
+    virtual bool Skip(int count) override;
+    virtual int64_t ByteCount() const override;
+    virtual void seek(PositionProvider& position) override;
+    virtual std::string getName() const override;
 
-      // prepare output buffer
-      output->alignBuffer(output->blockSize);
-
-      // zlib control struct
-      z_stream zs;
-      zs.zalloc = Z_NULL;
-      zs.zfree = Z_NULL;
-      zs.opaque = Z_NULL;
-      zs.next_in = (Bytef*)ptr;
-      zs.avail_in = len;
-
-      if (inflateInit2(&zs, -15) != Z_OK) // Hive use zip compression
-          throw(std::string("inflateInit failed while decompressing."));
-
-      // only 1 pass of inflate function, because we always decompress one block at a time
-      zs.next_out = reinterpret_cast<Bytef*>(&(output->buffer[output->offset]));
-      zs.avail_out = output->blockSize;
-
-      ret = inflate(&zs, 0);
-      // did not finish (reach EOF) properly
-      if (ret != Z_STREAM_END) 
-          throw(std::string("Exception during Zlib decompression"));
-
-      inflateEnd(&zs);
-
-      int produced = output->blockSize - zs.avail_out;
-      output->size += produced;
-  }
-
-  string ZlibCodec::compressToOrcBlocks(string& in ){
-      string out;
-      size_t curLen = 0;
-      while( curLen < in.size() ) {
-          string inBlock = in.substr(curLen, in.size() - curLen > blk_sz ? blk_sz : in.size() - curLen);
-          string outBlock;
-          outBlock = compressToZlibBlock( inBlock );
-          // add ORC header for each compressed (or original) block
-          out = out + addORCCompressionHeader(inBlock, outBlock);
-
-          // update curLen
-          curLen += blk_sz;
+  private:
+    void readBuffer(bool failOnEof) {
+      int length;
+      if (!input->Next(reinterpret_cast<const void**>(&inputBuffer),
+                       &length)) {
+        if (failOnEof) {
+          throw ParseError("Read past EOF in "
+                           "ZlibDecompressionStream::readBuffer");
+        }
+        state = DECOMPRESS_EOF;
+        inputBuffer = nullptr;
+        inputBufferEnd = nullptr;
+      } else {
+        inputBufferEnd = inputBuffer + length;
       }
-      return out;
+    }
+
+    uint32_t readByte(bool failOnEof) {
+      if (inputBuffer == inputBufferEnd) {
+        readBuffer(failOnEof);
+        if (state == DECOMPRESS_EOF) {
+          return 0;
+        }
+      }
+      return static_cast<unsigned char>(*(inputBuffer++));
+    }
+
+    void readHeader() {
+      uint32_t header = readByte(false);
+      if (state != DECOMPRESS_EOF) {
+        header |= readByte(true) << 8;
+        header |= readByte(true) << 16;
+        if (header & 1) {
+          state = DECOMPRESS_ORIGINAL;
+        } else {
+          state = DECOMPRESS_START;
+        }
+        remainingLength = header >> 1;
+      } else {
+        remainingLength = 0;
+      }
+    }
+
+    const size_t blockSize;
+    const std::unique_ptr<SeekableInputStream> input;
+    z_stream zstream;
+    std::vector<char> buffer;
+
+    // the current state
+    DecompressState state;
+
+    // the start of the current buffer
+    // This pointer is not owned by us. It is either owned by zstream or
+    // the underlying stream.
+    const char* outputBuffer;
+    // the size of the current buffer
+    size_t outputBufferLength;
+    // the size of the current chunk
+    size_t remainingLength;
+
+    // the last buffer returned from the input
+    const char *inputBuffer;
+    const char *inputBufferEnd;
+
+    // roughly the number of bytes returned
+    off_t bytesReturned;
+  };
+
+  ZlibDecompressionStream::~ZlibDecompressionStream() {
+    int result = inflateEnd(&zstream);
+    if (result != Z_OK) {
+      // really can't throw in destructors
+      std::cout << "Error in ~ZlibDecompressionStream() " << result << "\n";
+    }
   }
 
-  string ZlibCodec::compressToZlibBlock(string& in) {
-      // zlib control struct
-      z_stream zs;
-      zs.zalloc = Z_NULL;
-      zs.zfree = Z_NULL;
-      zs.opaque = Z_NULL;
-      zs.next_in = (Bytef*)in.data();
-      zs.avail_in = in.size();
-      int compr_level  = Z_BEST_COMPRESSION ;
-
-      // zip, refer to zlib manual for params
-      if (deflateInit2(&zs, compr_level, Z_DEFLATED/*default*/, -15, 8 /*default*/, Z_DEFAULT_STRATEGY /*default*/ ) != Z_OK)
-          throw(std::string("deflateInit failed while compressing."));
-
-      int ret;
-      char buf[getBlockSize()];
-      string out; // output string
-
+  bool ZlibDecompressionStream::Next(const void** data, int*size) {
+    // if the user pushed back, return them the partial buffer
+    if (outputBufferLength) {
+      *data = outputBuffer;
+      *size = static_cast<int>(outputBufferLength);
+      outputBuffer += outputBufferLength;
+      outputBufferLength = 0;
+      return true;
+    }
+    if (state == DECOMPRESS_HEADER || remainingLength == 0) {
+      readHeader();
+    }
+    if (state == DECOMPRESS_EOF) {
+      return false;
+    }
+    if (inputBuffer == inputBufferEnd) {
+      readBuffer(true);
+    }
+    size_t availSize =
+      std::min(static_cast<size_t>(inputBufferEnd - inputBuffer),
+               remainingLength);
+    // std::cout << "State: " << state << " remaining = " << remainingLength
+    //          << " Buffer = " << (inputBufferEnd - inputBuffer)
+    //          << " Avail = " << availSize << " on " << getName() << "\n";
+    if (state == DECOMPRESS_ORIGINAL) {
+      *data = inputBuffer;
+      *size = static_cast<int>(availSize);
+      outputBuffer = inputBuffer + availSize;
+      outputBufferLength = 0;
+    } else if (state == DECOMPRESS_START) {
+      zstream.next_in =
+        reinterpret_cast<Bytef*>(const_cast<char*>(inputBuffer));
+      zstream.avail_in = static_cast<uInt>(availSize);
+      outputBuffer = buffer.data();
+      zstream.next_out =
+        reinterpret_cast<Bytef*>(const_cast<char*>(outputBuffer));
+      zstream.avail_out = static_cast<uInt>(blockSize);
+      if (inflateReset(&zstream) != Z_OK) {
+        throw std::logic_error("Bad inflateReset in "
+                               "ZlibDecompressionStream::Next");
+      }
+      int result;
       do {
-          zs.next_out = reinterpret_cast<Bytef*>(buf);
-          zs.avail_out = sizeof(buf);
-
-          ret = deflate(&zs, Z_FINISH);
-
-          // take everything out of output buf every call
-          int have = sizeof(buf) - zs.avail_out; 
-          out.append(buf, have);
-      } while (ret == Z_OK) ;
-
-      deflateEnd(&zs);
-
-      // did not finish (reach EOF) properly
-      if (ret != Z_STREAM_END) 
-          throw(std::string("Exception during Zlib compression"));
-
-      return out;
+        result = inflate(&zstream, availSize == remainingLength ? Z_FINISH :
+                         Z_SYNC_FLUSH);
+        switch (result) {
+        case Z_OK:
+          remainingLength -= availSize;
+          inputBuffer += availSize;
+          readBuffer(true);
+          availSize =
+            std::min(static_cast<size_t>(inputBufferEnd - inputBuffer),
+                     remainingLength);
+          zstream.next_in =
+            reinterpret_cast<Bytef*>(const_cast<char*>(inputBuffer));
+          zstream.avail_in = static_cast<uInt>(availSize);
+          break;
+        case Z_STREAM_END:
+          break;
+        case Z_BUF_ERROR:
+          throw std::logic_error("Buffer error in "
+                                 "ZlibDecompressionStream::Next");
+        case Z_DATA_ERROR:
+          throw std::logic_error("Data error in "
+                                 "ZlibDecompressionStream::Next");
+        case Z_STREAM_ERROR:
+          throw std::logic_error("Stream error in "
+                                 "ZlibDecompressionStream::Next");
+        default:
+          throw std::logic_error("Unknown error in "
+                                 "ZlibDecompressionStream::Next");
+        }
+      } while (result != Z_STREAM_END);
+      *size = static_cast<int>(blockSize - zstream.avail_out);
+      *data = outputBuffer;
+      outputBufferLength = 0;
+      outputBuffer += *size;
+    } else {
+      throw std::logic_error("Unknown compression state in "
+                             "ZlibDecompressionStream::Next");
+    }
+    inputBuffer += availSize;
+    remainingLength -= availSize;
+    bytesReturned += *size;
+    return true;
   }
 
-  string ZlibCodec::addORCCompressionHeader(string& in, string& out) {
-      bool isOriginal = out.size() >= in.size(); // if didn't get smaller, keep original
-      unsigned long compressedLen = out.size();
-      if( isOriginal )
-          compressedLen = in.size();
-      else 
-          compressedLen = out.size();
-      compressedLen *= 2;
-      if(isOriginal) 
-          compressedLen += 1;
-
-      string header;
-      for(int i = 0; i < 3; i++) 
-          header = header + static_cast<char> ( * ((char*) (&compressedLen) + i));
-
-      if( isOriginal ) 
-          return header + in;
-      else
-          return header + out;
+  void ZlibDecompressionStream::BackUp(int count) {
+    if (outputBuffer == nullptr || outputBufferLength != 0) {
+      throw std::logic_error("Backup without previous Next in "
+                             "ZlibDecompressionStream");
+    }
+    outputBuffer -= static_cast<size_t>(count);
+    outputBufferLength = static_cast<size_t>(count);
+    bytesReturned -= count;
   }
 
-  string ZlibCodec::decompressZlibBlock(string& in) {
-      // zlib control struct
-      z_stream zs;
-      zs.zalloc = Z_NULL;
-      zs.zfree = Z_NULL;
-      zs.opaque = Z_NULL;
-      zs.next_in = (Bytef*)in.data();
-      zs.avail_in = in.size();
-
-      if (inflateInit2(&zs, -15) != Z_OK) // Hive use zip compression
-          throw(std::string("inflateInit failed while decompressing."));
-
-      int ret;
-      char buf[getBlockSize()]; 
-      string out; // output string
-
-      // decompress till input used up
-      do {
-          zs.next_out = reinterpret_cast<Bytef*>(buf);
-          zs.avail_out = sizeof(buf);
-
-          ret = inflate(&zs, 0);
-
-          // take everything out of output buf every call
-          int have = sizeof(buf) - zs.avail_out; 
-          out.append(buf, have);
-      } while (ret == Z_OK) ;
-
-      inflateEnd(&zs);
-
-      // did not finish (reach EOF) properly
-      if (ret != Z_STREAM_END) 
-          throw(std::string("Exception during Zlib decompression"));
-
-      return out;
+  bool ZlibDecompressionStream::Skip(int count) {
+    bytesReturned += count;
+    // this is a stupid implementation for now.
+    // should skip entire blocks without decompressing
+    while (count > 0) {
+      const void *ptr;
+      int len;
+      if (!Next(&ptr, &len)) {
+        return false;
+      }
+      if (len > count) {
+        BackUp(len - count);
+        count = 0;
+      } else {
+        count -= len;
+      }
+    }
+    return true;
   }
 
-    bool SeekableCompressionInputStream::Next(const void** data, int*sz) {
-        // there are a few cases: 
-        // 1) existing buffer has enough available (i.e. >block size). In this case, just return those;
-        // 2) if not enough available, then we need to decompress some: check if it is original
-        //      a) if original, copy to zlib buffer and return (optimization: if current zlib buffer empty, can return input directly)
-        //      b) if not, decompress a block and copy to zlib buffer
+  int64_t ZlibDecompressionStream::ByteCount() const {
+    return bytesReturned;
+  }
 
-        // new logic: if we have less than block size, we should try to decompress some, if possible
-        if ( size < blockSize ) {
-            // decompress header to see if it is original
-            const void *ptr;
-            int len;
-            input->Next(&ptr, &len);
-
-            // if we can't get a basic compression block header, let's not do anything (and later return what we have available)
-            if( len < 3 ) {
-                input->BackUp(len);
-            }
-            // else, let's try to decompress some
-            else {
-                parseCompressionHeader(ptr, len); // read 3 bytes header (note: use buffer first, before operating on input again, e.g. don't BackUp before consuming ptr
-                input->BackUp(len - 3); // back to begin of compressed block
-                // if it is original, get a block and copy to our internal buffer
-                if( isOriginal ) {
-                    input->Next(&ptr, &len);
-                    // deep copy input block to internal buffer and return
-                    copyToBuffer(ptr, len);
-                }
-                // not original, need to decompress
-                else {
-                    // resort to compression codec to take care of things
-                    codec->decompress(input.get(), this);
-                }
-            }
-        }
-
-        // Now, we've tried things, now let's return something
-        // TODO: what if we still have less than a block (compare with decompress func)
-        unsigned long currentSize = std::min(size, blockSize);
-        if (currentSize > 0) {
-            *data = &buffer[offset];
-            *sz = static_cast<int>(currentSize);
-            offset += currentSize;
-            byteCount += currentSize;
-            size -= currentSize;
-            return true;
-        }
-        else {
-            *sz = 0; //TODO @Owen: isn't this return size redundant with the boolean return value?
-            return false;
-        }
+  void ZlibDecompressionStream::seek(PositionProvider& position) {
+    input->seek(position);
+    bytesReturned = input->ByteCount();
+    if (!Skip(static_cast<int>(position.next()))) {
+      throw ParseError("Bad skip in ZlibDecompressionStream::seek");
     }
+  }
 
-    void SeekableCompressionInputStream::BackUp(int count) {
-        if (count >= 0) {
-            unsigned long unsignedCount = static_cast<unsigned long>(count);
-            if (unsignedCount <= blockSize && unsignedCount <= offset) {
-                offset -= unsignedCount;
-                byteCount -= unsignedCount;
-                size += unsignedCount;
-            } else {
-                throw std::logic_error("Can't backup that much!");
-            }
-        }
-    }
+  std::string ZlibDecompressionStream::getName() const {
+    std::ostringstream result;
+    result << "zlib(" << input->getName() << ")";
+    return result.str();
+  }
 
-    bool SeekableCompressionInputStream::Skip(int count) {
-        // if negative, do nothing
-        if(count < 0)
-            return false;
-
-        unsigned long unsignedCount = static_cast<unsigned long>(count);
-
-        // if have enough to skip, do it
-        if (unsignedCount <= size ) {
-            offset += unsignedCount;
-            byteCount += unsignedCount;
-            size -= unsignedCount;
-            return true;
-        }
-
-        // have more than one pass to skip
-        unsigned long skipped = 0;
-        while ( skipped < unsignedCount ) {
-            const void *ptr;
-            int len;
-            // TODO optimization: get compressedLen of each block and just skip those bytes
-            Next(&ptr, &len);
-            if( len == 0)
-                break; // done
-            skipped += len;
-        }
-
-        return skipped == unsignedCount;
-    }
-
-    google::protobuf::int64 SeekableCompressionInputStream::ByteCount() const {
-        return static_cast<google::protobuf::int64>(byteCount);
-    }
-
-    std::string SeekableCompressionInputStream::getName() const {
-        std::ostringstream result;
-        result << "memory from " << std::hex << buffer[offset]
-          << std::dec << " for " << offset + size;
-        return result.str();
-    }
-
-  std::unique_ptr<SeekableInputStream> 
-     createCodec(CompressionKind kind,
-                 std::unique_ptr<SeekableInputStream> input,
-                 unsigned long blockSize) {
+  std::unique_ptr<SeekableInputStream>
+     createDecompressor(CompressionKind kind,
+                        std::unique_ptr<SeekableInputStream> input,
+                        unsigned long blockSize) {
     switch (kind) {
     case CompressionKind_NONE:
       return std::move(input);
+    case CompressionKind_ZLIB:
+      return std::unique_ptr<SeekableInputStream>
+        (new ZlibDecompressionStream(std::move(input), blockSize));
     case CompressionKind_LZO:
-      break;
     case CompressionKind_SNAPPY:
+    default:
+      throw NotImplementedYet("compression codec");
+    }
+  }
+
+#pragma GCC diagnostic ignored "-Wold-style-cast"
+
+  ZlibDecompressionStream::ZlibDecompressionStream
+                   (std::unique_ptr<SeekableInputStream> inStream,
+                    size_t _blockSize
+                    ): blockSize(_blockSize),
+                       input(std::move(inStream)),
+                       buffer(_blockSize) {
+    zstream.next_in = Z_NULL;
+    zstream.avail_in = 0;
+    zstream.zalloc = Z_NULL;
+    zstream.zfree = Z_NULL;
+    zstream.opaque = Z_NULL;
+    zstream.next_out = reinterpret_cast<Bytef*>(buffer.data());
+    zstream.avail_out = static_cast<uInt>(blockSize);
+    int result = inflateInit2(&zstream, -15);
+    switch (result) {
+    case Z_OK:
       break;
-    case CompressionKind_ZLIB: {
-      return std::unique_ptr<SeekableInputStream> ( new SeekableCompressionInputStream(move(input), kind, blockSize));
+    case Z_MEM_ERROR:
+      throw std::logic_error("Memory error from inflateInit2");
+    case Z_VERSION_ERROR:
+      throw std::logic_error("Version error from inflateInit2");
+    case Z_STREAM_ERROR:
+      throw std::logic_error("Stream error from inflateInit2");
+    default:
+      throw std::logic_error("Unknown error from inflateInit2");
     }
-    }
-    throw NotImplementedYet("compression codec");
+    outputBuffer = nullptr;
+    outputBufferLength = 0;
+    remainingLength = 0;
+    state = DECOMPRESS_HEADER;
+    inputBuffer = nullptr;
+    inputBufferEnd = nullptr;
+    bytesReturned = 0;
   }
 }

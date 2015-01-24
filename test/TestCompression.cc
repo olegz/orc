@@ -165,9 +165,7 @@ namespace orc {
     ASSERT_EQ(true, stream.Skip(80));
     ASSERT_EQ(false, stream.Next(&ptr, &len));
     ASSERT_EQ(false, stream.Skip(181));
-    std::ostringstream result;
-    result << "memory from " << std::hex << bytes.data() << " for 200";
-    EXPECT_EQ(result.str(), stream.getName());
+    EXPECT_EQ("SeekableArrayInputStream 200 of 200", stream.getName());
   }
 
   TEST_F(TestCompression, testArrayCombo) {
@@ -306,13 +304,13 @@ namespace orc {
     }
   }
 
-  TEST_F(TestCompression, testCreateCodec) {
+  TEST_F(TestCompression, testCreateNone) {
     std::vector<char> bytes(10);
     for(unsigned int i=0; i < bytes.size(); ++i) {
       bytes[i] = static_cast<char>(i);
     }
     std::unique_ptr<SeekableInputStream> result =
-      createCodec(CompressionKind_NONE,
+      createDecompressor(CompressionKind_NONE,
                   std::unique_ptr<SeekableInputStream>
                     (new SeekableArrayInputStream(bytes.data(), bytes.size())),
                   32768);
@@ -322,154 +320,184 @@ namespace orc {
     for(unsigned int i=0; i < bytes.size(); ++i) {
       EXPECT_EQ(static_cast<char>(i), static_cast<const char*>(ptr)[i]);
     }
-    // jfu: comment out for now, working on zlib decompressor
-    /*
-    EXPECT_THROW(createCodec(CompressionKind_ZLIB,
+  }
+
+  TEST_F(TestCompression, testCreateSnappy) {
+    EXPECT_THROW(createDecompressor(CompressionKind_SNAPPY,
                              std::unique_ptr<SeekableInputStream>
-                             (new SeekableArrayInputStream(bytes.data(),
-                                                           bytes.size())),
-                             32768), NotImplementedYet);
-                             */
-    EXPECT_THROW(createCodec(CompressionKind_SNAPPY,
-                             std::unique_ptr<SeekableInputStream>
-                             (new SeekableArrayInputStream(bytes.data(),
-                                                           bytes.size())),
-                             32768), NotImplementedYet);
-    EXPECT_THROW(createCodec(CompressionKind_LZO,
-                             std::unique_ptr<SeekableInputStream>
-                             (new SeekableArrayInputStream(bytes.data(),
-                                                           bytes.size())),
+                                    (new SeekableArrayInputStream({ })),
                              32768), NotImplementedYet);
   }
 
-string readfile(string filename, long long offset, long long length = -1) {
-    std::ifstream t(filename);
-    std::stringstream buffer;
-    buffer << t.rdbuf();
-    //EXPECT_EQ(buffer.str().size(), 45979);
-    int len;
-    if (length <= -1) { // means read till EOF
-        len = buffer.str().size() - offset;
-    }
-    else 
-        len = length;
-    string output = buffer.str().substr(offset, len);
+  TEST_F(TestCompression, testCreateLzo) {
+    EXPECT_THROW(createDecompressor(CompressionKind_LZO,
+                             std::unique_ptr<SeekableInputStream>
+                                    (new SeekableArrayInputStream( { } )),
+                             32768), NotImplementedYet);
+  }
 
-    return output;
-}
+  class Zlib : public ::testing::Test {
+  public:
+    ~Zlib();
+  };
 
-TEST(Zlib, inflateDeflateUnitTest) {
-    // compress/decompress a tiny string
-    std::string input("abcdefg");
-    ZlibCodec* zlib = new ZlibCodec(256*1024);
+  Zlib::~Zlib() {
+    // PASS
+  }
 
-    string comp_str = zlib->compressToZlibBlock(input);
-    string decomp_str = zlib->decompressZlibBlock(comp_str);
-
-    EXPECT_EQ(input, decomp_str);
-
-    // try to compress/decompress a 5MB file
-    std::ostringstream filename;
-    filename << exampleDirectory << "/demo-11-none.orc";
-    std::ifstream t(filename.str());
-    std::stringstream buffer;
-    buffer << t.rdbuf();
-    EXPECT_EQ(buffer.str().size(), 5147970);
-    input = buffer.str();
-
-    comp_str = zlib->compressToZlibBlock(input);
-    decomp_str = zlib->decompressZlibBlock(comp_str);
-
-    EXPECT_EQ(buffer.str(), decomp_str);
-}
-
-TEST(Zlib, testZlibBackup) {
-    string bytes(200, 0); // size 200
-    for(size_t i=0; i < bytes.size(); ++i) {
-      bytes[i] = static_cast<char>(i);
-    }
-    ZlibCodec* zlib = new ZlibCodec(20);
-
-    string comp_str = zlib->compressToOrcBlocks(bytes); 
-
-    std::vector<char> comp_vec(comp_str.size() ); // string to vector for a contiguous array
-    for(size_t i = 0; i < comp_str.size(); i++) {
-        comp_vec[i] = static_cast<char> (comp_str[i]);
-    }
-
-    // now this comp_str should be input to a SeekableArrayInputStream..
-    SeekableArrayInputStream* bytestream = new SeekableArrayInputStream(comp_vec.data(), comp_vec.size(), 20);
-    //SeekableCompressionInputStream stream(std::unique_ptr<SeekableInputStream> (bytestream), 20); // inputstream and compression should have same block size
-    SeekableCompressionInputStream stream(std::unique_ptr<SeekableInputStream> (bytestream), CompressionKind_ZLIB, 20); 
+  TEST_F(Zlib, testCreateZlib) {
+    std::unique_ptr<SeekableInputStream> result =
+      createDecompressor(CompressionKind_ZLIB,
+                         std::unique_ptr<SeekableInputStream>
+                         (new SeekableArrayInputStream
+                          ({0x0b, 0x0, 0x0, 0x0, 0x1, 0x2, 0x3, 0x4})),
+                  32768);
+    EXPECT_EQ("zlib(SeekableArrayInputStream 0 of 8)", result->getName());
     const void *ptr;
-    int len;
-    ASSERT_THROW(stream.BackUp(10), std::logic_error);
-    EXPECT_EQ(true, stream.Next(&ptr, &len));
-    EXPECT_EQ(20, len);
-    EXPECT_EQ(bytes[0], static_cast<const char*>(ptr)[0]); // compare value
-    stream.BackUp(0);
-    EXPECT_EQ(true, stream.Next(&ptr, &len));
-    EXPECT_EQ(20, len);
-    EXPECT_EQ(bytes[20], static_cast<const char *>(ptr)[0]);
-    stream.BackUp(10);
-    for(unsigned int i=0; i < 8; ++i) {
-      EXPECT_EQ(true, stream.Next(&ptr, &len));
-      unsigned int consumedBytes = 30 + 20 * i;
-      EXPECT_EQ(bytes[consumedBytes], static_cast<const char *>(ptr)[0]);
-      EXPECT_EQ(consumedBytes + 20, stream.ByteCount());
-      EXPECT_EQ(20, len);
+    int length;
+    ASSERT_EQ(true, result->Next(&ptr, &length));
+    ASSERT_EQ(5, length);
+    for(unsigned int i=0; i < 5; ++i) {
+      EXPECT_EQ(static_cast<char>(i), static_cast<const char*>(ptr)[i]);
     }
-    EXPECT_EQ(true, stream.Next(&ptr, &len));
-    EXPECT_EQ(bytes[190], static_cast<const char *>(ptr)[0]);
-    EXPECT_EQ(10, len);
-    EXPECT_EQ(false, stream.Next(&ptr, &len));
-    EXPECT_EQ(0, len);
-    ASSERT_THROW(stream.BackUp(30), std::logic_error);
-    EXPECT_EQ(200, stream.ByteCount());
-}
-
-TEST(Zlib, testZlibSkip) {
-    string bytes(200, 0); // size 200
-    for(size_t i=0; i < bytes.size(); ++i) {
-      bytes[i] = static_cast<char>(i);
+    EXPECT_EQ("zlib(SeekableArrayInputStream 8 of 8)", result->getName());
+    EXPECT_EQ(5, result->ByteCount());
+    result->BackUp(3);
+    EXPECT_EQ(2, result->ByteCount());
+    ASSERT_EQ(true, result->Next(&ptr, &length));
+    ASSERT_EQ(3, length);
+    for(unsigned int i=0; i < 3; ++i) {
+      EXPECT_EQ(static_cast<char>(i+2), static_cast<const char*>(ptr)[i]);
     }
-    ZlibCodec* zlib = new ZlibCodec(20);
+  }
 
-    string comp_str = zlib->compressToOrcBlocks(bytes); 
-
-    std::vector<char> comp_vec(comp_str.size() ); // string to vector for a contiguous array
-    for(size_t i = 0; i < comp_str.size(); i++) {
-        comp_vec[i] = static_cast<char> (comp_str[i]);
-    }
-
-    // now this comp_str should be input to a SeekableArrayInputStream..
-    SeekableArrayInputStream* bytestream = new SeekableArrayInputStream(comp_vec.data(), comp_vec.size(), 20);
-    SeekableCompressionInputStream stream(std::unique_ptr<SeekableInputStream> (bytestream), CompressionKind_ZLIB, 20); 
+  TEST_F(Zlib, testLiteralBlocks) {
+    std::unique_ptr<SeekableInputStream> result =
+      createDecompressor(CompressionKind_ZLIB,
+                         std::unique_ptr<SeekableInputStream>
+                         (new SeekableArrayInputStream
+                          ({0x19, 0x0, 0x0, 0x0, 0x1,
+                              0x2, 0x3, 0x4, 0x5, 0x6,
+                              0x7, 0x8, 0x9, 0xa, 0xb,
+                              0xb, 0x0, 0x0, 0xc, 0xd, 
+                              0xe, 0xf, 0x10}, 5)),
+                         5);
+    EXPECT_EQ("zlib(SeekableArrayInputStream 0 of 23)", result->getName());
     const void *ptr;
-    int len;
-    ASSERT_EQ(true, stream.Next(&ptr, &len));
-    EXPECT_EQ(bytes[0], static_cast<const char *>(ptr)[0]);
-    EXPECT_EQ(20, len);
-    ASSERT_EQ(false, stream.Skip(-10));
-    ASSERT_EQ(true, stream.Skip(80));
-    ASSERT_EQ(true, stream.Next(&ptr, &len));
-    EXPECT_EQ(bytes[100], static_cast<const char *>(ptr)[0]);
-    EXPECT_EQ(20, len);
-    ASSERT_EQ(true, stream.Skip(80));
-    ASSERT_EQ(false, stream.Next(&ptr, &len));
-    ASSERT_EQ(false, stream.Skip(181));
-    std::ostringstream result;
-    result << "memory from " << std::hex << bytes.data() << " for 200";
-    //EXPECT_EQ(result.str(), stream.getName());
-}
+    int length;
+    ASSERT_EQ(true, result->Next(&ptr, &length));
+    ASSERT_EQ(2, length);
+    EXPECT_EQ(0, static_cast<const char*>(ptr)[0]);
+    EXPECT_EQ(1, static_cast<const char*>(ptr)[1]);
+    ASSERT_EQ(true, result->Next(&ptr, &length));
+    ASSERT_EQ(5, length);
+    EXPECT_EQ(2, static_cast<const char*>(ptr)[0]);
+    EXPECT_EQ(3, static_cast<const char*>(ptr)[1]);
+    EXPECT_EQ(4, static_cast<const char*>(ptr)[2]);
+    EXPECT_EQ(5, static_cast<const char*>(ptr)[3]);
+    EXPECT_EQ(6, static_cast<const char*>(ptr)[4]);
+    ASSERT_EQ(true, result->Next(&ptr, &length));
+    ASSERT_EQ(5, length);
+    EXPECT_EQ(7, static_cast<const char*>(ptr)[0]);
+    EXPECT_EQ(8, static_cast<const char*>(ptr)[1]);
+    EXPECT_EQ(9, static_cast<const char*>(ptr)[2]);
+    EXPECT_EQ(10, static_cast<const char*>(ptr)[3]);
+    EXPECT_EQ(11, static_cast<const char*>(ptr)[4]);
+    ASSERT_EQ(true, result->Next(&ptr, &length));
+    ASSERT_EQ(2, length);
+    EXPECT_EQ(12, static_cast<const char*>(ptr)[0]);
+    EXPECT_EQ(13, static_cast<const char*>(ptr)[1]);
+    ASSERT_EQ(true, result->Next(&ptr, &length));
+    ASSERT_EQ(3, length);
+    EXPECT_EQ(14, static_cast<const char*>(ptr)[0]);
+    EXPECT_EQ(15, static_cast<const char*>(ptr)[1]);
+    EXPECT_EQ(16, static_cast<const char*>(ptr)[2]);
+  }
 
-/*
-TEST(Zlib, simpleTest) {
-    ZlibCodec* zlib = new ZlibCodec( block_size );
-    vector<char> outstream(1024*1024, 0); // should be config decompressor size
-    // it would fail, since orc file is not entirely compressed (postscript not compressed)
-    //zlib->decompress(buffer.str(), outstream);
-}
-*/
+  TEST_F(Zlib, testInflate) {
+    std::unique_ptr<SeekableInputStream> result =
+      createDecompressor(CompressionKind_ZLIB,
+                         std::unique_ptr<SeekableInputStream>
+                         (new SeekableArrayInputStream
+                          ({0xe, 0x0, 0x0, 0x63, 0x60, 0x64, 0x62, 0xc0,
+                              0x8d, 0x0})), 1000);
+    const void *ptr;
+    int length;
+    ASSERT_EQ(true, result->Next(&ptr, &length));
+    ASSERT_EQ(30, length);
+    for(int i=0; i < 10; ++i) {
+      for(int j=0; j < 3; ++j) {
+        EXPECT_EQ(j, static_cast<const char*>(ptr)[i * 3 + j]);
+      }
+    }
+  }
+
+  TEST_F(Zlib, testInflateSequence) {
+    std::unique_ptr<SeekableInputStream> result =
+      createDecompressor(CompressionKind_ZLIB,
+                         std::unique_ptr<SeekableInputStream>
+                         (new SeekableArrayInputStream
+                          ({0xe, 0x0, 0x0, 0x63, 0x60,
+                              0x64, 0x62, 0xc0, 0x8d, 0x0,
+                              0xe, 0x0, 0x0, 0x63, 0x60,
+                              0x64, 0x62, 0xc0, 0x8d, 0x0}, 3)), 1000);
+    const void *ptr;
+    int length;
+    ASSERT_THROW(result->BackUp(20), std::logic_error);
+    ASSERT_EQ(true, result->Next(&ptr, &length));
+    ASSERT_EQ(30, length);
+    for(int i=0; i < 10; ++i) {
+      for(int j=0; j < 3; ++j) {
+        EXPECT_EQ(j, static_cast<const char*>(ptr)[i * 3 + j]);
+      }
+    }
+    result->BackUp(10);
+    ASSERT_THROW(result->BackUp(2), std::logic_error);
+    ASSERT_EQ(true, result->Next(&ptr, &length));
+    ASSERT_EQ(10, length);
+    for(int i=0; i < 10; ++i) {
+      EXPECT_EQ((i + 2) % 3, static_cast<const char*>(ptr)[i]);
+    }
+    ASSERT_EQ(true, result->Next(&ptr, &length));
+    ASSERT_EQ(30, length);
+    for(int i=0; i < 10; ++i) {
+      for(int j=0; j < 3; ++j) {
+        EXPECT_EQ(j, static_cast<const char*>(ptr)[i * 3 + j]);
+      }
+    }
+  }
+
+  TEST_F(Zlib, testSkip) {
+    std::unique_ptr<SeekableInputStream> result =
+      createDecompressor(CompressionKind_ZLIB,
+                         std::unique_ptr<SeekableInputStream>
+                         (new SeekableArrayInputStream
+                          ({0x19, 0x0, 0x0, 0x0, 0x1,
+                              0x2, 0x3, 0x4, 0x5, 0x6,
+                              0x7, 0x8, 0x9, 0xa, 0xb,
+                              0xb, 0x0, 0x0, 0xc, 0xd, 
+                              0xe, 0xf, 0x10}, 5)),
+                         5);
+    const void *ptr;
+    int length;
+    ASSERT_EQ(true, result->Next(&ptr, &length));
+    ASSERT_EQ(2, length);
+    result->Skip(2);
+    ASSERT_EQ(true, result->Next(&ptr, &length));
+    ASSERT_EQ(3, length);
+    EXPECT_EQ(4, static_cast<const char*>(ptr)[0]);
+    EXPECT_EQ(5, static_cast<const char*>(ptr)[1]);
+    EXPECT_EQ(6, static_cast<const char*>(ptr)[2]);
+    result->BackUp(2);
+    ASSERT_EQ(true, result->Next(&ptr, &length));
+    ASSERT_EQ(2, length);
+    EXPECT_EQ(5, static_cast<const char*>(ptr)[0]);
+    EXPECT_EQ(6, static_cast<const char*>(ptr)[1]);
+    result->Skip(8);
+    ASSERT_EQ(true, result->Next(&ptr, &length));
+    ASSERT_EQ(2, length);
+    EXPECT_EQ(15, static_cast<const char*>(ptr)[0]);
+    EXPECT_EQ(16, static_cast<const char*>(ptr)[1]);
+  }
 
 }
