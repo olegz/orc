@@ -2150,14 +2150,14 @@ namespace orc {
       .WillRepeatedly(testing::Return(nullptr));
 
     // create the row type
-    std::unique_ptr<Type> rowType =
-      createStructType({createPrimitiveType(FLOAT)}, {"col0"});
-    rowType->assignIds(0);
-    EXPECT_THROW(buildReader(*rowType, streams), NotImplementedYet);
-
-    rowType = createStructType({createPrimitiveType(DOUBLE)}, {"col0"});
-    rowType->assignIds(0);
-    EXPECT_THROW(buildReader(*rowType, streams), NotImplementedYet);
+//    std::unique_ptr<Type> rowType =
+//      createStructType({createPrimitiveType(FLOAT)}, {"col0"});
+//    rowType->assignIds(0);
+//    EXPECT_THROW(buildReader(*rowType, streams), NotImplementedYet);
+//
+//    rowType = createStructType({createPrimitiveType(DOUBLE)}, {"col0"});
+//    rowType->assignIds(0);
+//    EXPECT_THROW(buildReader(*rowType, streams), NotImplementedYet);
 
     rowType = createStructType({createPrimitiveType(TIMESTAMP)}, {"col0"});
     rowType->assignIds(0);

@@ -21,6 +21,7 @@
 #include "Exceptions.hh"
 #include "RLE.hh"
 
+#include <math.h>
 #include <iostream>
 
 namespace orc {
@@ -211,7 +212,7 @@ namespace orc {
     std::unique_ptr<orc::RleDecoder> rle;
 
   public:
-    IntegerColumnReader(const Type& type, StripeStreams& stipe);
+    IntegerColumnReader(const Type& type, StripeStreams& stripe);
     ~IntegerColumnReader();
 
     unsigned long skip(unsigned long numValues) override;
@@ -246,6 +247,103 @@ namespace orc {
     ColumnReader::next(rowBatch, numValues, notNull);
     rle->next(dynamic_cast<LongVectorBatch&>(rowBatch).data.data(),
               numValues, rowBatch.hasNulls ? rowBatch.notNull.data() : 0);
+  }
+
+  class DoubleColumnReader: public ColumnReader {
+    private:
+      std::unique_ptr<SeekableInputStream> inputStream;
+      double bitsToDouble(int64_t bits);
+      double bitsToFloat(int64_t bits);
+      TypeKind columnKind;
+      int bytesPerValue ;
+      int bufferLength;
+      char* bufferPointer;
+
+    public:
+      DoubleColumnReader(const Type& type, StripeStreams& stripe);
+      ~DoubleColumnReader();
+
+      unsigned long skip(unsigned long numValues) override;
+
+      void next(ColumnVectorBatch& rowBatch,
+                unsigned long numValues,
+                char* notNull) override;
+    };
+
+  DoubleColumnReader::DoubleColumnReader(const Type& type,
+                                             StripeStreams& stripe
+                                             ): ColumnReader(type, stripe),
+                                               inputStream(std::move(
+                                                 stripe.getStream(columnId,
+                                                 proto::Stream_Kind_DATA))),
+                                                 columnKind(type.getKind()),
+                                                 bytesPerValue((type.getKind()==FLOAT)?4:8),
+                                                 bufferLength(0),
+                                                 bufferPointer(NULL){}
+
+  DoubleColumnReader::~DoubleColumnReader() {
+      // PASS
+    }
+
+  unsigned long DoubleColumnReader::skip(unsigned long numValues) {
+    numValues = ColumnReader::skip(numValues);
+    inputStream->Skip(bytesPerValue*numValues);
+    return numValues;
+  }
+
+  void DoubleColumnReader::next(ColumnVectorBatch& rowBatch,
+                                   unsigned long numValues,
+                                   char *notNull) {
+    ColumnReader::next(rowBatch, numValues, notNull);
+
+    // TODO: implement NULL support
+
+    if (numValues <= 0)
+      return ;
+
+    int64_t bits;
+
+    unsigned long consumed = 0 ;
+    while (consumed < numValues) {
+      while (bufferLength < bytesPerValue) {
+        if (bufferLength > 0) {
+          inputStream->BackUp(bufferLength);
+        }
+        if (!inputStream->Next((const void**)&bufferPointer, &bufferLength)) {
+          throw ParseError("bad read in DoubleColumnReader::next()");
+        }
+//        std::cout << "Read " << bufferLength << " bytes! " << std::endl;
+      }
+      bits = 0 ;
+      for (int i=0; i<bytesPerValue; i++) {
+        bits += ((int64_t)(*bufferPointer) & 0xff) << i*8;
+        bufferPointer++;
+      }
+      bufferLength -= bytesPerValue;
+      dynamic_cast<DoubleVectorBatch&>(rowBatch).data[consumed] =
+          ((columnKind==FLOAT) ? bitsToFloat(bits) : bitsToDouble(bits));
+      consumed++ ;
+    }
+  }
+
+  double DoubleColumnReader::bitsToFloat(int64_t bits) {
+    int sign = ((bits >> 31) == 0) ? 1 : -1;
+    int exp = ((bits >> 23) & 0xff);
+    long mantissa = (exp == 0) ?
+                    (bits & 0x7fffff) << 1 :
+                    (bits & 0x7fffff) | 0x800000;
+
+    return sign * mantissa * pow(2,(double)(exp-150));
+  }
+
+  double DoubleColumnReader::bitsToDouble(int64_t bits) {
+    int sign = ((bits >> 63) == 0) ? 1 : -1;
+    int exp = (int)((bits >> 52) & 0x7ffL);
+    long mantissa = (exp == 0) ?
+                    (bits & 0xfffffffffffffL) << 1 :
+                    (bits & 0xfffffffffffffL) | 0x10000000000000L;
+
+    return sign * mantissa * pow(2,(double)(exp-1075));
   }
 
   void readFully(char* buffer, long bufferSize, SeekableInputStream* stream) {
@@ -848,6 +946,8 @@ namespace orc {
 
     case FLOAT:
     case DOUBLE:
+      return std::unique_ptr<ColumnReader>(new DoubleColumnReader(type, stripe));
+
     case TIMESTAMP:
     case UNION:
     case DECIMAL:
