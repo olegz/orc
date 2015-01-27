@@ -74,9 +74,7 @@ int main(int argc, char* argv[])
         postscript.PrintDebugString();
 
         // Everything but the postscript is compressed
-        //CompressionCodec codec ;
-        switch (postscript.compression())
-        {
+        switch (static_cast<int>(postscript.compression())) {
         case NONE:
             //codec = NULL;
             break;

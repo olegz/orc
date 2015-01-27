@@ -466,7 +466,7 @@ namespace orc {
      createDecompressor(CompressionKind kind,
                         std::unique_ptr<SeekableInputStream> input,
                         unsigned long blockSize) {
-    switch (kind) {
+    switch (static_cast<int>(kind)) {
     case CompressionKind_NONE:
       return std::move(input);
     case CompressionKind_ZLIB:

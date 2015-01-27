@@ -30,7 +30,7 @@ namespace orc {
         std::unique_ptr<SeekableInputStream> input,
         bool isSigned,
         RleVersion version) {
-    switch (version) {
+    switch (static_cast<int>(version)) {
     case RleVersion_1:
       // We don't have std::make_unique() yet.
       return std::unique_ptr<RleDecoder>(new RleDecoderV1(std::move(input), 

@@ -216,7 +216,7 @@ void RleDecoderV2::next(int64_t* const data,
 
     EncodingType enc = static_cast<EncodingType>
         ((firstByte >> 6) & 0x03);
-    switch(enc) {
+    switch(static_cast<int>(enc)) {
     case SHORT_REPEAT:
       nRead += nextShortRepeats(data, offset, length, notNull);
       break;

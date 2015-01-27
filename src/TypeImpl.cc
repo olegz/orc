@@ -192,7 +192,7 @@ namespace orc {
 
   std::unique_ptr<Type> convertType(const proto::Type& type,
                                     const proto::Footer& footer) {
-    switch (type.kind()) {
+    switch (static_cast<int>(type.kind())) {
 
     case proto::Type_Kind_BOOLEAN:
     case proto::Type_Kind_BYTE:
@@ -245,8 +245,9 @@ namespace orc {
       return std::unique_ptr<Type>
         (new TypeImpl(STRUCT, typeList, fieldList));
     }
+    default:
+      throw NotImplementedYet("Unknown type kind");
     }
-    throw NotImplementedYet("Unknown type kind");
   }
 
 }

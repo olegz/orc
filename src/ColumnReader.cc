@@ -30,13 +30,15 @@ namespace orc {
   }
 
   inline RleVersion convertRleVersion(proto::ColumnEncoding_Kind kind) {
-    switch (kind) {
+    switch (static_cast<int>(kind)) {
     case proto::ColumnEncoding_Kind_DIRECT:
     case proto::ColumnEncoding_Kind_DICTIONARY:
       return RleVersion_1;
     case proto::ColumnEncoding_Kind_DIRECT_V2:
     case proto::ColumnEncoding_Kind_DICTIONARY_V2:
       return RleVersion_2;
+    default:
+      throw ParseError("Unknown encoding in convertRleVersion");
     }
   }
 
@@ -551,7 +553,7 @@ namespace orc {
                                          ): ColumnReader(type, stripe) {
     // count the number of selected sub-columns
     const bool *selectedColumns = stripe.getSelectedColumns();
-    switch (stripe.getEncoding(columnId).kind()) {
+    switch (static_cast<int>(stripe.getEncoding(columnId).kind())) {
     case proto::ColumnEncoding_Kind_DIRECT:
       for(unsigned int i=0; i < type.getSubtypeCount(); ++i) {
         const Type& child = type.getSubtype(i);
@@ -803,7 +805,7 @@ namespace orc {
    */
   std::unique_ptr<ColumnReader> buildReader(const Type& type,
                                             StripeStreams& stripe) {
-    switch (type.getKind()) {
+    switch (static_cast<int>(type.getKind())) {
     case DATE:
     case INT:
     case LONG:
@@ -814,7 +816,7 @@ namespace orc {
     case CHAR:
     case STRING:
     case VARCHAR:
-      switch (stripe.getEncoding(type.getColumnId()).kind()) {
+      switch (static_cast<int>(stripe.getEncoding(type.getColumnId()).kind())){
       case proto::ColumnEncoding_Kind_DICTIONARY:
       case proto::ColumnEncoding_Kind_DICTIONARY_V2:
         return std::unique_ptr<ColumnReader>(new StringDictionaryColumnReader
@@ -823,6 +825,8 @@ namespace orc {
       case proto::ColumnEncoding_Kind_DIRECT_V2:
         return std::unique_ptr<ColumnReader>(new StringDirectColumnReader
                                              (type, stripe));
+      default:
+        throw NotImplementedYet("buildReader unhandled string encoding");
       }
 
     case BOOLEAN:

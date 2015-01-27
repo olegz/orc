@@ -558,7 +558,7 @@ namespace orc {
 
   std::unique_ptr<ColumnVectorBatch> ReaderImpl::createRowBatch
        (const Type& type, unsigned long capacity) const {
-    switch (type.getKind()) {
+    switch (static_cast<int>(type.getKind())) {
     case BOOLEAN:
     case BYTE:
     case SHORT:
@@ -599,11 +599,10 @@ namespace orc {
     case LIST:
     case MAP:
     case UNION:
-    case DECIMAL: {
-      // PASS
+    case DECIMAL:
+    default:
+      throw NotImplementedYet("not supported yet");
     }
-    }
-    throw NotImplementedYet("not supported yet");
   }
 
   std::unique_ptr<ColumnVectorBatch> ReaderImpl::createRowBatch
