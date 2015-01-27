@@ -321,11 +321,6 @@ namespace orc {
           if (!inputStream->Next((const void**)&bufferPointer, &bufferLength)) {
             throw ParseError("bad read in DoubleColumnReader::next()");
           }
-          std::ofstream ofs;
-          ofs.open ("/tmp/test.txt", std::ofstream::out|std::ofstream::app);
-          ofs << "Read " << bufferLength << " bytes! " << std::endl;
-          ofs.close();
-//          std::cout << "Read " << bufferLength << " bytes! " << std::endl;
         }
         bits = 0 ;
         for (int i=0; i<bytesPerValue; i++) {
