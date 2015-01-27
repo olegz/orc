@@ -287,7 +287,15 @@ namespace orc {
 
   unsigned long DoubleColumnReader::skip(unsigned long numValues) {
     numValues = ColumnReader::skip(numValues);
-    inputStream->Skip(bytesPerValue*numValues);
+
+    if (bufferLength >= bytesPerValue*(signed long)numValues) {
+      bufferPointer+= bytesPerValue*numValues;
+      bufferLength -= bytesPerValue*numValues;
+    } else {
+      inputStream->Skip(bytesPerValue*numValues - bufferLength);
+      bufferLength = 0 ;
+    }
+
     return numValues;
   }
 
@@ -302,26 +310,32 @@ namespace orc {
       return ;
 
     int64_t bits;
-
     unsigned long consumed = 0 ;
     while (consumed < numValues) {
-      while (bufferLength < bytesPerValue) {
-        if (bufferLength > 0) {
-          inputStream->BackUp(bufferLength);
+      if (rowBatch.hasNulls && !rowBatch.notNull[consumed]) {
+      } else {
+        while (bufferLength < bytesPerValue) {
+          if (bufferLength > 0) {
+            inputStream->BackUp(bufferLength);
+          }
+          if (!inputStream->Next((const void**)&bufferPointer, &bufferLength)) {
+            throw ParseError("bad read in DoubleColumnReader::next()");
+          }
+          std::ofstream ofs;
+          ofs.open ("/tmp/test.txt", std::ofstream::out|std::ofstream::app);
+          ofs << "Read " << bufferLength << " bytes! " << std::endl;
+          ofs.close();
+//          std::cout << "Read " << bufferLength << " bytes! " << std::endl;
         }
-        if (!inputStream->Next((const void**)&bufferPointer, &bufferLength)) {
-          throw ParseError("bad read in DoubleColumnReader::next()");
+        bits = 0 ;
+        for (int i=0; i<bytesPerValue; i++) {
+          bits += ((int64_t)(*bufferPointer) & 0xff) << i*8;
+          bufferPointer++;
         }
-//        std::cout << "Read " << bufferLength << " bytes! " << std::endl;
-      }
-      bits = 0 ;
-      for (int i=0; i<bytesPerValue; i++) {
-        bits += ((int64_t)(*bufferPointer) & 0xff) << i*8;
-        bufferPointer++;
-      }
-      bufferLength -= bytesPerValue;
-      dynamic_cast<DoubleVectorBatch&>(rowBatch).data[consumed] =
-          ((columnKind==FLOAT) ? bitsToFloat(bits) : bitsToDouble(bits));
+        bufferLength -= bytesPerValue;
+        dynamic_cast<DoubleVectorBatch&>(rowBatch).data[consumed] =
+            ((columnKind==FLOAT) ? bitsToFloat(bits) : bitsToDouble(bits));
+      };
       consumed++ ;
     }
   }
