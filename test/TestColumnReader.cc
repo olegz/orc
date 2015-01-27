@@ -2148,16 +2148,30 @@ namespace orc {
       // set getStream
       EXPECT_CALL(streams, getStreamProxy(0, proto::Stream_Kind_PRESENT))
         .WillRepeatedly(testing::Return(nullptr));
+
+      // 13 non-nulls followed by 19 nulls
       EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_PRESENT))
         .WillRepeatedly(testing::Return(new SeekableArrayInputStream
-                                        ({0xff, 0xf0})));
-                                        // 4 non-nulls followed by 4 nulls
+                                        ({0xfc, 0xff, 0xf8, 0x0, 0x0})));
+
+      float test_vals[] = {1.0f, 2.5f, -100.125f, 10000.0f, 1.234567E23f,
+                           -2.3456E-12f, 1.0f/0, 0.0f/0, -1.0f/0,
+                           3.4028235E38f, -3.4028235E38f, 1.4e-45f, -1.4e-45f};
       EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_DATA))
         .WillRepeatedly(testing::Return(new SeekableArrayInputStream
-                                        ({0x00, 0x00, 0x80, 0x3f, // 1
-                                          0x00, 0x00, 0x20, 0x40, // 2.5
-                                          0x00, 0x40, 0xc8, 0xc2, // -100.125
-                                          0x00, 0x40, 0x1c, 0x46 // 10000
+                                        ({0x00, 0x00, 0x80, 0x3f,
+                                            0x00, 0x00, 0x20, 0x40,
+                                            0x00, 0x40, 0xc8, 0xc2,
+                                            0x00, 0x40, 0x1c, 0x46,
+                                            0xcf, 0x24, 0xd1, 0x65,
+                                            0x93, 0xe, 0x25, 0xac,
+                                            0x0, 0x0, 0x80, 0x7f,
+                                            0x0, 0x0, 0xc0, 0x7f,
+                                            0x0, 0x0, 0x80, 0xff,
+                                            0xff, 0xff, 0x7f, 0x7f,
+                                            0xff, 0xff, 0x7f, 0xff,
+                                            0x1, 0x0, 0x0, 0x0,
+                                            0x1, 0x0, 0x0, 0x80,
                                         })));
       // create the row type
       std::unique_ptr<Type> rowType =
@@ -2170,21 +2184,21 @@ namespace orc {
       DoubleVectorBatch *doubleBatch = new DoubleVectorBatch(1024);
       StructVectorBatch batch(1024);
       batch.fields.push_back(std::unique_ptr<ColumnVectorBatch>(doubleBatch));
-      reader->next(batch, 8, 0);
-      ASSERT_EQ(8, batch.numElements);
+      reader->next(batch, 32, 0);
+      ASSERT_EQ(32, batch.numElements);
       ASSERT_EQ(false, batch.hasNulls);
-      ASSERT_EQ(8, doubleBatch->numElements);
+      ASSERT_EQ(32, doubleBatch->numElements);
       ASSERT_EQ(true, doubleBatch->hasNulls);
 
-      float test_vals[] = {1.0, 2.5, -100.125, 10000.0 };
-      int vals_ix = 0;
       for(size_t i=0; i < batch.numElements; ++i) {
-        if (i > 3) {
+        if (i > 12) {
           EXPECT_EQ(0, doubleBatch->notNull[i]);
+        } else if (i == 7) {
+          EXPECT_EQ(1, doubleBatch->notNull[i]);
+          EXPECT_EQ(true, isnan(doubleBatch->data[i]));
         } else {
           EXPECT_EQ(1, doubleBatch->notNull[i]);
-          EXPECT_EQ(test_vals[vals_ix], doubleBatch->data[i]);
-          vals_ix++;
+          EXPECT_DOUBLE_EQ(test_vals[i], doubleBatch->data[i]);
         }
       }
     }
@@ -2208,16 +2222,19 @@ namespace orc {
         // set getStream
         EXPECT_CALL(streams, getStreamProxy(0, proto::Stream_Kind_PRESENT))
           .WillRepeatedly(testing::Return(nullptr));
+
+        // 2 non-nulls, 2 nulls, 2 non-nulls, 2 nulls
         EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_PRESENT))
           .WillRepeatedly(testing::Return(new SeekableArrayInputStream
                                           ({0xff, 0xcc})));
-                                          // 2 non-nulls, 2 nulls, 2 non-nulls, 2 nulls
+
+        // 1, 2.5, -100.125, 10000
         EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_DATA))
           .WillRepeatedly(testing::Return(new SeekableArrayInputStream
-                                          ({0x00, 0x00, 0x80, 0x3f, // 1
-                                            0x00, 0x00, 0x20, 0x40, // 2.5
-                                            0x00, 0x40, 0xc8, 0xc2, // -100.125
-                                            0x00, 0x40, 0x1c, 0x46 // 10000
+                                          ({0x00, 0x00, 0x80, 0x3f,
+                                            0x00, 0x00, 0x20, 0x40,
+                                            0x00, 0x40, 0xc8, 0xc2,
+                                            0x00, 0x40, 0x1c, 0x46
                                           })));
         // create the row type
         std::unique_ptr<Type> rowType =
@@ -2229,7 +2246,8 @@ namespace orc {
 
         DoubleVectorBatch *doubleBatch = new DoubleVectorBatch(1024);
         StructVectorBatch batch(1024);
-        batch.fields.push_back(std::unique_ptr<ColumnVectorBatch>(doubleBatch));
+        batch.fields.push_back(std::unique_ptr<ColumnVectorBatch>
+                               (doubleBatch));
 
         float test_vals[] = {1.0, 2.5, -100.125, 10000.0 };
         int vals_ix = 0;
@@ -2245,7 +2263,7 @@ namespace orc {
             EXPECT_EQ(0, doubleBatch->notNull[i]);
           } else {
             EXPECT_EQ(1, doubleBatch->notNull[i]);
-            EXPECT_EQ(test_vals[vals_ix], doubleBatch->data[i]);
+            EXPECT_DOUBLE_EQ(test_vals[vals_ix], doubleBatch->data[i]);
             vals_ix++;
           }
         }
@@ -2262,7 +2280,7 @@ namespace orc {
             EXPECT_EQ(0, doubleBatch->notNull[i]);
           } else {
             EXPECT_EQ(1, doubleBatch->notNull[i]);
-            EXPECT_EQ(test_vals[vals_ix], doubleBatch->data[i]);
+            EXPECT_DOUBLE_EQ(test_vals[vals_ix], doubleBatch->data[i]);
             vals_ix++;
           }
         }
@@ -2287,16 +2305,37 @@ namespace orc {
       // set getStream
       EXPECT_CALL(streams, getStreamProxy(0, proto::Stream_Kind_PRESENT))
         .WillRepeatedly(testing::Return(nullptr));
+
+      // 13 non-nulls followed by 19 nulls
       EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_PRESENT))
         .WillRepeatedly(testing::Return(new SeekableArrayInputStream
-                                        ({0xff, 0xe0})));
-                                        // 3 non-nulls followed by 5 nulls
+                                        ({0xfc, 0xff, 0xf8, 0x0, 0x0})));
+
+      double test_vals[] = {1.0, 2.0, -2.0, 100.0, 1.23456789E32,
+                            -3.42234E-18, 1.0/0, 0.0/0, -1.0/0,
+                            1.7976931348623157e308, -1.7976931348623157E308,
+                            4.9e-324, -4.9e-324};
       EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_DATA))
         .WillRepeatedly(testing::Return(new SeekableArrayInputStream
-                                  ({0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xf0, 0x3f, // 1
-                                    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x40, // 2
-                                    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xc0 // -2
-                                        })));
+                                  ({0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0xf0, 0x3f,
+                                      0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x40,
+                                      0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0xc0,
+                                      0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x59, 0x40,
+                                      0xe8, 0x38, 0x65, 0x99, 0xf9, 0x58, 0x98,
+                                            0x46,
+                                      0xa1, 0x88, 0x41, 0x98, 0xc5, 0x90, 0x4f,
+                                            0xbc,
+                                      0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0xf0, 0x7f,
+                                      0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0xf8, 0x7f,
+                                      0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0xf0, 0xff,
+                                      0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xef,
+                                            0x7f,
+                                      0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xef,
+                                            0xff,
+                                      0x1, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+                                      0x1, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x80
+                                      })));
+
       // create the row type
       std::unique_ptr<Type> rowType =
         createStructType({createPrimitiveType(DOUBLE)}, {"myDouble"});
@@ -2308,22 +2347,22 @@ namespace orc {
       DoubleVectorBatch *doubleBatch = new DoubleVectorBatch(1024);
       StructVectorBatch batch(1024);
       batch.fields.push_back(std::unique_ptr<ColumnVectorBatch>(doubleBatch));
-      reader->next(batch, 8, 0);
-      ASSERT_EQ(8, batch.numElements);
+      reader->next(batch, 32, 0);
+      ASSERT_EQ(32, batch.numElements);
       ASSERT_EQ(false, batch.hasNulls);
-      ASSERT_EQ(8, doubleBatch->numElements);
+      ASSERT_EQ(32, doubleBatch->numElements);
       ASSERT_EQ(true, doubleBatch->hasNulls);
 
-      double test_vals[] = {1.0, 2.0, -2.0 };
-      int vals_ix = 0;
-
       for(size_t i=0; i < batch.numElements; ++i) {
-        if (i > 2) {
-          EXPECT_EQ(0, doubleBatch->notNull[i]);
+        if (i > 12) {
+          EXPECT_EQ(0, doubleBatch->notNull[i]) << "Wrong value at " << i;
+        } else if (i == 7) {
+          EXPECT_EQ(1, doubleBatch->notNull[i]) << "Wrong value at " << i;
+          EXPECT_EQ(true, isnan(doubleBatch->data[i]));
         } else {
-          EXPECT_EQ(1, doubleBatch->notNull[i]);
-          EXPECT_EQ(test_vals[vals_ix], doubleBatch->data[i]);
-          vals_ix++;
+          EXPECT_EQ(1, doubleBatch->notNull[i]) << "Wrong value at " << i;
+          EXPECT_DOUBLE_EQ(test_vals[i], doubleBatch->data[i])
+            << "Wrong value at " << i;
         }
       }
     }
@@ -2347,16 +2386,21 @@ namespace orc {
         // set getStream
         EXPECT_CALL(streams, getStreamProxy(0, proto::Stream_Kind_PRESENT))
           .WillRepeatedly(testing::Return(nullptr));
+
+        // 1 non-null, 5 nulls, 2 non-nulls
         EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_PRESENT))
           .WillRepeatedly(testing::Return(new SeekableArrayInputStream
                                           ({0xff, 0x83})));
-                                          // 1 non-null, 5 nulls, 2 non-nulls
+
+        // 1, 2, -2
         EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_DATA))
-          .WillRepeatedly(testing::Return(new SeekableArrayInputStream
-                                    ({0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xf0, 0x3f, // 1
-                                      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x40, // 2
-                                      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xc0 // -2
-                                          })));
+          .WillRepeatedly(testing::Return
+                          (new SeekableArrayInputStream
+                           ({0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xf0, 0x3f,
+                               0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x40,
+                               0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xc0
+                               })));
+
         // create the row type
         std::unique_ptr<Type> rowType =
           createStructType({createPrimitiveType(DOUBLE)}, {"myDouble"});
@@ -2367,7 +2411,8 @@ namespace orc {
 
         DoubleVectorBatch *doubleBatch = new DoubleVectorBatch(1024);
         StructVectorBatch batch(1024);
-        batch.fields.push_back(std::unique_ptr<ColumnVectorBatch>(doubleBatch));
+        batch.fields.push_back(std::unique_ptr<ColumnVectorBatch>
+                               (doubleBatch));
 
         double test_vals[] = {1.0, 2.0, -2.0 };
         int vals_ix = 0;
@@ -2383,7 +2428,7 @@ namespace orc {
             EXPECT_EQ(0, doubleBatch->notNull[i]);
           } else {
             EXPECT_EQ(1, doubleBatch->notNull[i]);
-            EXPECT_EQ(test_vals[vals_ix], doubleBatch->data[i]);
+            EXPECT_DOUBLE_EQ(test_vals[vals_ix], doubleBatch->data[i]);
             vals_ix++;
           }
         }
@@ -2400,7 +2445,7 @@ namespace orc {
             EXPECT_EQ(0, doubleBatch->notNull[i]);
           } else {
             EXPECT_EQ(1, doubleBatch->notNull[i]);
-            EXPECT_EQ(test_vals[vals_ix], doubleBatch->data[i]);
+            EXPECT_DOUBLE_EQ(test_vals[vals_ix], doubleBatch->data[i]);
             vals_ix++;
           }
         }
@@ -2427,7 +2472,8 @@ namespace orc {
       .WillRepeatedly(testing::Return(nullptr));
 
     // create the row type
-    std::unique_ptr<Type> rowType = createStructType({createPrimitiveType(TIMESTAMP)}, {"col0"});
+    std::unique_ptr<Type> rowType;
+    rowType = createStructType({createPrimitiveType(TIMESTAMP)}, {"col0"});
     rowType->assignIds(0);
     EXPECT_THROW(buildReader(*rowType, streams), NotImplementedYet);
 

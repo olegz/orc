@@ -32,7 +32,7 @@ int main(int argc, char* argv[]) {
   // opts.include({1});
   std::unique_ptr<orc::Reader> reader =
     orc::createReader(orc::readLocalFile(std::string(argv[1])), opts);
-  std::unique_ptr<orc::ColumnVectorBatch> batch = reader->createRowBatch(1000);
+  std::unique_ptr<orc::ColumnVectorBatch> batch = reader->createRowBatch(1024);
   unsigned long rows = 0;
   unsigned long batches = 0;
   while (reader->next(*batch)) {

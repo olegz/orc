@@ -250,109 +250,122 @@ namespace orc {
   }
 
   class DoubleColumnReader: public ColumnReader {
-    private:
-      std::unique_ptr<SeekableInputStream> inputStream;
-      double bitsToDouble(int64_t bits);
-      double bitsToFloat(int64_t bits);
-      TypeKind columnKind;
-      int bytesPerValue ;
-      int bufferLength;
-      char* bufferPointer;
+  public:
+    DoubleColumnReader(const Type& type, StripeStreams& stripe);
+    ~DoubleColumnReader();
 
-    public:
-      DoubleColumnReader(const Type& type, StripeStreams& stripe);
-      ~DoubleColumnReader();
+    unsigned long skip(unsigned long numValues) override;
 
-      unsigned long skip(unsigned long numValues) override;
+    void next(ColumnVectorBatch& rowBatch,
+              unsigned long numValues,
+              char* notNull) override;
 
-      void next(ColumnVectorBatch& rowBatch,
-                unsigned long numValues,
-                char* notNull) override;
-    };
+  private:
+    std::unique_ptr<SeekableInputStream> inputStream;
+    TypeKind columnKind;
+    const unsigned int bytesPerValue ;
+    const char *bufferPointer;
+    const char *bufferEnd;
 
-  DoubleColumnReader::DoubleColumnReader(const Type& type,
-                                             StripeStreams& stripe
-                                             ): ColumnReader(type, stripe),
-                                               inputStream(std::move(
-                                                 stripe.getStream(columnId,
-                                                 proto::Stream_Kind_DATA))),
-                                                 columnKind(type.getKind()),
-                                                 bytesPerValue((type.getKind()==FLOAT)?4:8),
-                                                 bufferLength(0),
-                                                 bufferPointer(NULL){}
+    unsigned char readByte() {
+      if (bufferPointer == bufferEnd) {
+        int length;
+        if (!inputStream->Next
+            (reinterpret_cast<const void**>(&bufferPointer), &length)) {
+          throw ParseError("bad read in DoubleColumnReader::next()");
+        }
+        bufferEnd = bufferPointer + length;
+      }
+      return static_cast<unsigned char>(*(bufferPointer++));
+    }
+
+    double readDouble() {
+      int64_t bits = 0;
+      for (unsigned int i=0; i < 8; i++) {
+        bits |= static_cast<int64_t>(readByte()) << (i*8);
+      }
+      double *result = reinterpret_cast<double*>(&bits);
+      return *result;
+    }
+
+    double readFloat() {
+      int32_t bits = 0;
+      for (unsigned int i=0; i < 4; i++) {
+        bits |= readByte() << (i*8);
+      }
+      float *result = reinterpret_cast<float*>(&bits);
+      return *result;
+    }
+  };
+
+  DoubleColumnReader::DoubleColumnReader
+               (const Type& type,
+                StripeStreams& stripe
+                ): ColumnReader(type, stripe),
+                   inputStream(std::move(stripe.getStream
+                                         (columnId,
+                                          proto::Stream_Kind_DATA))),
+                   columnKind(type.getKind()),
+                   bytesPerValue((type.getKind() == FLOAT) ? 4 : 8),
+                   bufferPointer(NULL),
+                   bufferEnd(NULL) {
+    // PASS
+  }
 
   DoubleColumnReader::~DoubleColumnReader() {
-      // PASS
-    }
+    // PASS
+  }
 
   unsigned long DoubleColumnReader::skip(unsigned long numValues) {
     numValues = ColumnReader::skip(numValues);
 
-    if (bufferLength >= bytesPerValue*(signed long)numValues) {
+    if (static_cast<size_t>(bufferEnd - bufferPointer) >=
+        bytesPerValue * numValues) {
       bufferPointer+= bytesPerValue*numValues;
-      bufferLength -= bytesPerValue*numValues;
     } else {
-      inputStream->Skip(bytesPerValue*numValues - bufferLength);
-      bufferLength = 0 ;
+      inputStream->Skip(static_cast<int>(bytesPerValue*numValues -
+                                         static_cast<size_t>(bufferEnd -
+                                                             bufferPointer)));
+      bufferEnd = NULL;
+      bufferPointer = NULL;
     }
 
     return numValues;
   }
 
   void DoubleColumnReader::next(ColumnVectorBatch& rowBatch,
-                                   unsigned long numValues,
-                                   char *notNull) {
+                                unsigned long numValues,
+                                char *notNull) {
     ColumnReader::next(rowBatch, numValues, notNull);
+    // update the notNull from the parent class
+    notNull = rowBatch.hasNulls ? rowBatch.notNull.data() : 0;
+    double* outArray = dynamic_cast<DoubleVectorBatch&>(rowBatch).data.data();
 
-    // TODO: implement NULL support
-
-    if (numValues <= 0)
-      return ;
-
-    int64_t bits;
-    unsigned long consumed = 0 ;
-    while (consumed < numValues) {
-      if (rowBatch.hasNulls && !rowBatch.notNull[consumed]) {
+    if (columnKind == FLOAT) {
+      if (notNull) {
+        for(size_t i=0; i < numValues; ++i) {
+          if (notNull[i]) {
+            outArray[i] = readFloat();
+          }
+        }
       } else {
-        while (bufferLength < bytesPerValue) {
-          if (bufferLength > 0) {
-            inputStream->BackUp(bufferLength);
-          }
-          if (!inputStream->Next((const void**)&bufferPointer, &bufferLength)) {
-            throw ParseError("bad read in DoubleColumnReader::next()");
+        for(size_t i=0; i < numValues; ++i) {
+          outArray[i] = readFloat();
+        }
+      }
+    } else {
+      if (notNull) {
+        for(size_t i=0; i < numValues; ++i) {
+          if (notNull[i]) {
+            outArray[i] = readDouble();
           }
         }
-        bits = 0 ;
-        for (int i=0; i<bytesPerValue; i++) {
-          bits += ((int64_t)(*bufferPointer) & 0xff) << i*8;
-          bufferPointer++;
+      } else {
+        for(size_t i=0; i < numValues; ++i) {
+          outArray[i] = readDouble();
         }
-        bufferLength -= bytesPerValue;
-        dynamic_cast<DoubleVectorBatch&>(rowBatch).data[consumed] =
-            ((columnKind==FLOAT) ? bitsToFloat(bits) : bitsToDouble(bits));
-      };
-      consumed++ ;
+      }
     }
-  }
-
-  double DoubleColumnReader::bitsToFloat(int64_t bits) {
-    int sign = ((bits >> 31) == 0) ? 1 : -1;
-    int exp = ((bits >> 23) & 0xff);
-    long mantissa = (exp == 0) ?
-                    (bits & 0x7fffff) << 1 :
-                    (bits & 0x7fffff) | 0x800000;
-
-    return sign * mantissa * pow(2,(double)(exp-150));
-  }
-
-  double DoubleColumnReader::bitsToDouble(int64_t bits) {
-    int sign = ((bits >> 63) == 0) ? 1 : -1;
-    int exp = (int)((bits >> 52) & 0x7ffL);
-    long mantissa = (exp == 0) ?
-                    (bits & 0xfffffffffffffL) << 1 :
-                    (bits & 0xfffffffffffffL) | 0x10000000000000L;
-
-    return sign * mantissa * pow(2,(double)(exp-1075));
   }
 
   void readFully(char* buffer, long bufferSize, SeekableInputStream* stream) {
