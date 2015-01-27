@@ -37,8 +37,6 @@ namespace orc {
     case proto::ColumnEncoding_Kind_DIRECT_V2:
     case proto::ColumnEncoding_Kind_DICTIONARY_V2:
       return RleVersion_2;
-    default:
-      throw ParseError("Unknown encoding in convertRleVersion");
     }
   }
 
@@ -825,8 +823,6 @@ namespace orc {
       case proto::ColumnEncoding_Kind_DIRECT_V2:
         return std::unique_ptr<ColumnReader>(new StringDirectColumnReader
                                              (type, stripe));
-      default:
-        throw NotImplementedYet("buildReader unhandled string encoding");
       }
 
     case BOOLEAN:
