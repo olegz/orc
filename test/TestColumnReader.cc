@@ -2155,7 +2155,10 @@ namespace orc {
                                         ({0xfc, 0xff, 0xf8, 0x0, 0x0})));
 
       float test_vals[] = {1.0f, 2.5f, -100.125f, 10000.0f, 1.234567E23f,
-                           -2.3456E-12f, 1.0f/0, 0.0f/0, -1.0f/0,
+                           -2.3456E-12f, 
+                           std::numeric_limits<float>::infinity(),
+                           std::numeric_limits<float>::quiet_NaN(),
+                           -std::numeric_limits<float>::infinity(),
                            3.4028235E38f, -3.4028235E38f, 1.4e-45f, -1.4e-45f};
       EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_DATA))
         .WillRepeatedly(testing::Return(new SeekableArrayInputStream
@@ -2312,7 +2315,10 @@ namespace orc {
                                         ({0xfc, 0xff, 0xf8, 0x0, 0x0})));
 
       double test_vals[] = {1.0, 2.0, -2.0, 100.0, 1.23456789E32,
-                            -3.42234E-18, 1.0/0, 0.0/0, -1.0/0,
+                            -3.42234E-18, 
+                            std::numeric_limits<double>::infinity(),
+                            std::numeric_limits<double>::quiet_NaN(),
+                            -std::numeric_limits<double>::infinity(),
                             1.7976931348623157e308, -1.7976931348623157E308,
                             4.9e-324, -4.9e-324};
       EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_DATA))
