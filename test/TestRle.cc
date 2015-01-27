@@ -147,6 +147,22 @@ TEST(RLEv2, basicDelta4) {
                values.size());
 };
 
+  TEST(RLEv2, delta0Width) {
+    std::unique_ptr<RleDecoder> decoder =
+      createRleDecoder(std::unique_ptr<SeekableInputStream>
+                       (new SeekableArrayInputStream
+                        ({0x4e, 0x2, 0x0, 0x1, 0x2, 0xc0, 0x2, 0x42, 0x0})),
+                       false, RleVersion_2);
+    int64_t values[6];
+    decoder->next(values, 6, 0);
+    EXPECT_EQ(0, values[0]);
+    EXPECT_EQ(1, values[1]);
+    EXPECT_EQ(2, values[2]);
+    EXPECT_EQ(0x42, values[3]);
+    EXPECT_EQ(0x42, values[4]);
+    EXPECT_EQ(0x42, values[5]);
+  }
+
 TEST(RLEv2, basicDelta0WithNulls) {
   std::vector<int64_t> values;
   std::vector<char> notNull;

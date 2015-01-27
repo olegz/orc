@@ -428,6 +428,8 @@ uint64_t RleDecoderV2::nextDelta(int64_t* const data,
     unsigned char fbo = (firstByte >> 1) & 0x1f;
     if (fbo != 0) {
       bitSize = decodeBitWidth(fbo);
+    } else {
+      bitSize = 0;
     }
 
     // extract the run length
