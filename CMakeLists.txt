@@ -44,10 +44,12 @@ MESSAGE( STATUS "ZLIB_INCLUDE_DIR:         " ${ZLIB_INCLUDE_DIR} )
 MESSAGE( STATUS "ZLIB_LIBRARIES:         " ${ZLIB_LIBRARIES} )
 include_directories(${ZLIB_INCLUDE_DIR})
 
+if(NOT C09)
 if(NOT MSVC)
   # Visual studio enables C++11 support by default.
   set (CXX11_FLAGS "-std=c++11")
 endif(NOT MSVC)
+endif(NOT C09)
 
 if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
   set (COVERAGE_FLAGS "--coverage -g -O0")
@@ -71,4 +73,6 @@ set (EXAMPLE_DIRECTORY ${CMAKE_SOURCE_DIR}/examples)
 
 add_subdirectory(libs)
 add_subdirectory(src)
-add_subdirectory(test)
+if(NOT C09)
+  add_subdirectory(test)
+endif(NOT C09)

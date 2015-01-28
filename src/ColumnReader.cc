@@ -302,9 +302,9 @@ namespace orc {
                (const Type& type,
                 StripeStreams& stripe
                 ): ColumnReader(type, stripe),
-                   inputStream(std::move(stripe.getStream
+                   inputStream(stripe.getStream
                                          (columnId,
-                                          proto::Stream_Kind_DATA))),
+                                          proto::Stream_Kind_DATA)),
                    columnKind(type.getKind()),
                    bytesPerValue((type.getKind() == FLOAT) ? 4 : 8),
                    bufferPointer(NULL),
@@ -383,8 +383,8 @@ namespace orc {
 
   class StringDictionaryColumnReader: public ColumnReader {
   private:
-    std::unique_ptr<char[]> dictionaryBlob;
-    std::unique_ptr<int64_t[]> dictionaryOffset;
+    std::vector<char> dictionaryBlob;
+    std::vector<int64_t> dictionaryOffset;
     std::unique_ptr<RleDecoder> rle;
     unsigned int dictionaryCount;
     
@@ -413,19 +413,18 @@ namespace orc {
       createRleDecoder(stripe.getStream(columnId,
                                         proto::Stream_Kind_LENGTH),
                        false, rleVersion);
-    dictionaryOffset =
-      std::unique_ptr<int64_t[]>(new int64_t[dictionaryCount+1]);
-    int64_t* lengthArray = dictionaryOffset.get();
+    dictionaryOffset.resize(dictionaryCount+1);
+    int64_t* lengthArray = dictionaryOffset.data();
     lengthDecoder->next(lengthArray + 1, dictionaryCount, 0);
     lengthArray[0] = 0;
     for(unsigned int i=1; i < dictionaryCount + 1; ++i) {
       lengthArray[i] += lengthArray[i-1];
     }
     long blobSize = lengthArray[dictionaryCount];
-    dictionaryBlob = std::unique_ptr<char[]>(new char[blobSize]);
+    dictionaryBlob.resize(blobSize);
     std::unique_ptr<SeekableInputStream> blobStream =
       stripe.getStream(columnId, proto::Stream_Kind_DICTIONARY_DATA);
-    readFully(dictionaryBlob.get(), blobSize, blobStream.get());
+    readFully(dictionaryBlob.data(), blobSize, blobStream.get());
   }
 
   StringDictionaryColumnReader::~StringDictionaryColumnReader() {
@@ -445,8 +444,8 @@ namespace orc {
     // update the notNull from the parent class
     notNull = rowBatch.hasNulls ? rowBatch.notNull.data() : 0;
     StringVectorBatch& byteBatch = dynamic_cast<StringVectorBatch&>(rowBatch);
-    char *blob = dictionaryBlob.get();
-    int64_t *dictionaryOffsets = dictionaryOffset.get();
+    char *blob = dictionaryBlob.data();
+    int64_t *dictionaryOffsets = dictionaryOffset.data();
     char **outputStarts = byteBatch.data.data();
     int64_t *outputLengths = byteBatch.length.data();
     rle->next(outputLengths, numValues, notNull);
@@ -654,7 +653,7 @@ namespace orc {
 
   class StructColumnReader: public ColumnReader {
   private:
-    std::vector<std::unique_ptr<ColumnReader> > children;
+    std::vector<ColumnReader*> children;
 
   public:
     StructColumnReader(const Type& type,
@@ -672,13 +671,13 @@ namespace orc {
                                          StripeStreams& stripe
                                          ): ColumnReader(type, stripe) {
     // count the number of selected sub-columns
-    const bool *selectedColumns = stripe.getSelectedColumns();
+    const std::vector<bool> selectedColumns = stripe.getSelectedColumns();
     switch (static_cast<int>(stripe.getEncoding(columnId).kind())) {
     case proto::ColumnEncoding_Kind_DIRECT:
       for(unsigned int i=0; i < type.getSubtypeCount(); ++i) {
         const Type& child = type.getSubtype(i);
         if (selectedColumns[child.getColumnId()]) {
-          children.push_back(buildReader(child, stripe));
+          children.push_back(buildReader(child, stripe).release());
         }
       }
       break;
@@ -691,13 +690,15 @@ namespace orc {
   }
 
   StructColumnReader::~StructColumnReader() {
-    // PASS
+    for (size_t i=0; i<children.size(); i++) {
+      delete children[i];
+    }
   }
 
   unsigned long StructColumnReader::skip(unsigned long numValues) {
     numValues = ColumnReader::skip(numValues);
-    for(auto ptr=children.cbegin(); ptr != children.cend(); ++ptr) {
-      ptr->get()->skip(numValues);
+    for(std::vector<ColumnReader*>::iterator ptr=children.begin(); ptr != children.end(); ++ptr) {
+      (*ptr)->skip(numValues);
     }
     return numValues;
   }
@@ -706,12 +707,11 @@ namespace orc {
                                 unsigned long numValues,
                                 char *notNull) {
     ColumnReader::next(rowBatch, numValues, notNull);
-    std::unique_ptr<ColumnVectorBatch> *childBatch = 
-      dynamic_cast<StructVectorBatch&>(rowBatch).fields.data();
     unsigned int i=0;
-    for(auto ptr=children.cbegin(); ptr != children.cend(); ++ptr, ++i) {
-      ptr->get()->next(*(childBatch[i]), numValues,
-                       rowBatch.hasNulls ? rowBatch.notNull.data(): 0);
+    for(std::vector<ColumnReader*>::iterator ptr=children.begin();
+        ptr != children.end(); ++ptr, ++i) {
+      (*ptr)->next(*(dynamic_cast<StructVectorBatch&>(rowBatch).fields[i]),
+          numValues, rowBatch.hasNulls ? rowBatch.notNull.data(): 0);
     }
   }
 
@@ -735,7 +735,7 @@ namespace orc {
                                      StripeStreams& stripe
                                      ): ColumnReader(type, stripe) {
     // count the number of selected sub-columns
-    const bool *selectedColumns = stripe.getSelectedColumns();
+    const std::vector<bool> selectedColumns = stripe.getSelectedColumns();
     RleVersion vers = convertRleVersion(stripe.getEncoding(columnId).kind());
     rle = createRleDecoder(stripe.getStream(columnId,
                                             proto::Stream_Kind_LENGTH),
@@ -831,7 +831,7 @@ namespace orc {
                                      StripeStreams& stripe
                                      ): ColumnReader(type, stripe) {
     // count the number of selected sub-columns
-    const bool *selectedColumns = stripe.getSelectedColumns();
+    const std::vector<bool> selectedColumns = stripe.getSelectedColumns();
     RleVersion vers = convertRleVersion(stripe.getEncoding(columnId).kind());
     rle = createRleDecoder(stripe.getStream(columnId,
                                             proto::Stream_Kind_LENGTH),

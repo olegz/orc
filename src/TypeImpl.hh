@@ -31,8 +31,8 @@ namespace orc {
   private:
     int columnId;
     TypeKind kind;
-    std::unique_ptr<std::unique_ptr<Type>[]> subTypes;
-    std::unique_ptr<std::string[]> fieldNames;
+    std::vector<Type*> subTypes;
+    std::vector<std::string> fieldNames;
     unsigned int subtypeCount;
     unsigned int maxLength;
     unsigned int precision;

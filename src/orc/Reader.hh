@@ -21,7 +21,6 @@
 
 #include "Vector.hh"
 
-#include <initializer_list>
 #include <memory>
 #include <string>
 #include <vector>
@@ -294,7 +293,7 @@ namespace orc {
   public:
     ReaderOptions();
     ReaderOptions(const ReaderOptions&);
-    ReaderOptions(ReaderOptions&&);
+    ReaderOptions(ReaderOptions&);
     ReaderOptions& operator=(const ReaderOptions&);
     virtual ~ReaderOptions();
 
@@ -314,7 +313,7 @@ namespace orc {
      * @param include a list of columns to read
      * @return this
      */
-    ReaderOptions& include(std::initializer_list<int> include);
+    ReaderOptions& include(std::vector<int> include);
 
     /**
      * Set the section of the file to process.
@@ -443,7 +442,7 @@ namespace orc {
     /**
      * Get the selected columns of the file.
      */
-    virtual const bool* getSelectedColumns() const = 0;
+    virtual const std::vector<bool> getSelectedColumns() const = 0;
 
     /**
      * Create a row batch for reading the selected columns of this file.

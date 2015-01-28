@@ -22,7 +22,6 @@
 #include "orc/OrcFile.hh"
 #include "wrap/zero-copy-stream-wrapper.h"
 
-#include <initializer_list>
 #include <list>
 #include <vector>
 #include <fstream>
@@ -70,8 +69,10 @@ namespace orc {
     unsigned long blockSize;
 
   public:
-    SeekableArrayInputStream(std::initializer_list<unsigned char> list,
-                             long block_size = -1);
+    #if __cplusplus >= 201103L
+      SeekableArrayInputStream(std::initializer_list<unsigned char> list,
+                               long block_size = -1);
+    #endif // __cplusplus
     SeekableArrayInputStream(const unsigned char* list,
                              unsigned long length,
                              long block_size = -1);
@@ -93,7 +94,7 @@ namespace orc {
   class SeekableFileInputStream: public SeekableInputStream {
   private:
     InputStream* input;
-    std::unique_ptr<char[]> buffer;
+    std::vector<char> buffer;
     unsigned long offset;
     unsigned long length;
     unsigned long position;

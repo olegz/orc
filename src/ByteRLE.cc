@@ -346,8 +346,7 @@ namespace orc {
 
   std::unique_ptr<ByteRleDecoder> createBooleanRleDecoder
                                  (std::unique_ptr<SeekableInputStream> input) {
-    return std::unique_ptr<BooleanRleDecoderImpl>
-      (new BooleanRleDecoderImpl(std::move(input)));
+    BooleanRleDecoderImpl* decoder = new BooleanRleDecoderImpl(std::move(input)) ;
+    return std::unique_ptr<ByteRleDecoder>(reinterpret_cast<ByteRleDecoder*>(decoder));
   }
-
 }

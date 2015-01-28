@@ -72,7 +72,7 @@ TEST(Reader, simpleTest) {
   for(unsigned int i=0; i < 9; ++i) {
     EXPECT_EQ(i + 1, rootType.getSubtype(i).getColumnId()) << "fail on " << i;
   }
-  const bool* const selected = reader->getSelectedColumns();
+  const std::vector<bool> selected = reader->getSelectedColumns();
   for (size_t i = 0; i < 10; ++i) {
     EXPECT_EQ(true, selected[i]) << "fail on " << i;
   }
@@ -81,7 +81,7 @@ TEST(Reader, simpleTest) {
   std::unique_ptr<orc::ColumnVectorBatch> batch = reader->createRowBatch(1024);
   orc::LongVectorBatch* longVector =
     dynamic_cast<orc::LongVectorBatch*>
-    (dynamic_cast<orc::StructVectorBatch&>(*batch).fields[0].get());
+    (dynamic_cast<orc::StructVectorBatch&>(*batch).fields[0]);
   int64_t* idCol = longVector->data.data();
   while (reader->next(*batch)) {
     EXPECT_EQ(rowCount, reader->getRowNumber());
@@ -138,7 +138,7 @@ TEST(Reader, zlibReaderTest) {
   for(unsigned int i=0; i < 9; ++i) {
     EXPECT_EQ(i + 1, rootType.getSubtype(i).getColumnId()) << "fail on " << i;
   }
-  const bool* const selected = reader->getSelectedColumns();
+  const std::vector<bool> selected = reader->getSelectedColumns();
   for (size_t i = 0; i < 10; ++i) {
     EXPECT_EQ(true, selected[i]) << "fail on " << i;
   }
@@ -147,7 +147,7 @@ TEST(Reader, zlibReaderTest) {
   std::unique_ptr<orc::ColumnVectorBatch> batch = reader->createRowBatch(1024);
   orc::LongVectorBatch* longVector =
     dynamic_cast<orc::LongVectorBatch*>
-    (dynamic_cast<orc::StructVectorBatch&>(*batch).fields[0].get());
+      (dynamic_cast<orc::StructVectorBatch&>(*batch).fields[0]);
   while (reader->next(*batch)) {
     EXPECT_EQ(rowCount, reader->getRowNumber());
     for(unsigned int i=0; i < batch->numElements; ++i) {
@@ -203,7 +203,7 @@ TEST(Reader, zlibReaderTestRle2) {
   for(unsigned int i=0; i < 9; ++i) {
     EXPECT_EQ(i + 1, rootType.getSubtype(i).getColumnId()) << "fail on " << i;
   }
-  const bool* const selected = reader->getSelectedColumns();
+  const std::vector<bool> selected = reader->getSelectedColumns();
   for (size_t i = 0; i < 10; ++i) {
     EXPECT_EQ(true, selected[i]) << "fail on " << i;
   }
@@ -212,7 +212,7 @@ TEST(Reader, zlibReaderTestRle2) {
   std::unique_ptr<orc::ColumnVectorBatch> batch = reader->createRowBatch(1024);
   orc::LongVectorBatch* longVector =
     dynamic_cast<orc::LongVectorBatch*>
-    (dynamic_cast<orc::StructVectorBatch&>(*batch).fields[0].get());
+      (dynamic_cast<orc::StructVectorBatch&>(*batch).fields[0]);
   while (reader->next(*batch)) {
     EXPECT_EQ(rowCount, reader->getRowNumber());
     for(unsigned int i=0; i < batch->numElements; ++i) {

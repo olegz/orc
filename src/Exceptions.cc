@@ -30,6 +30,7 @@ namespace orc {
     // PASS
   }
 
+#if __cplusplus >= 201103L
   NotImplementedYet::NotImplementedYet(const NotImplementedYet& error
                                        ): logic_error(error) {
     // PASS
@@ -38,6 +39,7 @@ namespace orc {
   NotImplementedYet::~NotImplementedYet() {
     // PASS
   }
+#endif // __cplusplus
 
   ParseError::ParseError(const std::string& what_arg
                          ): runtime_error(what_arg) {
@@ -49,6 +51,7 @@ namespace orc {
     // PASS
   }
 
+#if __cplusplus >= 201103L
   ParseError::ParseError(const ParseError& error): runtime_error(error) {
     // PASS
   }
@@ -56,4 +59,5 @@ namespace orc {
   ParseError::~ParseError() {
     // PASS
   }
+#endif // __cplusplus
 }

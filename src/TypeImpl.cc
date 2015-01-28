@@ -62,12 +62,8 @@ namespace orc {
     precision = 0;
     scale = 0;
     subtypeCount = static_cast<unsigned int>(types.size());
-    subTypes.reset(new std::unique_ptr<Type>[subtypeCount]);
-    fieldNames.reset(new std::string[_fieldNames.size()]);
-    for(unsigned int i=0; i < subtypeCount; ++i) {
-      subTypes.get()[i].reset(types[i]);
-      fieldNames.get()[i] = _fieldNames[i];
-    }
+    subTypes.assign(types.begin(), types.end());
+    fieldNames.assign(_fieldNames.begin(), _fieldNames.end());
   }
 
   TypeImpl::TypeImpl(TypeKind _kind, const std::vector<Type*>& types) {
@@ -77,24 +73,23 @@ namespace orc {
     precision = 0;
     scale = 0;
     subtypeCount = static_cast<unsigned int>(types.size());
-    subTypes.reset(new std::unique_ptr<Type>[subtypeCount]);
-    for(unsigned int i=0; i < subtypeCount; ++i) {
-      subTypes.get()[i].reset(types[static_cast<unsigned long>(i)]);
-    }
+    subTypes.assign(types.begin(), types.end());
   }
 
   int TypeImpl::assignIds(int root) {
     columnId = root;
     int current = root + 1;
-    std::unique_ptr<Type> *children = subTypes.get();
     for(unsigned int i=0; i < subtypeCount; ++i) {
-      current = children[i].get()->assignIds(current);
+      current = subTypes[i]->assignIds(current);
     }
     return current;
   }
 
   TypeImpl::~TypeImpl() {
-    // PASS
+    for (std::vector<Type*>::iterator it = subTypes.begin();
+        it != subTypes.end(); it++) {
+      delete (*it) ;
+    }
   }
 
   int TypeImpl::getColumnId() const {
@@ -110,11 +105,11 @@ namespace orc {
   }
 
   const Type& TypeImpl::getSubtype(unsigned int i) const {
-    return *(subTypes.get()[i].get());
+    return *(subTypes[i]);
   }
 
   const std::string& TypeImpl::getFieldName(unsigned int i) const {
-    return fieldNames.get()[i];
+    return fieldNames[i];
   }
 
   unsigned int TypeImpl::getMaximumLength() const {
@@ -144,8 +139,19 @@ namespace orc {
   }
 
   std::unique_ptr<Type>
-      createStructType(std::initializer_list<std::unique_ptr<Type> > types,
-                       std::initializer_list<std::string> fieldNames) {
+      createStructType(std::vector<Type*> types,
+                       std::vector<std::string> fieldNames) {
+    std::vector<Type*> typeVector(types.begin(), types.end());
+    std::vector<std::string> fieldVector(fieldNames.begin(), fieldNames.end());
+
+    return std::unique_ptr<Type>(new TypeImpl(STRUCT, typeVector,
+                                              fieldVector));
+  }
+
+#if __cplusplus >= 201103L
+  std::unique_ptr<Type> createStructType(
+      std::initializer_list<std::unique_ptr<Type> > types,
+      std::initializer_list<std::string> fieldNames) {
     std::vector<Type*> typeVector(types.size());
     std::vector<std::string> fieldVector(types.size());
     auto currentType = types.begin();
@@ -153,14 +159,15 @@ namespace orc {
     size_t current = 0;
     while (currentType != endType) {
       typeVector[current++] =
-        const_cast<std::unique_ptr<Type>*>(currentType)->release();
+          const_cast<std::unique_ptr<Type>*>(currentType)->release();
       ++currentType;
     }
     fieldVector.insert(fieldVector.end(), fieldNames.begin(),
-                       fieldNames.end());
+        fieldNames.end());
     return std::unique_ptr<Type>(new TypeImpl(STRUCT, typeVector,
-                                              fieldVector));
+        fieldVector));
   }
+#endif // __cplusplus
 
   std::unique_ptr<Type> createListType(std::unique_ptr<Type> elements) {
     std::vector<Type*> subtypes(1);
@@ -177,16 +184,8 @@ namespace orc {
   }
 
   std::unique_ptr<Type>
-      createUnionType(std::initializer_list<std::unique_ptr<Type> > types) {
-    std::vector<Type*> typeVector(types.size());
-    auto currentType = types.begin();
-    auto endType = types.end();
-    size_t current = 0;
-    while (currentType != endType) {
-      typeVector[current++] =
-        const_cast<std::unique_ptr<Type>*>(currentType)->release();
-      ++currentType;
-    }
+      createUnionType(std::vector<Type*> types) {
+    std::vector<Type*> typeVector(types.begin(), types.end());
     return std::unique_ptr<Type>(new TypeImpl(UNION, typeVector));
   }
 

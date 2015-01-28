@@ -45,7 +45,7 @@ namespace orc {
   }
 
   PositionProvider::PositionProvider(const std::list<unsigned long>& posns) {
-    position = posns.cbegin();
+    position = posns.begin();
   }
 
   unsigned long PositionProvider::next() {
@@ -62,14 +62,16 @@ namespace orc {
     // PASS
   }
 
-  SeekableArrayInputStream::SeekableArrayInputStream
-     (std::initializer_list<unsigned char> values,
-      long blkSize): ownedData(values.size()), data(0) {
-    length = values.size();
-    memcpy(ownedData.data(), values.begin(), values.size());
-    position = 0;
-    blockSize = blkSize == -1 ? length : static_cast<unsigned long>(blkSize);
-  }
+  #if __cplusplus >= 201103L
+    SeekableArrayInputStream::SeekableArrayInputStream
+       (std::initializer_list<unsigned char> values,
+        long blkSize): ownedData(values.size()), data(0) {
+      length = values.size();
+      memcpy(ownedData.data(), values.begin(), values.size());
+      position = 0;
+      blockSize = blkSize == -1 ? length : static_cast<unsigned long>(blkSize);
+    }
+  #endif // __cplusplus
 
   SeekableArrayInputStream::SeekableArrayInputStream
      (const unsigned char* values, unsigned long size,
@@ -154,7 +156,7 @@ namespace orc {
     blockSize = std::min(length,
                          static_cast<unsigned long>(_blockSize < 0 ?
                                                     256 * 1024 : _blockSize));
-    buffer.reset(new char[blockSize]);
+    buffer.resize(blockSize);
     remainder = 0;
   }
 
@@ -165,9 +167,9 @@ namespace orc {
   bool SeekableFileInputStream::Next(const void** data, int*size) {
     unsigned long bytesRead = std::min(length - position, blockSize);
     if (bytesRead > 0) {
-      *data = buffer.get();
+      *data = buffer.data();
       // read from the file, skipping over the remainder
-      input->read(buffer.get() + remainder, offset + position + remainder,
+      input->read(buffer.data() + remainder, offset + position + remainder,
                   bytesRead - remainder);
       position += bytesRead;
       remainder = 0;
@@ -185,8 +187,8 @@ namespace orc {
     }
     remainder = static_cast<unsigned long>(count);
     position -= remainder;
-    memmove(buffer.get(),
-            buffer.get() + blockSize - static_cast<size_t>(count),
+    memmove(buffer.data(),
+            buffer.data() + blockSize - static_cast<size_t>(count),
             static_cast<size_t>(count));
   }
 
@@ -203,7 +205,7 @@ namespace orc {
     }
     if (remainder > count) {
       remainder -= count;
-      memmove(buffer.get(), buffer.get() + count, remainder);
+      memmove(buffer.data(), buffer.data() + count, remainder);
     } else {
       remainder = 0;
     }
@@ -240,9 +242,9 @@ namespace orc {
   public:
     ZlibDecompressionStream(std::unique_ptr<SeekableInputStream> inStream,
                             size_t blockSize);
-    ZlibDecompressionStream(const ZlibDecompressionStream&) = delete;
-    ZlibDecompressionStream& operator=(const ZlibDecompressionStream&)
-      = delete;
+//    ZlibDecompressionStream(const ZlibDecompressionStream&) = delete;
+//    ZlibDecompressionStream& operator=(const ZlibDecompressionStream&)
+//      = delete;
     virtual ~ZlibDecompressionStream();
     virtual bool Next(const void** data, int*size) override;
     virtual void BackUp(int count) override;

@@ -19,12 +19,12 @@
 #ifndef ORC_VECTOR_HH
 #define ORC_VECTOR_HH
 
-#include <array>
-#include <initializer_list>
 #include <list>
 #include <memory>
 #include <string>
 #include <vector>
+
+#include "C09Adapter.hh"
 
 namespace orc {
 
@@ -74,13 +74,21 @@ namespace orc {
                                     DEFAULT_DECIMAL_PRECISION,
                                   unsigned int scale=DEFAULT_DECIMAL_SCALE);
   std::unique_ptr<Type>
-    createStructType(std::initializer_list<std::unique_ptr<Type> > types,
-                      std::initializer_list<std::string> fieldNames);
+    createStructType(std::vector<Type*> types,
+                      std::vector<std::string> fieldNames);
+
+#if __cplusplus >= 201103L
+  std::unique_ptr<Type> createStructType(
+      std::initializer_list<std::unique_ptr<Type> > types,
+      std::initializer_list<std::string> fieldNames);
+#endif // __cplusplus
+
+
   std::unique_ptr<Type> createListType(std::unique_ptr<Type> elements);
   std::unique_ptr<Type> createMapType(std::unique_ptr<Type> key,
                                       std::unique_ptr<Type> value);
   std::unique_ptr<Type>
-    createUnionType(std::initializer_list<std::unique_ptr<Type> > types);
+    createUnionType(std::vector<Type*> types);
 
   /**
    * The base class for each of the column vectors. This class handles
@@ -151,7 +159,7 @@ namespace orc {
     std::string toString() const;
     void resize(uint64_t capacity);
 
-    std::vector<std::unique_ptr<ColumnVectorBatch> > fields;
+    std::vector<ColumnVectorBatch*> fields;
   };
 
   struct ListVectorBatch: public ColumnVectorBatch {
