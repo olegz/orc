@@ -492,7 +492,7 @@ sequences. RLEv1 has two sub-encodings:
 \item[Literals] a sequence of varint encoded values
 \end{description}
 
-Runs start with an initial byte of 0x00 to 0xf7, which encodes the
+Runs start with an initial byte of 0x00 to 0x7f, which encodes the
 length of the run - 3. A second byte provides the fixed delta in the
 range of -128 to 127. Finally, the first value of the run is encoded
 as a base 128 varint.
@@ -645,7 +645,7 @@ sequence [30, 0, 20, 998000, 40, 50, 60, 70, 80, 90]. It has an
 encoding of patched base (2), a bit width of 8 (7), a length of 10
 (9), a base value width of 2 bytes (1), a patch width of 12 bits (11),
 patch gap width of 2 bits (1), and a patch list length of 1 (1). The
-base value is 2000 and the combined result is [0x8c, 0x09, 0x2b, 0x21,
+base value is 2000 and the combined result is [0x8e, 0x09, 0x2b, 0x21,
   0x07, 0xd0, 0x1e, 0x00, 0x14, 0x70, 0x28, 0x32, 0x3c, 0x46, 0x50,
   0x5a, 0xfc, 0xe8]
 
