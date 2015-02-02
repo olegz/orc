@@ -47,7 +47,7 @@ namespace orc {
     unsigned long dataLength;
     unsigned long tailLocation;
     ReaderOptionsPrivate() {
-      includedColumns.push_back(0);
+      includedColumns.assign(1,0);
       dataStart = 0;
       dataLength = std::numeric_limits<unsigned long>::max();
       tailLocation = std::numeric_limits<unsigned long>::max();
@@ -82,16 +82,12 @@ namespace orc {
   }
 
   ReaderOptions& ReaderOptions::include(const std::list<int>& include) {
-    privateBits->includedColumns.clear();
-    std::copy(include.begin(), include.end(),
-              privateBits->includedColumns.end());
+    privateBits->includedColumns.assign(include.begin(), include.end());
     return *this;
   }
 
   ReaderOptions& ReaderOptions::include(std::initializer_list<int> include) {
-    privateBits->includedColumns.clear();
-    std::copy(include.begin(), include.end(),
-              privateBits->includedColumns.end());
+    privateBits->includedColumns.assign(include.begin(), include.end());
     return *this;
   }
 
@@ -253,6 +249,7 @@ namespace orc {
       firstRowOfStripe.get()[i] = rowTotal;
       rowTotal += footer.stripes(i).numberofrows();
     }
+
     selectedColumns.reset(new bool[footer.types_size()]);
     memset(selectedColumns.get(), 0, 
            static_cast<std::size_t>(footer.types_size()));
@@ -262,6 +259,7 @@ namespace orc {
       selectTypeParent(*columnId);
       selectTypeChildren(*columnId);
     }
+
     schema = convertType(footer.types(0), footer);
     schema->assignIds(0);
     previousRow = (std::numeric_limits<unsigned long>::max)();
