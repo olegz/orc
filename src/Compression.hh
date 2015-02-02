@@ -29,8 +29,6 @@
 #include <sstream>
 #include <memory>
 
-#include "zlib.h"
-
 namespace orc {
 
   void printBuffer(std::ostream& out,
