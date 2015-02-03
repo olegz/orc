@@ -29,7 +29,7 @@
 
 namespace orc {
 
-  const std::string MAGIC = "ORC";
+  const std::string MAGIC("ORC");
 
   /**
    * An abstract interface for providing ORC readers a stream of bytes.
