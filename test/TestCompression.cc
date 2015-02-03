@@ -537,7 +537,7 @@ namespace orc {
     size_t compressedSize;
     snappy::RawCompress(buf.data(), buf.size(), compressBuffer.getCompressed(),
                         &compressedSize);
-    // must shrink
+    // compressed size must be < original
     ASSERT_LT(compressedSize, buf.size());
     compressBuffer.writeHeader(compressedSize);
 
