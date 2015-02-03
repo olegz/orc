@@ -213,7 +213,7 @@ namespace orc {
                       uint32_t divisor, Int128& remainder,
                       bool dividendWasNegative, bool divisorWasNegative) {
     uint64_t r = 0;
-    uint32_t resultArray[4];
+    uint32_t resultArray[5];
     for(int j=0; j < dividendLength; j++) {
       r <<= 32;
       r += dividend[j];
