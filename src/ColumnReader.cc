@@ -422,7 +422,7 @@ namespace orc {
       lengthArray[i] += lengthArray[i-1];
     }
     long blobSize = lengthArray[dictionaryCount];
-    dictionaryBlob.resize((unsigned long)blobSize);
+    dictionaryBlob.resize(static_cast<unsigned long>(blobSize));
     std::unique_ptr<SeekableInputStream> blobStream =
       stripe.getStream(columnId, proto::Stream_Kind_DICTIONARY_DATA);
     readFully(dictionaryBlob.data(), blobSize, blobStream.get());

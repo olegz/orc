@@ -486,11 +486,6 @@ namespace orc {
     EXPECT_EQ(16, static_cast<const char*>(ptr)[1]);
   }
 
-  class Snappy : public ::testing::Test {
-  public:
-      ~Snappy() {}
-  };
-
 #define HEADER_SIZE 3
 
   class CompressBuffer {
@@ -526,7 +521,7 @@ namespace orc {
     }
   };
 
-  TEST_F(Snappy, testBasic) {
+  TEST(Snappy, testBasic) {
     const int N = 1024;
     std::vector<char> buf(N * sizeof(int));
     for (int i=0; i < N; ++i) {
