@@ -8,6 +8,7 @@ before_install:
   - sudo apt-get -qq install g++-4.9
   - sudo apt-get -qq install libprotobuf-dev
   - sudo apt-get -qq install protobuf-compiler
+  - sudo apt-get -qq install libsnappy-dev
 install:
   - if [ "$CXX" = "g++" ]; then export CXX="g++-4.9"; fi
 before_script:
