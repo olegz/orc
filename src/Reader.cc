@@ -166,7 +166,7 @@ namespace orc {
                     unsigned long fileLength);
     proto::StripeFooter getStripeFooter(const proto::StripeInformation& info);
     void startNextStripe();
-    void ensureOrcFooter(char* buffer, unsigned long length, int postscriptLength);
+    void ensureOrcFooter(char* buffer, unsigned long length);
     void checkOrcVersion();
     void selectTypeParent(int columnId);
     void selectTypeChildren(int columnId);
@@ -351,8 +351,11 @@ namespace orc {
     }
   }
 
-  void ReaderImpl::ensureOrcFooter(char *buffer, unsigned long readSize, int postscriptLength) {
-    int len = MAGIC.length();
+  void ReaderImpl::ensureOrcFooter(char *buffer, unsigned long readSize) {
+
+    const std::string MAGIC("ORC");
+
+    unsigned long len = MAGIC.length();
     if (postscriptLength < len + 1) {
       throw ParseError("Malformed ORC file: invalid postscript length");
     }
@@ -393,7 +396,7 @@ namespace orc {
     //get length of PostScript
     postscriptLength = buffer[readSize - 1] & 0xff;
 
-    ensureOrcFooter(buffer, readSize, postscriptLength);
+    ensureOrcFooter(buffer, readSize);
 
     if (!postscript.ParseFromArray(buffer+readSize-1-postscriptLength, 
                                    static_cast<int>(postscriptLength))) {
