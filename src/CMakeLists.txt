@@ -18,6 +18,8 @@ configure_file (
 include_directories (
   ${CMAKE_CURRENT_BINARY_DIR}
   ${PROTOBUF_INCLUDE_DIRS}
+  ${ZLIB_INCLUDE_DIRS}
+  ${SNAPPY_INCLUDE_DIRS}
   )
 
 protobuf_generate_cpp(PROTO_SRCS PROTO_HDRS orc_proto.proto)
@@ -45,6 +47,7 @@ add_library (orc STATIC
 target_link_libraries (orc
   ${PROTOBUF_LITE_LIBRARIES}
   ${ZLIB_LIBRARIES}
+  ${SNAPPY_LIBRARIES}
   )
 
 add_executable (file-dump

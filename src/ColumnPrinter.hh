@@ -39,10 +39,10 @@ namespace orc {
 
   class StructColumnPrinter: public ColumnPrinter {
   private:
-    std::vector<std::unique_ptr<ColumnPrinter> > fields;
+    std::vector<ColumnPrinter*> fields;
   public:
     StructColumnPrinter(const ColumnVectorBatch& batch);
-    virtual ~StructColumnPrinter() {}
+    virtual ~StructColumnPrinter();
     void printRow(unsigned long rowId) override;
     void reset(const ColumnVectorBatch& batch) override;
   };

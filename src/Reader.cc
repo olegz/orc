@@ -66,8 +66,11 @@ namespace orc {
     // PASS
   }
 
-  ReaderOptions::ReaderOptions(ReaderOptions&& rhs) {
-    privateBits.swap(rhs.privateBits);
+  ReaderOptions::ReaderOptions(ReaderOptions& rhs) {
+    // swap privateBits with rhs
+   ReaderOptionsPrivate* l = privateBits.release();
+   privateBits.reset(rhs.privateBits.release());
+   rhs.privateBits.reset(l);
   }
   
   ReaderOptions& ReaderOptions::operator=(const ReaderOptions& rhs) {
@@ -86,7 +89,7 @@ namespace orc {
     return *this;
   }
 
-  ReaderOptions& ReaderOptions::include(std::initializer_list<int> include) {
+  ReaderOptions& ReaderOptions::include(std::vector<int> include) {
     privateBits->includedColumns.assign(include.begin(), include.end());
     return *this;
   }
@@ -130,7 +133,7 @@ namespace orc {
     // inputs
     std::unique_ptr<InputStream> stream;
     ReaderOptions options;
-    std::unique_ptr<bool[]> selectedColumns;
+    std::vector<bool> selectedColumns;
 
     // postscript
     proto::PostScript postscript;
@@ -140,8 +143,7 @@ namespace orc {
 
     // footer
     proto::Footer footer;
-    std::unique_ptr<unsigned long[]> firstRowOfStripe;
-//    std::vector<unsigned long> firstRowOfStripe;
+    std::vector<unsigned long> firstRowOfStripe;
     unsigned long numberOfStripes;
     std::unique_ptr<Type> schema;
 
@@ -208,7 +210,7 @@ namespace orc {
 
     const Type& getType() const override;
 
-    const bool* getSelectedColumns() const override;
+    const std::vector<bool> getSelectedColumns() const override;
 
     std::unique_ptr<ColumnVectorBatch> createRowBatch(unsigned long size
                                                       ) const override;
@@ -235,24 +237,21 @@ namespace orc {
 
     //read last bytes into buffer to get PostScript
     unsigned long readSize = std::min(size, DIRECTORY_SIZE_GUESS);
-    std::unique_ptr<char[]> buffer = 
-      std::unique_ptr<char[]>(new char[readSize]);
-    stream->read(buffer.get(), size - readSize, readSize);
-    readPostscript(buffer.get(), readSize);
-    readFooter(buffer.get(), readSize, size);
+    std::vector<char> buffer(readSize);
+    stream->read(buffer.data(), size - readSize, readSize);
+    readPostscript(buffer.data(), readSize);
+    readFooter(buffer.data(), readSize, size);
 
     currentStripe = 0;
     currentRowInStripe = 0;
     unsigned long rowTotal = 0;
-    firstRowOfStripe.reset(new unsigned long[footer.stripes_size()]);
+    firstRowOfStripe.resize(footer.stripes_size());
     for(int i=0; i < footer.stripes_size(); ++i) {
-      firstRowOfStripe.get()[i] = rowTotal;
+      firstRowOfStripe[i] = rowTotal;
       rowTotal += footer.stripes(i).numberofrows();
     }
+    selectedColumns.assign(footer.types_size(), false);
 
-    selectedColumns.reset(new bool[footer.types_size()]);
-    memset(selectedColumns.get(), 0, 
-           static_cast<std::size_t>(footer.types_size()));
     const std::list<int>& included = options.getInclude();
     for(std::list<int>::const_iterator columnId = included.begin();
         columnId != included.end(); ++columnId) {
@@ -326,14 +325,13 @@ namespace orc {
   }
 
   void ReaderImpl::selectTypeParent(int columnId) {
-    bool* selectedColumnArray = selectedColumns.get();
     for(int parent=0; parent < columnId; ++parent) {
       const proto::Type& parentType = footer.types(parent);
       for(int idx=0; idx < parentType.subtypes_size(); ++idx) {
         unsigned int child = parentType.subtypes(idx);
         if (static_cast<int>(child) == columnId) {
-          if (!selectedColumnArray[parent]) {
-            selectedColumnArray[parent] = true;
+          if (!selectedColumns[parent]) {
+            selectedColumns[parent] = true;
             selectTypeParent(parent);
             return;
           }
@@ -343,9 +341,8 @@ namespace orc {
   }
 
   void ReaderImpl::selectTypeChildren(int columnId) {
-    bool* selectedColumnArray = selectedColumns.get();
-    if (!selectedColumnArray[columnId]) {
-      selectedColumnArray[columnId] = true;
+    if (!selectedColumns[columnId]) {
+      selectedColumns[columnId] = true;
       const proto::Type& parentType = footer.types(columnId);
       for(int idx=0; idx < parentType.subtypes_size(); ++idx) {
         unsigned int child = parentType.subtypes(idx);
@@ -374,8 +371,8 @@ namespace orc {
     }
   }
 
-  const bool* ReaderImpl::getSelectedColumns() const {
-    return selectedColumns.get();
+  const std::vector<bool> ReaderImpl::getSelectedColumns() const {
+    return selectedColumns;
   }
 
   const Type& ReaderImpl::getType() const {
@@ -478,7 +475,7 @@ namespace orc {
 
     virtual ~StripeStreamsImpl();
 
-    virtual const bool* getSelectedColumns() const override;
+    virtual const std::vector<bool> getSelectedColumns() const override;
 
     virtual proto::ColumnEncoding getEncoding(int columnId) const override;
 
@@ -502,7 +499,7 @@ namespace orc {
     // PASS
   }
 
-  const bool* StripeStreamsImpl::getSelectedColumns() const {
+  const std::vector<bool> StripeStreamsImpl::getSelectedColumns() const {
     return reader.getSelectedColumns();
   }
 
@@ -561,7 +558,7 @@ namespace orc {
     data.numElements = rowsToRead;
     reader->next(data, rowsToRead, 0);
     // update row number
-    previousRow = firstRowOfStripe.get()[currentStripe] + currentRowInStripe;
+    previousRow = firstRowOfStripe[currentStripe] + currentRowInStripe;
     currentRowInStripe += rowsToRead;
     if (currentRowInStripe >= rowsInCurrentStripe) {
       currentStripe += 1;
@@ -571,7 +568,7 @@ namespace orc {
   }
 
   std::unique_ptr<ColumnVectorBatch> ReaderImpl::createRowBatch
-       (const Type& type, unsigned long capacity) const {
+       (const Type& type, uint64_t capacity) const {
     switch (static_cast<int>(type.getKind())) {
     case BOOLEAN:
     case BYTE:
@@ -579,33 +576,30 @@ namespace orc {
     case INT:
     case LONG:
     case TIMESTAMP:
-    case DATE:
-      return std::unique_ptr<ColumnVectorBatch>(new LongVectorBatch(capacity));
-
+    case DATE: {
+      LongVectorBatch* batch = new LongVectorBatch(capacity);
+      return std::unique_ptr<ColumnVectorBatch>( dynamic_cast<ColumnVectorBatch*>(batch));
+    }
     case FLOAT:
-    case DOUBLE:
-      return std::unique_ptr<ColumnVectorBatch>
-        (new DoubleVectorBatch(capacity));
-
+    case DOUBLE: {
+      DoubleVectorBatch* batch = new DoubleVectorBatch(capacity);
+      return std::unique_ptr<ColumnVectorBatch>( dynamic_cast<ColumnVectorBatch*>(batch));
+    }
     case STRING:
     case BINARY:
     case CHAR:
-    case VARCHAR:
-      return std::unique_ptr<StringVectorBatch>
-        (new StringVectorBatch(capacity));
-
+    case VARCHAR: {
+      StringVectorBatch* batch = new StringVectorBatch(capacity);
+      return std::unique_ptr<ColumnVectorBatch>( dynamic_cast<ColumnVectorBatch*>(batch));
+    }
     case STRUCT: {
-      std::unique_ptr<ColumnVectorBatch> result =
-        std::unique_ptr<ColumnVectorBatch>(new StructVectorBatch(capacity));
+      StructVectorBatch* structPtr = new StructVectorBatch(capacity);
+      std::unique_ptr<ColumnVectorBatch> result(dynamic_cast<ColumnVectorBatch*>(structPtr));
 
-      StructVectorBatch* structPtr = 
-        dynamic_cast<StructVectorBatch*>(result.get());
-
-      bool* selected = selectedColumns.get();
       for(unsigned int i=0; i < type.getSubtypeCount(); ++i) {
         const Type& child = type.getSubtype(i);
-        if (selected[child.getColumnId()]) {
-          structPtr->fields.push_back(createRowBatch(child, capacity));
+        if (selectedColumns[child.getColumnId()]) {
+          structPtr->fields.push_back(createRowBatch(child, capacity).release());
         }
       }
       return result;

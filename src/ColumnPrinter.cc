@@ -17,6 +17,8 @@
  */
 
 #include "ColumnPrinter.hh"
+#include <typeinfo>
+#include <stdexcept>
 
 namespace orc {
 
@@ -95,23 +97,25 @@ namespace orc {
   StructColumnPrinter::StructColumnPrinter(const ColumnVectorBatch& batch) {
     const StructVectorBatch& structBatch =
       dynamic_cast<const StructVectorBatch&>(batch);
-    for(auto ptr=structBatch.fields.cbegin();
-        ptr != structBatch.fields.cend(); ++ptr) {
-      if (typeid(*(ptr->get())) == typeid(LongVectorBatch)) {
-        fields.push_back(std::unique_ptr<ColumnPrinter>
-                         (new LongColumnPrinter(*(ptr->get()))));
-      } else if (typeid(*(ptr->get())) == typeid(DoubleVectorBatch)) {
-        fields.push_back(std::unique_ptr<ColumnPrinter>
-                         (new DoubleColumnPrinter(*(ptr->get()))));
-      } else if (typeid(*(ptr->get())) == typeid(StringVectorBatch)) {
-        fields.push_back(std::unique_ptr<ColumnPrinter>
-                         (new StringColumnPrinter(*(ptr->get()))));
-      } else if (typeid(*(ptr->get())) == typeid(StructVectorBatch)) {
-        fields.push_back(std::unique_ptr<ColumnPrinter>
-                         (new StructColumnPrinter(*(ptr->get()))));
+    for(std::vector<ColumnVectorBatch*>::const_iterator ptr=structBatch.fields.begin();
+        ptr != structBatch.fields.end(); ++ptr) {
+      if (typeid(**ptr) == typeid(LongVectorBatch)) {
+        fields.push_back(new LongColumnPrinter(**ptr));
+      } else if (typeid(**ptr) == typeid(DoubleVectorBatch)) {
+        fields.push_back(new DoubleColumnPrinter(**ptr));
+      } else if (typeid(**ptr) == typeid(StringVectorBatch)) {
+        fields.push_back(new StringColumnPrinter(**ptr));
+      } else if (typeid(**ptr) == typeid(StructVectorBatch)) {
+        fields.push_back(new StructColumnPrinter(**ptr));
       } else {
         throw std::logic_error("unknown batch type");
       }
+    }
+  }
+
+  StructColumnPrinter::~StructColumnPrinter() {
+    for (size_t i = 0; i < fields.size(); i++) {
+      delete fields[i];
     }
   }
 
@@ -119,14 +123,14 @@ namespace orc {
     const StructVectorBatch& structBatch =
       dynamic_cast<const StructVectorBatch&>(batch);
     for(size_t i=0; i < fields.size(); ++i) {
-      fields[i].get()->reset(*(structBatch.fields[i].get()));
+      fields[i]->reset(*(structBatch.fields[i]));
     }
   }
 
   void StructColumnPrinter::printRow(unsigned long rowId) {
     if (fields.size() > 0) {
-      for (auto ptr = fields.cbegin(); ptr != fields.cend(); ++ptr) {
-        ptr->get()->printRow(rowId);
+      for (std::vector<ColumnPrinter*>::iterator ptr = fields.begin(); ptr != fields.end(); ++ptr) {
+        (*ptr)->printRow(rowId);
         std::cout << "\t";
       }
       std::cout << "\n";

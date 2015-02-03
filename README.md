@@ -9,11 +9,19 @@ This library allows C++ programs to read and write the _Optimized Row Columnar_ 
 ## Building
 
 ```shell
+To compile with tests, in C++11:
 % mkdir build
 % cd build
 % cmake ..
 % make
 % make test
+
+To compile in C++09i (no tests):
+% mkdir build
+% cd build
+% cmake .. -DC09=true
+% make
+
 ```
 
 ## License

@@ -35,7 +35,7 @@ namespace orc {
      * @return the address of an array which contains true at the index of
      *    each columnId is selected.
      */
-    virtual const bool* getSelectedColumns() const = 0;
+    virtual const std::vector<bool> getSelectedColumns() const = 0;
 
     /**
      * Get the encoding for the given column for this stripe.

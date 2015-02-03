@@ -15,6 +15,8 @@ cmake_minimum_required (VERSION 2.6)
 project(ORC)
 set (ORC_VERSION "1.0.0")
 
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/Modules/")
+
 set (GMOCK_VERSION "1.7.0")
 include_directories(
   ${CMAKE_SOURCE_DIR}/libs/gmock-${GMOCK_VERSION}/include
@@ -33,21 +35,32 @@ endif(NOT APPLE AND NOT MSVC)
 enable_testing()
 
 find_package (Protobuf REQUIRED)
+MESSAGE( STATUS "PROTOBUF_INCLUDE_DIR:       " ${PROTOBUF_INCLUDE_DIR} )
+MESSAGE( STATUS "PROTOBUF_LITE_LIBRARIES:    " ${PROTOBUF_LITE_LIBRARIES} )
+MESSAGE( STATUS "PROTOBUF_LIBRARIES:         " ${PROTOBUF_LIBRARIES} )
+MESSAGE( STATUS "PROTOBUF_PROTOC_EXECUTABLE: " ${PROTOBUF_PROTOC_EXECUTABLE} )
+MESSAGE( STATUS "PROTOBUF_LIBRARY:           " ${PROTOBUF_LIBRARY} )
+MESSAGE( STATUS "PROTOBUF_LITE_LIBRARY:      " ${PROTOBUF_LITE_LIBRARY} )
 
 find_package(ZLIB REQUIRED)
-if (NOT ZLIB_FOUND)
-    # hack: if can't find zlib, or want to share common third-party lib, set path explicitly
-    set(ZLIB_INCLUDE_DIR $ENV{ZLIB_INCLUDE_DIR})
-    set(ZLIB_LIBRARIES $ENV{ZLIB_LIBRARIES})
-endif(NOT ZLIB_FOUND)
-MESSAGE( STATUS "ZLIB_INCLUDE_DIR:         " ${ZLIB_INCLUDE_DIR} )
-MESSAGE( STATUS "ZLIB_LIBRARIES:         " ${ZLIB_LIBRARIES} )
-include_directories(${ZLIB_INCLUDE_DIR})
+MESSAGE( STATUS "ZLIB_INCLUDE_DIR:           " ${ZLIB_INCLUDE_DIR} )
+MESSAGE( STATUS "ZLIB_LIBRARY:               " ${ZLIB_LIBRARY} )
+MESSAGE( STATUS "ZLIB_INCLUDE_DIRS:          " ${ZLIB_INCLUDE_DIR} )
+MESSAGE( STATUS "ZLIB_LIBRARIES:             " ${ZLIB_LIBRARIES} )
 
+find_package(Snappy REQUIRED)
+MESSAGE( STATUS "SNAPPY_ROOT_DIR:            " ${SNAPPY_ROOT_DIR} )
+MESSAGE( STATUS "SNAPPY_LIBRARY:             " ${SNAPPY_LIBRARY} )
+MESSAGE( STATUS "SNAPPY_INCLUDE_DIR:         " ${SNAPPY_INCLUDE_DIR} )
+MESSAGE( STATUS "SNAPPY_LIBRARIES:           " ${SNAPPY_LIBRARIES} )
+MESSAGE( STATUS "SNAPPY_INCLUDE_DIRS:        " ${SNAPPY_INCLUDE_DIRS} )
+
+if(NOT C09)
 if(NOT MSVC)
   # Visual studio enables C++11 support by default.
   set (CXX11_FLAGS "-std=c++11")
 endif(NOT MSVC)
+endif(NOT C09)
 
 if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
   set (COVERAGE_FLAGS "--coverage -g -O0")
@@ -71,4 +84,6 @@ set (EXAMPLE_DIRECTORY ${CMAKE_SOURCE_DIR}/examples)
 
 add_subdirectory(libs)
 add_subdirectory(src)
-add_subdirectory(test)
+if(NOT C09)
+  add_subdirectory(test)
+endif(NOT C09)

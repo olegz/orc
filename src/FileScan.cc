@@ -29,7 +29,9 @@ int main(int argc, char* argv[]) {
     std::cout << "Usage: file-scan <filename>\n";
   }
   orc::ReaderOptions opts;
-  opts.include({0});
+  std::list<int> cols;
+  cols.push_back(0);
+  opts.include(cols);
 
   std::unique_ptr<orc::Reader> reader;
   try{

@@ -120,15 +120,13 @@ void RleDecoderV1::next(int64_t* const data,
                         const unsigned long numValues,
                         const char* const notNull) {
   unsigned long position = 0;
-  const auto skipNulls =[&position, numValues, notNull] {
-    if (notNull) {
-      // Skip over null values.
-      while (position < numValues && !notNull[position]) {
-        ++position;
-      }
+  // skipNulls()
+  if (notNull) {
+    // Skip over null values.
+    while (position < numValues && !notNull[position]) {
+      ++position;
     }
-  };
-  skipNulls();
+  }
   while (position < numValues) {
     // If we are out of values, read more.
     if (remainingValues == 0) {
@@ -177,7 +175,14 @@ void RleDecoderV1::next(int64_t* const data,
     }
     remainingValues -= consumed;
     position += count;
-    skipNulls();
+
+    // skipNulls()
+    if (notNull) {
+      // Skip over null values.
+      while (position < numValues && !notNull[position]) {
+        ++position;
+      }
+    }
   }
 }
 
