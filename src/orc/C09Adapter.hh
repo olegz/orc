@@ -9,8 +9,13 @@
 #define C09ADAPTER_HH_
 
 #if __cplusplus < 201103L
+  #include <climits>
+
   typedef unsigned long uint64_t;
   typedef long int64_t;
+  typedef unsigned int uint32_t;
+  typedef int int32_t;
+  #define UINT32_MAX UINT_MAX
   #define unique_ptr auto_ptr
   #define nullptr NULL
   #define override

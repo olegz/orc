@@ -19,7 +19,9 @@
 #ifndef ORC_INT_128
 #define ORC_INT_128
 
-#include <cstdint>
+//#include <cstdint>
+#include "C09Adapter.hh"
+
 #include <stdexcept>
 #include <string>
 
