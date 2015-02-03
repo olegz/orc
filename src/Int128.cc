@@ -245,7 +245,7 @@ namespace orc {
       remainder = *this;
       return 0;
     } else if (divisorLength == 0) {
-      throw std::runtime_error("Division by 0 in Int128");
+      throw std::range_error("Division by 0 in Int128");
     } else if (divisorLength == 1) {
       return singleDivide(dividendArray, dividendLength, divisorArray[0],
                           remainder, dividendWasNegative, divisorWasNegative);

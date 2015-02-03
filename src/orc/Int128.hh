@@ -20,6 +20,7 @@
 #define ORC_INT_128
 
 #include <cstdint>
+#include <stdexcept>
 #include <string>
 
 namespace orc {
@@ -254,7 +255,7 @@ namespace orc {
       if (fitsInLong()) {
         return static_cast<int64_t>(lowbits);
       }
-      throw std::runtime_error("Int128 too large to convert to long");
+      throw std::range_error("Int128 too large to convert to long");
     }
 
     /**
