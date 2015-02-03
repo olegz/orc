@@ -35,6 +35,8 @@
 
 namespace orc {
 
+  const std::string MAGIC("ORC");
+
   std::string printProtobufMessage(const google::protobuf::Message& message) {
     std::string result;
     google::protobuf::TextFormat::PrintToString(message, &result);
