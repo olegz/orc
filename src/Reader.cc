@@ -166,7 +166,7 @@ namespace orc {
                     unsigned long fileLength);
     proto::StripeFooter getStripeFooter(const proto::StripeInformation& info);
     void startNextStripe();
-    void ensureOrcFooter(char* buffer, unsigned long length);
+    void ensureOrcFooter(char* buffer, unsigned long length, int postscriptLength);
     void checkOrcVersion();
     void selectTypeParent(int columnId);
     void selectTypeChildren(int columnId);
@@ -351,8 +351,21 @@ namespace orc {
     }
   }
 
-  void ReaderImpl::ensureOrcFooter(char*, unsigned long) {
-    // TODO fix me
+  void ReaderImpl::ensureOrcFooter(char *buffer, unsigned long readSize, int postscriptLength) {
+    int len = MAGIC.length();
+    if (postscriptLength < len + 1) {
+      throw ParseError("Malformed ORC file: invalid postscript length");
+    }
+
+    // Look for the magic string at the end of the postscript.
+    if (memcmp(buffer+readSize-1-postscriptLength, MAGIC.c_str(), MAGIC.length()) != 0) {
+      // if there is no magic string at the end, check the beginning of the file
+      std::vector<char> frontBuffer(MAGIC.length());
+      stream->read(frontBuffer.data(), 0, MAGIC.length());
+      if (memcmp(frontBuffer.data(), MAGIC.c_str(), MAGIC.length()) != 0) {
+        throw ParseError("Malformed ORC file: invalid postscript");
+      }
+    }
   }
 
   const std::vector<bool> ReaderImpl::getSelectedColumns() const {
@@ -380,7 +393,7 @@ namespace orc {
     //get length of PostScript
     postscriptLength = buffer[readSize - 1] & 0xff;
 
-    ensureOrcFooter(buffer, readSize);
+    ensureOrcFooter(buffer, readSize, postscriptLength);
 
     if (!postscript.ParseFromArray(buffer+readSize-1-postscriptLength, 
                                    static_cast<int>(postscriptLength))) {

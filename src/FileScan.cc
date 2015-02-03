@@ -16,8 +16,8 @@
  * limitations under the License.
  */
 
-//#include "orc/OrcFile.hh"
 #include "ColumnPrinter.hh"
+#include "Exceptions.hh"
 
 #include <string>
 #include <memory>
@@ -33,8 +33,15 @@ int main(int argc, char* argv[]) {
   cols.push_back(0);
   opts.include(cols);
 
-  std::unique_ptr<orc::Reader> reader =
-    orc::createReader(orc::readLocalFile(std::string(argv[1])), opts);
+  std::unique_ptr<orc::Reader> reader;
+  try{
+    reader = orc::createReader(orc::readLocalFile(std::string(argv[1])), opts);
+  } catch (orc::ParseError e) {
+    std::cout << "Error reading file " << argv[1] << "! "
+              << e.what() << std::endl;
+    return -1;
+  }
+
   std::unique_ptr<orc::ColumnVectorBatch> batch = reader->createRowBatch(1000);
   unsigned long rows = 0;
   unsigned long batches = 0;
