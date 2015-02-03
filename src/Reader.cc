@@ -168,10 +168,10 @@ namespace orc {
     void startNextStripe();
     void ensureOrcFooter(char* buffer, unsigned long length);
     void checkOrcVersion();
-    void selectTypeParent(int columnId);
-    void selectTypeChildren(int columnId);
+    void selectTypeParent(size_t columnId);
+    void selectTypeChildren(size_t columnId);
     std::unique_ptr<ColumnVectorBatch> createRowBatch(const Type& type, 
-                                                      unsigned long capacity
+                                                      uint64_t capacity
                                                       ) const;
 
   public:
@@ -247,18 +247,18 @@ namespace orc {
     currentStripe = 0;
     currentRowInStripe = 0;
     unsigned long rowTotal = 0;
-    firstRowOfStripe.resize(footer.stripes_size());
-    for(int i=0; i < footer.stripes_size(); ++i) {
+    firstRowOfStripe.resize(static_cast<size_t>(footer.stripes_size()));
+    for(size_t i=0; i < static_cast<size_t>(footer.stripes_size()); ++i) {
       firstRowOfStripe[i] = rowTotal;
-      rowTotal += footer.stripes(i).numberofrows();
+      rowTotal += footer.stripes(static_cast<int>(i)).numberofrows();
     }
-    selectedColumns.assign(footer.types_size(), false);
+    selectedColumns.assign(static_cast<size_t>(footer.types_size()), false);
 
     const std::list<int>& included = options.getInclude();
     for(std::list<int>::const_iterator columnId = included.begin();
         columnId != included.end(); ++columnId) {
-      selectTypeParent(*columnId);
-      selectTypeChildren(*columnId);
+      selectTypeParent(static_cast<size_t>(*columnId));
+      selectTypeChildren(static_cast<size_t>(*columnId));
     }
 
     schema = convertType(footer.types(0), footer);
@@ -326,12 +326,12 @@ namespace orc {
     return false;
   }
 
-  void ReaderImpl::selectTypeParent(int columnId) {
-    for(int parent=0; parent < columnId; ++parent) {
-      const proto::Type& parentType = footer.types(parent);
+  void ReaderImpl::selectTypeParent(size_t columnId) {
+    for(size_t parent=0; parent < columnId; ++parent) {
+      const proto::Type& parentType = footer.types(static_cast<int>(parent));
       for(int idx=0; idx < parentType.subtypes_size(); ++idx) {
         unsigned int child = parentType.subtypes(idx);
-        if (static_cast<int>(child) == columnId) {
+        if (child == columnId) {
           if (!selectedColumns[parent]) {
             selectedColumns[parent] = true;
             selectTypeParent(parent);
@@ -342,13 +342,13 @@ namespace orc {
     }
   }
 
-  void ReaderImpl::selectTypeChildren(int columnId) {
+  void ReaderImpl::selectTypeChildren(size_t columnId) {
     if (!selectedColumns[columnId]) {
       selectedColumns[columnId] = true;
-      const proto::Type& parentType = footer.types(columnId);
+      const proto::Type& parentType = footer.types(static_cast<int>(columnId));
       for(int idx=0; idx < parentType.subtypes_size(); ++idx) {
         unsigned int child = parentType.subtypes(idx);
-        selectTypeChildren(static_cast<int>(child));
+        selectTypeChildren(child);
       }
     }
   }
@@ -584,28 +584,33 @@ namespace orc {
     case TIMESTAMP:
     case DATE: {
       LongVectorBatch* batch = new LongVectorBatch(capacity);
-      return std::unique_ptr<ColumnVectorBatch>( dynamic_cast<ColumnVectorBatch*>(batch));
+      return std::unique_ptr<ColumnVectorBatch>
+        (dynamic_cast<ColumnVectorBatch*>(batch));
     }
     case FLOAT:
     case DOUBLE: {
       DoubleVectorBatch* batch = new DoubleVectorBatch(capacity);
-      return std::unique_ptr<ColumnVectorBatch>( dynamic_cast<ColumnVectorBatch*>(batch));
+      return std::unique_ptr<ColumnVectorBatch>
+        (dynamic_cast<ColumnVectorBatch*>(batch));
     }
     case STRING:
     case BINARY:
     case CHAR:
     case VARCHAR: {
       StringVectorBatch* batch = new StringVectorBatch(capacity);
-      return std::unique_ptr<ColumnVectorBatch>( dynamic_cast<ColumnVectorBatch*>(batch));
+      return std::unique_ptr<ColumnVectorBatch>
+        (dynamic_cast<ColumnVectorBatch*>(batch));
     }
     case STRUCT: {
       StructVectorBatch* structPtr = new StructVectorBatch(capacity);
-      std::unique_ptr<ColumnVectorBatch> result(dynamic_cast<ColumnVectorBatch*>(structPtr));
+      std::unique_ptr<ColumnVectorBatch> result
+        (dynamic_cast<ColumnVectorBatch*>(structPtr));
 
       for(unsigned int i=0; i < type.getSubtypeCount(); ++i) {
         const Type& child = type.getSubtype(i);
-        if (selectedColumns[child.getColumnId()]) {
-          structPtr->fields.push_back(createRowBatch(child, capacity).release());
+        if (selectedColumns[static_cast<size_t>(child.getColumnId())]) {
+          structPtr->fields.push_back(createRowBatch(child, capacity
+                                                     ).release());
         }
       }
       return result;
