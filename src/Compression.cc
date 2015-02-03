@@ -675,7 +675,7 @@ namespace orc {
       remainingLength = 0;
       state = DECOMPRESS_HEADER;
       *data = outputBuffer.data();
-      *size = outputBufferLength;
+      *size = static_cast<int>(outputBufferLength);
       outputBufferPtr = outputBuffer.data() + outputBufferLength;
     }
 
