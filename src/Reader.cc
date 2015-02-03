@@ -47,7 +47,7 @@ namespace orc {
     unsigned long dataLength;
     unsigned long tailLocation;
     ReaderOptionsPrivate() {
-      includedColumns.push_back(0);
+      includedColumns.assign(1,0);
       dataStart = 0;
       dataLength = std::numeric_limits<unsigned long>::max();
       tailLocation = std::numeric_limits<unsigned long>::max();
@@ -85,16 +85,12 @@ namespace orc {
   }
 
   ReaderOptions& ReaderOptions::include(const std::list<int>& include) {
-    privateBits->includedColumns.clear();
-    std::copy(include.begin(), include.end(),
-              privateBits->includedColumns.end());
+    privateBits->includedColumns.assign(include.begin(), include.end());
     return *this;
   }
 
   ReaderOptions& ReaderOptions::include(std::vector<int> include) {
-    privateBits->includedColumns.clear();
-    std::copy(include.begin(), include.end(),
-              privateBits->includedColumns.end());
+    privateBits->includedColumns.assign(include.begin(), include.end());
     return *this;
   }
 
@@ -262,6 +258,7 @@ namespace orc {
       selectTypeParent(*columnId);
       selectTypeChildren(*columnId);
     }
+
     schema = convertType(footer.types(0), footer);
     schema->assignIds(0);
     previousRow = (std::numeric_limits<unsigned long>::max)();
@@ -354,8 +351,24 @@ namespace orc {
     }
   }
 
-  void ReaderImpl::ensureOrcFooter(char*, unsigned long) {
-    // TODO fix me
+  void ReaderImpl::ensureOrcFooter(char *buffer, unsigned long readSize) {
+
+    const std::string MAGIC("ORC");
+
+    unsigned long len = MAGIC.length();
+    if (postscriptLength < len + 1) {
+      throw ParseError("Malformed ORC file: invalid postscript length");
+    }
+
+    // Look for the magic string at the end of the postscript.
+    if (memcmp(buffer+readSize-1-postscriptLength, MAGIC.c_str(), MAGIC.length()) != 0) {
+      // if there is no magic string at the end, check the beginning of the file
+      std::vector<char> frontBuffer(MAGIC.length());
+      stream->read(frontBuffer.data(), 0, MAGIC.length());
+      if (memcmp(frontBuffer.data(), MAGIC.c_str(), MAGIC.length()) != 0) {
+        throw ParseError("Malformed ORC file: invalid postscript");
+      }
+    }
   }
 
   const std::vector<bool> ReaderImpl::getSelectedColumns() const {

@@ -421,7 +421,7 @@ namespace orc {
       lengthArray[i] += lengthArray[i-1];
     }
     long blobSize = lengthArray[dictionaryCount];
-    dictionaryBlob.resize(blobSize);
+    dictionaryBlob.resize((unsigned long)blobSize);
     std::unique_ptr<SeekableInputStream> blobStream =
       stripe.getStream(columnId, proto::Stream_Kind_DICTIONARY_DATA);
     readFully(dictionaryBlob.data(), blobSize, blobStream.get());
@@ -676,7 +676,7 @@ namespace orc {
     case proto::ColumnEncoding_Kind_DIRECT:
       for(unsigned int i=0; i < type.getSubtypeCount(); ++i) {
         const Type& child = type.getSubtype(i);
-        if (selectedColumns[child.getColumnId()]) {
+        if (selectedColumns[static_cast<unsigned int>(child.getColumnId())]) {
           children.push_back(buildReader(child, stripe).release());
         }
       }
@@ -741,7 +741,7 @@ namespace orc {
                                             proto::Stream_Kind_LENGTH),
                            false, vers);
     const Type& childType = type.getSubtype(0);
-    if (selectedColumns[childType.getColumnId()]) {
+    if (selectedColumns[static_cast<unsigned int>(childType.getColumnId())]) {
       child = buildReader(childType, stripe);
     }
   }
@@ -837,11 +837,11 @@ namespace orc {
                                             proto::Stream_Kind_LENGTH),
                            false, vers);
     const Type& keyType = type.getSubtype(0);
-    if (selectedColumns[keyType.getColumnId()]) {
+    if (selectedColumns[static_cast<unsigned int>(keyType.getColumnId())]) {
       keyReader = buildReader(keyType, stripe);
     }
     const Type& elementType = type.getSubtype(1);
-    if (selectedColumns[elementType.getColumnId()]) {
+    if (selectedColumns[static_cast<unsigned int>(elementType.getColumnId())]) {
       elementReader = buildReader(elementType, stripe);
     }
   }
