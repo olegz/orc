@@ -270,9 +270,8 @@ TEST(Reader, columnSelectionTest) {
     EXPECT_EQ(i + 1, rootType.getSubtype(i).getColumnId()) << "fail on " << i;
   }
   const bool* const selected = reader->getSelectedColumns();
-  size_t i = 0 ;
-  EXPECT_EQ(true, selected[i]) << "fail on " << i;
-  for (i = 1; i < 10; ++i) {
+  EXPECT_EQ(true, selected[0]) << "fail on " << 0;
+  for (size_t i = 1; i < 10; ++i) {
     EXPECT_EQ(i%2==1?true:false, selected[i]) << "fail on " << i;
   }
 
