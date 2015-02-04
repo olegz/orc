@@ -45,9 +45,6 @@ int main(int argc, char* argv[]) {
     return -1;
   }
 
-  std::cout << std::endl << "Footer: " << std::endl ;
-  reader->getFooter().PrintDebugString();
-
   std::unique_ptr<orc::ColumnVectorBatch> batch = reader->createRowBatch(1000);
   orc::StructColumnPrinter printer(*batch);
 

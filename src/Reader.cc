@@ -220,8 +220,6 @@ namespace orc {
     unsigned long getRowNumber() const override;
 
     void seekToRow(unsigned long rowNumber) override;
-
-    const proto::Footer& getFooter() const override;
   };
 
   InputStream::~InputStream() {
@@ -391,10 +389,6 @@ namespace orc {
 
   void ReaderImpl::seekToRow(unsigned long) {
     throw NotImplementedYet("seekToRow");
-  }
-
-  const proto::Footer& ReaderImpl::getFooter() const {
-    return footer;
   }
 
   void ReaderImpl::readPostscript(char *buffer, unsigned long readSize) {
