@@ -2438,6 +2438,92 @@ TEST(TestColumnReader, testDoubleSkipWithNulls) {
   }
 }
 
+TEST(TestColumnReader, testTimestampSkipWithNulls) {
+  MockStripeStreams streams;
+
+  // set getSelectedColumns()
+  std::vector<bool> selectedColumns = { true, true };
+  EXPECT_CALL(streams, getSelectedColumns())
+      .WillRepeatedly(testing::Return(selectedColumns));
+
+  // set getEncoding
+  proto::ColumnEncoding directEncoding;
+  directEncoding.set_kind(proto::ColumnEncoding_Kind_DIRECT);
+  EXPECT_CALL(streams, getEncoding(testing::_))
+      .WillRepeatedly(testing::Return(directEncoding));
+
+  // set getStream
+  EXPECT_CALL(streams, getStreamProxy(0, proto::Stream_Kind_PRESENT))
+      .WillRepeatedly(testing::Return(nullptr));
+
+  // 2 non-nulls, 2 nulls, 2 non-nulls, 2 nulls
+  EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_PRESENT))
+      .WillRepeatedly(testing::Return(new SeekableArrayInputStream
+      ( { 0xff, 0xcc })));
+
+  EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_DATA))
+      .WillRepeatedly(testing::Return(new SeekableArrayInputStream
+      ( { 0xfc, 0xbb, 0xb5, 0xbe, 0x31, 0xa1, 0xee, 0xe2, 0x10, 0xf8,
+          0x92, 0xee, 0xf, 0x92, 0xa0, 0xd4, 0x30 })));
+
+  EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_SECONDARY))
+      .WillRepeatedly(testing::Return(new SeekableArrayInputStream
+      ( { 0x1, 0x8, 0x5e })));
+
+  // create the row type
+  std::unique_ptr<Type> rowType =
+      createStructType( { createPrimitiveType(TIMESTAMP) }, { "myTimestamp" });
+  rowType->assignIds(0);
+
+  std::unique_ptr<ColumnReader> reader =
+      buildReader(*rowType, streams);
+
+  LongVectorBatch *longBatch = new LongVectorBatch(1024);
+  StructVectorBatch batch(1024);
+  batch.fields.push_back(longBatch);
+
+  int64_t test_vals[] = {
+      -51891549989000000,     //  2013-05-10 10:40:50.11
+      -17587088988000000,     //  2014-06-11 11:41:51.12
+      16630972013000000,      //  2015-07-12 12:42:52.13
+      51021833014000000       //  2016-08-13 13:43:53.14
+  };
+  int vals_ix = 0;
+
+  reader->next(batch, 3, 0);
+  ASSERT_EQ(3, batch.numElements);
+  ASSERT_EQ(false, batch.hasNulls);
+  ASSERT_EQ(3, longBatch->numElements);
+  ASSERT_EQ(true, longBatch->hasNulls);
+
+  for (size_t i = 0; i < batch.numElements; ++i) {
+    if (i > 1) {
+      EXPECT_EQ(0, longBatch->notNull[i]);
+    } else {
+      EXPECT_EQ(1, longBatch->notNull[i]);
+      EXPECT_DOUBLE_EQ(test_vals[vals_ix], longBatch->data[i]);
+      vals_ix++;
+    }
+  }
+
+  reader->skip(1);
+
+  reader->next(batch, 4, 0);
+  ASSERT_EQ(4, batch.numElements);
+  ASSERT_EQ(false, batch.hasNulls);
+  ASSERT_EQ(4, longBatch->numElements);
+  ASSERT_EQ(true, longBatch->hasNulls);
+  for (size_t i = 0; i < batch.numElements; ++i) {
+    if (i > 1) {
+      EXPECT_EQ(0, longBatch->notNull[i]);
+    } else {
+      EXPECT_EQ(1, longBatch->notNull[i]);
+      EXPECT_DOUBLE_EQ(test_vals[vals_ix], longBatch->data[i]);
+      vals_ix++;
+    }
+  }
+}
+
 TEST(TestColumnReader, testUnimplementedTypes) {
   MockStripeStreams streams;
 
@@ -2458,9 +2544,6 @@ TEST(TestColumnReader, testUnimplementedTypes) {
 
   // create the row type
   std::unique_ptr<Type> rowType;
-  rowType = createStructType( { createPrimitiveType(TIMESTAMP) }, { "col0" });
-  rowType->assignIds(0);
-  EXPECT_THROW(buildReader(*rowType, streams), NotImplementedYet);
 
   rowType = createStructType( { createPrimitiveType(UNION) }, { "col0" });
   rowType->assignIds(0);
