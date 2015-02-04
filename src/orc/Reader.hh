@@ -20,7 +20,6 @@
 #define ORC_READER_HH
 
 #include "Vector.hh"
-#include "../wrap/orc-proto-wrapper.hh"
 
 #include <memory>
 #include <string>
@@ -479,11 +478,6 @@ namespace orc {
      * Get the name of the input stream.
      */
     virtual const std::string& getStreamName() const = 0;
-
-    /**
-     * Get the file footer.
-     */
-    virtual const proto::Footer& getFooter() const = 0;
   };
 }
 
