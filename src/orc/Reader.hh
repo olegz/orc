@@ -20,6 +20,7 @@
 #define ORC_READER_HH
 
 #include "Vector.hh"
+#include "../wrap/orc-proto-wrapper.hh"
 
 #include <memory>
 #include <string>
@@ -28,7 +29,14 @@
 namespace orc {
 
   // classes that hold data members so we can maintain binary compatibility
-  class ColumnStatisticsPrivate;
+  // class ColumnStatisticsPrivate;
+class ColumnStatisticsPrivate{
+public:
+    proto::ColumnStatistics columnStatistics;
+    ColumnStatisticsPrivate(proto::ColumnStatistics columnStatistics): columnStatistics(columnStatistics){}
+    virtual ~ColumnStatisticsPrivate(){};
+};
+
   struct ReaderOptionsPrivate;
 
   enum CompressionKind {
@@ -42,12 +50,12 @@ namespace orc {
    * Statistics that are available for all types of columns.
    */
   class ColumnStatistics {
-  private:
+  protected:
     std::unique_ptr<ColumnStatisticsPrivate> privateBits;
 
   public:
-    ColumnStatistics(std::unique_ptr<ColumnStatisticsPrivate> data);
-    virtual ~ColumnStatistics();
+      ColumnStatistics(std::unique_ptr<ColumnStatisticsPrivate> data) : privateBits(data){}
+      virtual ~ColumnStatistics(){};
 
     /**
      * Get the number of values in this column. It will differ from the number
@@ -62,7 +70,7 @@ namespace orc {
    */
   class BinaryColumnStatistics: public ColumnStatistics {
   public:
-    BinaryColumnStatistics(std::unique_ptr<ColumnStatisticsPrivate> data);
+      BinaryColumnStatistics(std::unique_ptr<ColumnStatisticsPrivate> data);
     virtual ~BinaryColumnStatistics();
 
     long getTotalLength() const;
@@ -73,7 +81,7 @@ namespace orc {
    */
   class BooleanColumnStatistics: public ColumnStatistics {
   public:
-    BooleanColumnStatistics(std::unique_ptr<ColumnStatisticsPrivate> data);
+      BooleanColumnStatistics(std::unique_ptr<ColumnStatisticsPrivate> data);
     virtual ~BooleanColumnStatistics();
 
     long getFalseCount() const;
@@ -85,7 +93,7 @@ namespace orc {
    */
   class DateColumnStatistics: public ColumnStatistics {
   public:
-    DateColumnStatistics(std::unique_ptr<ColumnStatisticsPrivate> data);
+      DateColumnStatistics(std::unique_ptr<ColumnStatisticsPrivate> data);
     virtual ~DateColumnStatistics();
 
     /**
@@ -106,7 +114,7 @@ namespace orc {
    */
   class DecimalColumnStatistics: public ColumnStatistics {
   public:
-    DecimalColumnStatistics(std::unique_ptr<ColumnStatisticsPrivate> data);
+      DecimalColumnStatistics(std::unique_ptr<ColumnStatisticsPrivate> data);
     virtual ~DecimalColumnStatistics();
 
     /**
@@ -126,6 +134,26 @@ namespace orc {
      * @return sum of all the values
      */
     Decimal getSum() const;
+
+      /**
+       * convert string to struct Decimal
+       */
+      inline Decimal stringToDecimal(std::string dec) const
+      {
+          Decimal result;
+          std::size_t foundPoint = dec.find(".");
+          // no decimal point, it is int
+          if(foundPoint == std::string::npos){
+              result.upper = atol(dec.c_str());
+              result.lower = 0;
+          }else{
+              std::string upper = dec.substr(0,foundPoint);
+              std::string lower = dec.substr(foundPoint+1);
+              result.upper = atol(upper.c_str());
+              result.lower = atol(lower.c_str());
+          }
+          return result;
+      }
   };
 
   /**
@@ -133,7 +161,7 @@ namespace orc {
    */
   class DoubleColumnStatistics: public ColumnStatistics {
   public:
-    DoubleColumnStatistics(std::unique_ptr<ColumnStatisticsPrivate> data);
+      DoubleColumnStatistics(std::unique_ptr<ColumnStatisticsPrivate> data);
     virtual ~DoubleColumnStatistics();
 
     /**
@@ -163,7 +191,7 @@ namespace orc {
    */
   class IntegerColumnStatistics: public ColumnStatistics {
   public:
-    IntegerColumnStatistics(std::unique_ptr<ColumnStatisticsPrivate> data);
+      IntegerColumnStatistics(std::unique_ptr<ColumnStatisticsPrivate> data);
     virtual ~IntegerColumnStatistics();
 
     /**
@@ -199,7 +227,7 @@ namespace orc {
    */
   class StringColumnStatistics: public ColumnStatistics {
   public:
-    StringColumnStatistics(std::unique_ptr<ColumnStatisticsPrivate> data);
+      StringColumnStatistics(std::unique_ptr<ColumnStatisticsPrivate> data);
     virtual ~StringColumnStatistics();
 
     /**
@@ -226,7 +254,7 @@ namespace orc {
    */
   class TimestampColumnStatistics: public ColumnStatistics {
   public:
-    TimestampColumnStatistics(std::unique_ptr<ColumnStatisticsPrivate> data);
+      TimestampColumnStatistics(std::unique_ptr<ColumnStatisticsPrivate> data);
     virtual ~TimestampColumnStatistics();
 
     /**
@@ -432,6 +460,12 @@ namespace orc {
      * @return the information about the column
      */
     virtual std::list<ColumnStatistics*> getStatistics() const = 0;
+
+    /**
+     * Get the statistics about the columns in the file.
+     * @return the information about the column
+     */
+    virtual ColumnStatistics* getColumnStatistics(int index) const = 0;
 
     /**
      * Get the type of the rows in the file. The top level is always a struct.

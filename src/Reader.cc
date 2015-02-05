@@ -207,7 +207,7 @@ namespace orc {
     unsigned long getContentLength() const override;
 
     std::list<ColumnStatistics*> getStatistics() const override;
-
+      ColumnStatistics* getColumnStatistics(int index) const override;
     const Type& getType() const override;
 
     const std::vector<bool> getSelectedColumns() const override;
@@ -383,9 +383,20 @@ namespace orc {
     return previousRow;
   }
 
+// ColumnStatistics only contains statistics that are available for all data type
   std::list<ColumnStatistics*> ReaderImpl::getStatistics() const {
-    throw NotImplementedYet("getStatistics");
+      std::list<ColumnStatistics*> result;
+      for(int i=0; i < footer.statistics_size(); ++i) {
+          ColumnStatistics *col = new ColumnStatistics(std::unique_ptr<ColumnStatisticsPrivate>
+                                                       (new ColumnStatisticsPrivate(footer.statistics(i+1))));
+          result.push_back(col);
+      }
+      return result;
   }
+ColumnStatistics* ReaderImpl::getColumnStatistics(int index) const {
+    return new ColumnStatistics(std::unique_ptr<ColumnStatisticsPrivate>
+                                (new ColumnStatisticsPrivate(footer.statistics(index))));
+}
 
   void ReaderImpl::seekToRow(unsigned long) {
     throw NotImplementedYet("seekToRow");
@@ -627,4 +638,127 @@ namespace orc {
                                        const ReaderOptions& options) {
     return std::unique_ptr<Reader>(new ReaderImpl(std::move(stream), options));
   }
+
+
+/**
+ * start column statistics: min, max, length, numofvalues
+ * Didn't find the boolen statistics in protobuf.h
+ **/
+// number of values
+long ColumnStatistics::getNumberOfValues() const
+{
+    return privateBits->columnStatistics.numberofvalues();
+}
+
+// int
+long IntegerColumnStatistics::getMinimum() const
+{
+    return privateBits->columnStatistics.intstatistics().minimum();
+}
+long IntegerColumnStatistics::getMaximum() const
+{
+    return privateBits->columnStatistics.intstatistics().maximum();
+}
+bool IntegerColumnStatistics::isSumDefined() const
+{
+    return privateBits->columnStatistics.intstatistics().has_sum();
+}
+long IntegerColumnStatistics::getSum() const
+{
+    if(IntegerColumnStatistics::isSumDefined()){
+        return privateBits->columnStatistics.intstatistics().sum();
+    }
+    throw std::range_error("sum is not defined");
+}
+
+// double
+double DoubleColumnStatistics::getMinimum() const
+{
+    return privateBits->columnStatistics.doublestatistics().minimum();
+}
+
+double DoubleColumnStatistics::getMaximum() const
+{
+    return privateBits->columnStatistics.doublestatistics().maximum();
+}
+double DoubleColumnStatistics::getSum() const
+{
+    if(privateBits->columnStatistics.doublestatistics().has_sum()){
+        return privateBits->columnStatistics.doublestatistics().sum();
+    }
+    throw std::range_error("sum is not defined");
+}
+
+// string
+std::string StringColumnStatistics::getMinimum() const
+{
+    return privateBits->columnStatistics.stringstatistics().minimum();
+}
+
+std::string StringColumnStatistics::getMaximum() const
+{
+    return privateBits->columnStatistics.stringstatistics().maximum();
+}
+long StringColumnStatistics::getTotalLength() const
+{
+    if(privateBits->columnStatistics.stringstatistics().has_sum())
+    {
+        return privateBits->columnStatistics.stringstatistics().sum();
+    }
+    throw std::range_error("Can not get total length, not defined");
+}
+
+// date
+long DateColumnStatistics::getMinimum() const
+{
+    return privateBits->columnStatistics.datestatistics().minimum();
+}
+
+long DateColumnStatistics::getMaximum() const
+{
+    return privateBits->columnStatistics.datestatistics().maximum();
+}
+
+
+// decimal
+Decimal DecimalColumnStatistics::getMinimum() const
+{
+    return stringToDecimal(privateBits->columnStatistics.decimalstatistics().minimum());
+}
+
+Decimal DecimalColumnStatistics::getMaximum() const
+{
+    return stringToDecimal(privateBits->columnStatistics.decimalstatistics().maximum());
+}
+Decimal DecimalColumnStatistics::getSum() const
+{
+    if(privateBits->columnStatistics.decimalstatistics().has_sum())
+    {
+        return stringToDecimal(privateBits->columnStatistics.decimalstatistics().sum());
+    }
+    throw std::range_error("sum is not defined");
+}
+
+// timestamp
+long TimestampColumnStatistics::getMinimum() const
+{
+    return privateBits->columnStatistics.timestampstatistics().minimum();
+}
+long TimestampColumnStatistics::getMaximum() const
+{
+    return privateBits->columnStatistics.timestampstatistics().maximum();
+}
+
+// binary
+long BinaryColumnStatistics::getTotalLength() const
+{
+    if(privateBits->columnStatistics.binarystatistics().has_sum())
+    {
+        return privateBits->columnStatistics.binarystatistics().sum();
+    }
+    throw std::range_error("Can not get total length, not defined");
+}
+
+
+
 }
