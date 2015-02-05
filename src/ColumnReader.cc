@@ -300,12 +300,12 @@ namespace orc {
 
     // Construct the values
     int64_t* pStamp = dynamic_cast<LongVectorBatch&>(rowBatch).data.data();
-    unsigned int zeroes = 0;
+    int zeroes = 0;
     int64_t value = 0;
     for(unsigned int i=0; i<rowBatch.capacity; i++) {
       value =  nanoseconds[i] >> 3 ;
       zeroes = nanoseconds[i] & 0x7 ;
-      while(zeroes>0) {
+      while(zeroes>=0) {
         value *=10 ;
         zeroes--;
       }
