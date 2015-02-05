@@ -23,16 +23,16 @@
   #pragma clang diagnostic ignored "-Wunused-parameter"
   #pragma clang diagnostic ignored "-Wnested-anon-types"
   #pragma clang diagnostic ignored "-Wweak-vtables"
-#else
-  #pragma GCC diagnostic push
+// #else
+//   #pragma GCC diagnostic push
 #endif
 
-#include "orc_proto.pb.h"
+ #include "orc_proto.pb.h"
 
 #ifdef __clang__
   #pragma clang diagnostic pop
-#else
-  #pragma GCC diagnostic pop
+// #else
+//   #pragma GCC diagnostic pop
 #endif
 
 #endif

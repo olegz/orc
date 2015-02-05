@@ -34,7 +34,7 @@
   #pragma clang diagnostic ignored "-Wweak-vtables"
 #else
   #pragma GCC diagnostic ignored "-Wconversion-null"
-  #pragma GCC diagnostic push
+//#pragma GCC diagnostic push
   #pragma GCC diagnostic ignored "-Wsign-compare"
 #endif
 
@@ -42,8 +42,8 @@
 
 #ifdef __clang__
   #pragma clang diagnostic pop
-#else
-  #pragma GCC diagnostic pop
+// #else
+//   #pragma GCC diagnostic pop
 #endif
 
 #endif

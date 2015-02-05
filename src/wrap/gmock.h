@@ -29,17 +29,17 @@
   #pragma clang diagnostic ignored "-Wundef"
   #pragma clang diagnostic ignored "-Wused-but-marked-unused"
   #pragma clang diagnostic ignored "-Wweak-vtables"
-#else
-  #pragma GCC diagnostic push
-  #pragma GCC diagnostic ignored "-Wsign-compare"
+//#else
+//  #pragma GCC diagnostic push
+//  #pragma GCC diagnostic ignored "-Wsign-compare"
 #endif
 
 #include "gmock/gmock.h"
 
 #ifdef __clang__
   #pragma clang diagnostic pop
-#else
-  #pragma GCC diagnostic pop
+//#else
+//  #pragma GCC diagnostic pop
 #endif
 
 #endif

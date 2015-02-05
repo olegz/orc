@@ -324,7 +324,7 @@ namespace orc {
     off_t bytesReturned;
   };
 
-#pragma GCC diagnostic push
+//#pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wold-style-cast"
 
   ZlibDecompressionStream::ZlibDecompressionStream
@@ -362,7 +362,7 @@ namespace orc {
     bytesReturned = 0;
   }
 
-#pragma GCC diagnostic pop
+//#pragma GCC diagnostic pop
 
   ZlibDecompressionStream::~ZlibDecompressionStream() {
     int result = inflateEnd(&zstream);
