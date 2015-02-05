@@ -293,4 +293,22 @@ TEST(Reader, columnSelectionTest) {
   EXPECT_EQ(1920000, reader->getRowNumber());
 }
 
+TEST(Reader, stripeInformationTest) {
+  orc::ReaderOptions opts;
+  std::ostringstream filename;
+  filename << exampleDirectory << "/demo-11-none.orc";
+  std::unique_ptr<orc::Reader> reader =
+    orc::createReader(orc::readLocalFile(filename.str()), opts);
+
+  EXPECT_EQ(385, reader->getNumberOfStripes());
+
+  std::unique_ptr<orc::StripeInformation> stripeInfo = reader->getStripe(7);
+  EXPECT_EQ(92143, stripeInfo->getOffset());
+  EXPECT_EQ(13176, stripeInfo->getLength());
+  EXPECT_EQ(234, stripeInfo->getIndexLength());
+  EXPECT_EQ(12673, stripeInfo->getDataLength());
+  EXPECT_EQ(269, stripeInfo->getFooterLength());
+  EXPECT_EQ(5000, stripeInfo->getNumberOfRows());
+}
+
 }  // namespace
