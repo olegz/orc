@@ -50,11 +50,11 @@ target_link_libraries (orc
   ${SNAPPY_LIBRARIES}
   )
 
-add_executable (file-dump
-  LocalFileReader.cc
+add_executable (file-contents
+  FileContents.cc
   )
 
-target_link_libraries (file-dump
+target_link_libraries (file-contents
   orc
   ${PROTOBUF_LIBRARIES}
   )
@@ -69,7 +69,7 @@ target_link_libraries (file-scan
   )
 
 add_executable (file-metadata
-  FileInfo.cc
+  FileMetadata.cc
   )
 
 target_link_libraries (file-metadata

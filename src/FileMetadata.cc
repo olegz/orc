@@ -26,11 +26,11 @@ int main(int argc, char* argv[])
 
   input.open(argv[1], std::ios::in | std::ios::binary);
   input.seekg(0,input.end);
-  unsigned int fileSize = input.tellg();
+  int fileSize = input.tellg();
 
   // Read the postscript size
   input.seekg(fileSize-1);
-  unsigned int postscriptSize = (int)input.get() ;
+  int postscriptSize = (int)input.get() ;
 
   // Read the postscript
   input.seekg(fileSize - postscriptSize-1);
@@ -59,7 +59,7 @@ int main(int argc, char* argv[])
 
   // Read the metadata
   input.seekg(fileSize - 1 - postscriptSize - footerSize - metadataSize);
-  buffer.resize(metadataSize);
+  buffer.resize(static_cast<unsigned int>(metadataSize));
   input.read(buffer.data(), metadataSize);
   Metadata metadata ;
   metadata.ParseFromArray(buffer.data(), metadataSize);
@@ -68,7 +68,7 @@ int main(int argc, char* argv[])
 
   // Read the footer
   //input.seekg(fileSize -1 - postscriptSize-footerSize);
-  buffer.resize(footerSize);
+  buffer.resize(static_cast<unsigned int>(footerSize));
   input.read(buffer.data(), footerSize);
   Footer footer ;
   footer.ParseFromArray(buffer.data(), footerSize);
@@ -96,12 +96,12 @@ int main(int argc, char* argv[])
       stripe = footer.stripes(stripeIx);
       stripe.PrintDebugString();
 
-      long offset = stripe.offset() + stripe.indexlength() + stripe.datalength();
+      unsigned long offset = stripe.offset() + stripe.indexlength() + stripe.datalength();
       int tailLength = stripe.footerlength();
 
       // read the stripe footer
       input.seekg(offset);
-      buffer.resize(tailLength);
+      buffer.resize(static_cast<unsigned int>(tailLength));
       input.read(buffer.data(), tailLength);
 
       StripeFooter stripeFooter;
