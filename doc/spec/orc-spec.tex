@@ -949,9 +949,9 @@ number of nanoseconds.
 
 Because the number of nanoseconds often has a large number of trailing
 zeros, the number has trailing decimal zero digits removed and the
-last three bits are used to record how many zeros were removed. Thus
-1000 nanoseconds would be serialized as 0x0b and 100000 would be
-serialized as 0x0d.
+last three bits are used to record how many zeros were removed less one. Thus
+1000 nanoseconds would be serialized as 0x0a and 100000 would be
+serialized as 0x0c.
 
 \vspace{10pt}
 \begin{tabular}{| l | l | l | l |}
