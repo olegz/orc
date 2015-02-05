@@ -68,3 +68,11 @@ target_link_libraries (file-scan
   ${PROTOBUF_LIBRARIES}
   )
 
+add_executable (file-metadata
+  FileInfo.cc
+  )
+
+target_link_libraries (file-metadata
+  orc
+  ${PROTOBUF_LIBRARIES}
+  )
