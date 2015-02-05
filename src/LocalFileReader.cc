@@ -19,8 +19,8 @@
 #include "ColumnPrinter.hh"
 #include "Exceptions.hh"
 
-#include <string>
 #include <memory>
+#include <string>
 #include <iostream>
 #include <string>
 
