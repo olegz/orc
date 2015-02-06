@@ -63,8 +63,6 @@ int main(int argc, char* argv[])
   input.read(buffer.data(), metadataSize);
   Metadata metadata ;
   metadata.ParseFromArray(buffer.data(), metadataSize);
-  std::cout << std::endl << "Metadata: " << std::endl ;
-  postscript.PrintDebugString();
 
   // Read the footer
   //input.seekg(fileSize -1 - postscriptSize-footerSize);
@@ -72,8 +70,6 @@ int main(int argc, char* argv[])
   input.read(buffer.data(), footerSize);
   Footer footer ;
   footer.ParseFromArray(buffer.data(), footerSize);
-  std::cout << std::endl << "Footer: " << std::endl ;
-  postscript.PrintDebugString();
 
   std::cout << std::endl << "Rows: " << footer.numberofrows() << std::endl;
   std::cout << "Compression: " << postscript.compression() << std::endl;

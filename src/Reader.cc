@@ -255,18 +255,21 @@ namespace orc {
       firstRowOfStripe[i] = rowTotal;
       rowTotal += footer.stripes(static_cast<int>(i)).numberofrows();
     }
+
+    schema = convertType(footer.types(0), footer);
+    schema->assignIds(0);
+    previousRow = (std::numeric_limits<unsigned long>::max)();
+
     selectedColumns.assign(static_cast<size_t>(footer.types_size()), false);
 
     const std::list<int>& included = options.getInclude();
     for(std::list<int>::const_iterator columnId = included.begin();
         columnId != included.end(); ++columnId) {
-      selectTypeParent(static_cast<size_t>(*columnId));
-      selectTypeChildren(static_cast<size_t>(*columnId));
+      if (*columnId <= (int)(schema->getSubtypeCount())) {
+        selectTypeParent(static_cast<size_t>(*columnId));
+        selectTypeChildren(static_cast<size_t>(*columnId));
+      }
     }
-
-    schema = convertType(footer.types(0), footer);
-    schema->assignIds(0);
-    previousRow = (std::numeric_limits<unsigned long>::max)();
   }
                          
   CompressionKind ReaderImpl::getCompression() const { 
