@@ -4,13 +4,13 @@
 #include <string>
 #include <sstream>
 #include <iomanip>
-//#include "orc_proto.pb.h"
-#include "wrap/orc-proto-wrapper.hh"
 
+#include "wrap/orc-proto-wrapper.hh"
+#include "orc/OrcFile.hh"
 
 using namespace orc::proto;
 
-long getTotalPaddingSize(Footer footer);
+uint64_t getTotalPaddingSize(Footer footer);
 
 int main(int argc, char* argv[])
 {
@@ -26,11 +26,11 @@ int main(int argc, char* argv[])
 
   input.open(argv[1], std::ios::in | std::ios::binary);
   input.seekg(0,input.end);
-  int fileSize = input.tellg();
+  uint64_t fileSize = input.tellg();
 
   // Read the postscript size
   input.seekg(fileSize-1);
-  int postscriptSize = (int)input.get() ;
+  uint64_t postscriptSize = input.get() ;
 
   // Read the postscript
   input.seekg(fileSize - postscriptSize-1);
@@ -54,12 +54,12 @@ int main(int argc, char* argv[])
       return -1;
   };
 
-  int footerSize = postscript.footerlength();
-  int metadataSize = postscript.metadatalength();
+  uint64_t footerSize = postscript.footerlength();
+  uint64_t metadataSize = postscript.metadatalength();
 
   // Read the metadata
   input.seekg(fileSize - 1 - postscriptSize - footerSize - metadataSize);
-  buffer.resize(static_cast<unsigned int>(metadataSize));
+  buffer.resize(metadataSize);
   input.read(buffer.data(), metadataSize);
   Metadata metadata ;
   metadata.ParseFromArray(buffer.data(), metadataSize);
@@ -68,7 +68,7 @@ int main(int argc, char* argv[])
 
   // Read the footer
   //input.seekg(fileSize -1 - postscriptSize-footerSize);
-  buffer.resize(static_cast<unsigned int>(footerSize));
+  buffer.resize(footerSize);
   input.read(buffer.data(), footerSize);
   Footer footer ;
   footer.ParseFromArray(buffer.data(), footerSize);
@@ -90,32 +90,32 @@ int main(int argc, char* argv[])
   StripeInformation stripe ;
   Stream section;
   ColumnEncoding encoding;
-  for (int stripeIx=0; stripeIx<footer.stripes_size(); stripeIx++)
+  for (int64_t stripeIx=0; stripeIx<footer.stripes_size(); stripeIx++)
   {
       std::cout << "  Stripe " << stripeIx+1 <<": " << std::endl ;
       stripe = footer.stripes(stripeIx);
       stripe.PrintDebugString();
 
-      unsigned long offset = stripe.offset() + stripe.indexlength() + stripe.datalength();
-      int tailLength = stripe.footerlength();
+      uint64_t offset = stripe.offset() + stripe.indexlength() + stripe.datalength();
+      uint64_t tailLength = stripe.footerlength();
 
       // read the stripe footer
       input.seekg(offset);
-      buffer.resize(static_cast<unsigned int>(tailLength));
+      buffer.resize(tailLength);
       input.read(buffer.data(), tailLength);
 
       StripeFooter stripeFooter;
       stripeFooter.ParseFromArray(buffer.data(), tailLength);
       //stripeFooter.PrintDebugString();
-      long stripeStart = stripe.offset();
-      long sectionStart = stripeStart;
-      for (int streamIx=0; streamIx<stripeFooter.streams_size(); streamIx++) {
+      uint64_t stripeStart = stripe.offset();
+      uint64_t sectionStart = stripeStart;
+      for (int64_t streamIx=0; streamIx<stripeFooter.streams_size(); streamIx++) {
           section = stripeFooter.streams(streamIx);
           std::cout << "    Stream: column " << section.column()  << " section "
             << section.kind() << " start: " << sectionStart << " length " << section.length() << std::endl;
           sectionStart += section.length();
       };
-      for (int columnIx=0; columnIx<stripeFooter.columns_size(); columnIx++) {
+      for (int64_t columnIx=0; columnIx<stripeFooter.columns_size(); columnIx++) {
           encoding = stripeFooter.columns(columnIx);
           std::cout << "    Encoding column " << columnIx << ": " << encoding.kind() ;
           if (encoding.kind() == ColumnEncoding_Kind_DICTIONARY || encoding.kind() == ColumnEncoding_Kind_DICTIONARY_V2)
@@ -124,7 +124,7 @@ int main(int argc, char* argv[])
       };
   };
 
-  long paddedBytes = getTotalPaddingSize(footer);
+  uint64_t paddedBytes = getTotalPaddingSize(footer);
   // empty ORC file is ~45 bytes. Assumption here is file length always >0
   double percentPadding = ((double) paddedBytes / (double) fileSize) * 100;
   std::cout << "File length: " << fileSize << " bytes" << std::endl;
@@ -140,13 +140,13 @@ int main(int argc, char* argv[])
   return 0;
 }
 
-long getTotalPaddingSize(Footer footer) {
-  long paddedBytes = 0;
+uint64_t getTotalPaddingSize(Footer footer) {
+  uint64_t paddedBytes = 0;
   StripeInformation stripe;
-  for (int stripeIx=1; stripeIx<footer.stripes_size(); stripeIx++) {
+  for (int64_t stripeIx=1; stripeIx<footer.stripes_size(); stripeIx++) {
       stripe = footer.stripes(stripeIx-1);
-      long prevStripeOffset = stripe.offset();
-      long prevStripeLen = stripe.datalength() + stripe.indexlength() + stripe.footerlength();
+      uint64_t prevStripeOffset = stripe.offset();
+      uint64_t prevStripeLen = stripe.datalength() + stripe.indexlength() + stripe.footerlength();
       paddedBytes += footer.stripes(stripeIx).offset() - (prevStripeOffset + prevStripeLen);
   };
   return paddedBytes;
