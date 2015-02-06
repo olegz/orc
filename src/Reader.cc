@@ -237,6 +237,11 @@ namespace orc {
 
     //read last bytes into buffer to get PostScript
     unsigned long readSize = std::min(size, DIRECTORY_SIZE_GUESS);
+
+    if (readSize < 1) {
+      throw ParseError("File size too small");
+    }
+
     std::vector<char> buffer(readSize);
     stream->read(buffer.data(), size - readSize, readSize);
     readPostscript(buffer.data(), readSize);
@@ -392,8 +397,6 @@ namespace orc {
   }
 
   void ReaderImpl::readPostscript(char *buffer, unsigned long readSize) {
-
-    //get length of PostScript
     postscriptLength = buffer[readSize - 1] & 0xff;
 
     ensureOrcFooter(buffer, readSize);
