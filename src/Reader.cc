@@ -207,6 +207,7 @@ namespace orc {
     // reading state
     uint64_t previousRow;
     uint64_t currentStripe;
+    uint64_t lastStripe;
     uint64_t currentRowInStripe;
     uint64_t rowsInCurrentStripe;
     proto::StripeInformation currentStripeInfo;
@@ -295,13 +296,25 @@ namespace orc {
     readPostscript(buffer.data(), readSize);
     readFooter(buffer.data(), readSize, size);
 
-    currentStripe = 0;
+    currentStripe = footer.stripes_size();
+    lastStripe = 0;
     currentRowInStripe = 0;
     unsigned long rowTotal = 0;
     firstRowOfStripe.resize(static_cast<size_t>(footer.stripes_size()));
     for(size_t i=0; i < static_cast<size_t>(footer.stripes_size()); ++i) {
       firstRowOfStripe[i] = rowTotal;
-      rowTotal += footer.stripes(static_cast<int>(i)).numberofrows();
+      proto::StripeInformation stripeInfo = footer.stripes(static_cast<int>(i));
+      rowTotal += stripeInfo.numberofrows();
+      bool isStripeInRange = stripeInfo.offset() >= opts.getOffset() &&
+        stripeInfo.offset() < opts.getOffset() + opts.getLength();
+      if (isStripeInRange) {
+        if (i < currentStripe) {
+          currentStripe = i;
+        }
+        if (i > lastStripe) {
+          lastStripe = i;
+        }          
+      }
     }
     selectedColumns.assign(static_cast<size_t>(footer.types_size()), false);
 
@@ -609,7 +622,7 @@ namespace orc {
   }
 
   bool ReaderImpl::next(ColumnVectorBatch& data) {
-    if (currentStripe >= numberOfStripes) {
+    if (currentStripe > lastStripe) {
       data.numElements = 0;
       return false;
     }
