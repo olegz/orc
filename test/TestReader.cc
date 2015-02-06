@@ -311,7 +311,7 @@ TEST(Reader, stripeInformationTest) {
   EXPECT_EQ(5000, stripeInfo->getNumberOfRows());
 }
 
-TEST(Reader, readOffsetTest) {
+TEST(Reader, readRangeTest) {
   orc::ReaderOptions fullOpts, lastOpts, oobOpts, offsetOpts;
   // stripes[N-1]
   lastOpts.range(5067085, 1);
