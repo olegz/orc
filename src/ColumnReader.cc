@@ -209,7 +209,7 @@ namespace orc {
   }
 
   class IntegerColumnReader: public ColumnReader {
-  private:
+  protected:
     std::unique_ptr<orc::RleDecoder> rle;
 
   public:
@@ -248,6 +248,69 @@ namespace orc {
     ColumnReader::next(rowBatch, numValues, notNull);
     rle->next(dynamic_cast<LongVectorBatch&>(rowBatch).data.data(),
               numValues, rowBatch.hasNulls ? rowBatch.notNull.data() : 0);
+  }
+
+  class TimestampColumnReader: public IntegerColumnReader {
+    private:
+      std::unique_ptr<orc::RleDecoder> nanos;
+
+    public:
+      TimestampColumnReader(const Type& type, StripeStreams& stripe);
+      ~TimestampColumnReader();
+
+      unsigned long skip(unsigned long numValues) override;
+
+      void next(ColumnVectorBatch& rowBatch,
+                unsigned long numValues,
+                char* notNull) override;
+  };
+
+
+  TimestampColumnReader::TimestampColumnReader(const Type& type,
+                                           StripeStreams& stripe
+                                           ): IntegerColumnReader(type, stripe) {
+    RleVersion vers = convertRleVersion(stripe.getEncoding(columnId).kind());
+    nanos = createRleDecoder(stripe.getStream(columnId,
+                                            proto::Stream_Kind_SECONDARY),
+                           false, vers);
+  }
+
+  TimestampColumnReader::~TimestampColumnReader() {
+    // PASS
+  }
+
+  unsigned long TimestampColumnReader::skip(unsigned long numValues) {
+    numValues = IntegerColumnReader::skip(numValues);
+    nanos->skip(numValues);
+    return numValues;
+  }
+
+  void TimestampColumnReader::next(ColumnVectorBatch& rowBatch,
+                                 unsigned long numValues,
+                                 char *notNull) {
+    ColumnReader::next(rowBatch, numValues, notNull);
+
+    std::vector<int64_t> seconds(rowBatch.capacity);
+    std::vector<int64_t> nanoseconds(rowBatch.capacity);
+
+    rle->next(seconds.data(),
+              numValues, rowBatch.hasNulls ? rowBatch.notNull.data() : 0);
+    nanos->next(nanoseconds.data(),
+              numValues, rowBatch.hasNulls ? rowBatch.notNull.data() : 0);
+
+    // Construct the values
+    int64_t* pStamp = dynamic_cast<LongVectorBatch&>(rowBatch).data.data();
+    int zeroes = 0;
+    int64_t value = 0;
+    for(unsigned int i=0; i<rowBatch.capacity; i++) {
+      value =  nanoseconds[i] >> 3 ;
+      zeroes = nanoseconds[i] & 0x7 ;
+      while(zeroes>=0) {
+        value *=10 ;
+        zeroes--;
+      }
+      pStamp[i] = seconds[i]*1000000000 + value;
+    }
   }
 
   class DoubleColumnReader: public ColumnReader {
@@ -984,6 +1047,8 @@ namespace orc {
       return std::unique_ptr<ColumnReader>(new DoubleColumnReader(type, stripe));
 
     case TIMESTAMP:
+      return std::unique_ptr<ColumnReader>(new TimestampColumnReader(type, stripe));
+
     case UNION:
     case DECIMAL:
     default:
