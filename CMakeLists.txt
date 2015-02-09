@@ -30,6 +30,7 @@ if (MSVC)
   add_definitions (-D_SCL_SECURE_NO_WARNINGS)
   add_definitions (-D_CRT_SECURE_NO_WARNINGS)
   set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /MTd")
+  include_directories(${CMAKE_SOURCE_DIR}/os/win)
   
   find_package (Protobuf)
   
