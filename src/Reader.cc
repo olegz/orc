@@ -247,6 +247,8 @@ public:
 
     unsigned long getContentLength() const override;
 
+    ColumnStatistics* convertColumnStatistics(int colIdx) const override;
+
     std::list<ColumnStatistics*> getStatistics() const override;
     
     std::unique_ptr<ColumnStatistics> getColumnStatistics(unsigned long index) const override;
@@ -426,75 +428,78 @@ public:
     return previousRow;
   }
 
+
+ColumnStatistics* ReaderImpl::convertColumnStatistics(int colIdx) const
+{
+    orc::ColumnStatisticsPrivate* colPrivateTmp = 
+                new ColumnStatisticsPrivate(footer.statistics(colIdx+1));
+    orc::TypeKind colType = schema->getSubtype(colIdx).getKind();
+    switch(colType){
+      case orc::BYTE:
+      case orc::SHORT:
+      case orc::INT:
+      case orc::LONG:
+      {
+          IntegerColumnStatistics *col = new IntegerColumnStatistics(
+              std::unique_ptr<ColumnStatisticsPrivate> (colPrivateTmp));
+          return col;
+      }
+      case orc::STRING:
+      case orc::CHAR:
+      case orc::VARCHAR:
+      {
+          StringColumnStatistics *col = new StringColumnStatistics(
+              std::unique_ptr<ColumnStatisticsPrivate> (colPrivateTmp));
+          return col;
+          
+      }
+      case orc::FLOAT:
+      case orc::DOUBLE:
+      {
+          DoubleColumnStatistics *col = new DoubleColumnStatistics(
+              std::unique_ptr<ColumnStatisticsPrivate> (colPrivateTmp));
+          return col;
+      }
+      case orc::TIMESTAMP:
+      {
+          TimestampColumnStatistics *col = new TimestampColumnStatistics(
+              std::unique_ptr<ColumnStatisticsPrivate> (colPrivateTmp));
+          return col;
+      }
+      case orc::BINARY:
+      {
+          BinaryColumnStatistics *col = new BinaryColumnStatistics(
+              std::unique_ptr<ColumnStatisticsPrivate> (colPrivateTmp));
+          return col;
+      }
+      case orc::DECIMAL:
+      {
+          DecimalColumnStatistics *col = new DecimalColumnStatistics(
+              std::unique_ptr<ColumnStatisticsPrivate> (colPrivateTmp));
+          return col;
+      }
+      case orc::BOOLEAN:
+      {
+          ColumnStatistics *col = new ColumnStatistics(
+              std::unique_ptr<ColumnStatisticsPrivate> (colPrivateTmp));
+          return col;
+      }
+      default:
+        throw ParseError("data type is not supported for the ORC file format");
+    }
+}
+
   // ColumnStatistics only contains statistics that are available for all data type
   std::list<ColumnStatistics*> ReaderImpl::getStatistics() const {
       std::list<ColumnStatistics*> result;
-
+      std::cout << "schema has " << schema->getSubtypeCount() << "columns \n";
       for(uint colIdx=0; colIdx < schema->getSubtypeCount(); ++colIdx) {
-          if(selectedColumns.at(colIdx)){
-              orc::ColumnStatisticsPrivate* colPrivateTmp = 
-                new ColumnStatisticsPrivate(footer.statistics(colIdx+1));
 
-              orc::TypeKind colType = schema->getSubtype(colIdx).getKind();
-              switch(colType){
-                case orc::BYTE:
-                case orc::SHORT:
-                case orc::INT:
-                case orc::LONG:
-                {
-                  IntegerColumnStatistics *col = new IntegerColumnStatistics(
-                      std::unique_ptr<ColumnStatisticsPrivate> (colPrivateTmp));
-                  result.push_back(col);
-                  break;
-                }
-                case orc::STRING:
-                case orc::CHAR:
-                case orc::VARCHAR:
-                {
-                  StringColumnStatistics *col = new StringColumnStatistics(
-                      std::unique_ptr<ColumnStatisticsPrivate> (colPrivateTmp));
-                  result.push_back(col);
-                  break;
-                }
-                case orc::FLOAT:
-                case orc::DOUBLE:
-                {
-                  DoubleColumnStatistics *col = new DoubleColumnStatistics(
-                      std::unique_ptr<ColumnStatisticsPrivate> (colPrivateTmp));
-                  result.push_back(col);
-                  break;
-                }
-                case orc::TIMESTAMP:
-                {
-                  TimestampColumnStatistics *col = new TimestampColumnStatistics(
-                      std::unique_ptr<ColumnStatisticsPrivate> (colPrivateTmp));
-                  result.push_back(col);
-                  break;
-                }
-                case orc::BINARY:
-                {
-                  BinaryColumnStatistics *col = new BinaryColumnStatistics(
-                      std::unique_ptr<ColumnStatisticsPrivate> (colPrivateTmp));
-                  result.push_back(col);
-                  break;
-                }
-                case orc::DECIMAL:
-                {
-                  DecimalColumnStatistics *col = new DecimalColumnStatistics(
-                      std::unique_ptr<ColumnStatisticsPrivate> (colPrivateTmp));
-                  result.push_back(col);
-                  break;
-                }
-                case orc::BOOLEAN:
-                {
-                  ColumnStatistics *col = new ColumnStatistics(
-                      std::unique_ptr<ColumnStatisticsPrivate> (colPrivateTmp));
-                  result.push_back(col);
-                  break;
-                }
-                default:
-                  throw ParseError("data type is not supported for the ORC file format");
-              }
+          // colIdx + 1 because selectedColumns size = numberOfCols + 1. 
+          // same size of footer. Should skip selectedColumns.at(0)
+          if(selectedColumns.at(colIdx+1)){
+              ColumnStatistics* col = convertColumnStatistics(colIdx);
+              result.push_back(col);
           }
       }
       return result;
@@ -505,11 +510,9 @@ std::unique_ptr<ColumnStatistics> ReaderImpl::getColumnStatistics(unsigned long 
     if(index >= (unsigned int)footer.statistics_size()){
         throw std::logic_error("column index out of range");
     }
-
-    return std::unique_ptr<ColumnStatistics>
-      (new ColumnStatistics(std::unique_ptr<ColumnStatisticsPrivate>
-                            (new ColumnStatisticsPrivate(footer.statistics(index+1)))));
+    return std::unique_ptr<ColumnStatistics> (convertColumnStatistics(index));
 }
+
 
 std::unique_ptr<StripeStatistics> ReaderImpl::getStripeStatistics(unsigned long stripeIndex) const {
     if(stripeIndex > (unsigned int)metadata.stripestats_size()){
@@ -517,6 +520,7 @@ std::unique_ptr<StripeStatistics> ReaderImpl::getStripeStatistics(unsigned long 
     }
     return std::unique_ptr<StripeStatistics> (new StripeStatisticsImpl(metadata.stripestats(stripeIndex)));
 }
+
 
   void ReaderImpl::seekToRow(unsigned long) {
     throw NotImplementedYet("seekToRow");
