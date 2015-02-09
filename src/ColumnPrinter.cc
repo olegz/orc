@@ -57,16 +57,30 @@ namespace orc {
     // PASS
   }
 
+  void ColumnPrinter::reset(const ColumnVectorBatch& batch) {
+    hasNulls = batch.hasNulls;
+    if (hasNulls) {
+      notNull = batch.notNull.data();
+    } else {
+      notNull = nullptr ;
+    }
+  }
+
   LongColumnPrinter::LongColumnPrinter(const  ColumnVectorBatch& batch) {
     reset(batch);
   }
 
   void LongColumnPrinter::reset(const  ColumnVectorBatch& batch) {
+    ColumnPrinter::reset(batch);
     data = dynamic_cast<const LongVectorBatch&>(batch).data.data();
   }
 
   void LongColumnPrinter::printRow(unsigned long rowId) {
-    std::cout << data[rowId];
+    if (hasNulls && !notNull[rowId]) {
+      std::cout << "NULL";
+    } else {
+      std::cout << data[rowId];
+    }
   }
 
   DoubleColumnPrinter::DoubleColumnPrinter(const  ColumnVectorBatch& batch) {
@@ -74,11 +88,16 @@ namespace orc {
   }
 
   void DoubleColumnPrinter::reset(const  ColumnVectorBatch& batch) {
+    ColumnPrinter::reset(batch);
     data = dynamic_cast<const DoubleVectorBatch&>(batch).data.data();
   }
 
   void DoubleColumnPrinter::printRow(unsigned long rowId) {
-    std::cout << data[rowId];
+    if (hasNulls && !notNull[rowId]) {
+      std::cout << "NULL";
+    } else {
+      std::cout << data[rowId];
+    }
   }
 
   StringColumnPrinter::StringColumnPrinter(const ColumnVectorBatch& batch) {
@@ -86,12 +105,17 @@ namespace orc {
   }
 
   void StringColumnPrinter::reset(const ColumnVectorBatch& batch) {
+    ColumnPrinter::reset(batch);
     start = dynamic_cast<const StringVectorBatch&>(batch).data.data();
     length = dynamic_cast<const StringVectorBatch&>(batch).length.data();
   }
 
   void StringColumnPrinter::printRow(unsigned long rowId) {
-    std::cout.write(start[rowId], length[rowId]);
+    if (hasNulls && !notNull[rowId]) {
+      std::cout << "NULL";
+    } else {
+      std::cout.write(start[rowId], length[rowId]);
+    }
   }
 
   StructColumnPrinter::StructColumnPrinter(const ColumnVectorBatch& batch) {
@@ -120,6 +144,7 @@ namespace orc {
   }
 
   void StructColumnPrinter::reset(const ColumnVectorBatch& batch) {
+    ColumnPrinter::reset(batch);
     const StructVectorBatch& structBatch =
       dynamic_cast<const StructVectorBatch&>(batch);
     for(size_t i=0; i < fields.size(); ++i) {
