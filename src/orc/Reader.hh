@@ -54,8 +54,8 @@ public:
     std::unique_ptr<ColumnStatisticsPrivate> privateBits;
 
   public:
-      ColumnStatistics(std::unique_ptr<ColumnStatisticsPrivate> data) : privateBits(data){}
-      virtual ~ColumnStatistics(){};
+      ColumnStatistics(std::unique_ptr<ColumnStatisticsPrivate> data);
+      virtual ~ColumnStatistics();
 
     /**
      * Get the number of values in this column. It will differ from the number
@@ -71,7 +71,7 @@ public:
   class BinaryColumnStatistics: public ColumnStatistics {
   public:
       BinaryColumnStatistics(std::unique_ptr<ColumnStatisticsPrivate> data);
-    virtual ~BinaryColumnStatistics();
+      virtual ~BinaryColumnStatistics(){};
 
     long getTotalLength() const;
   };
@@ -82,7 +82,7 @@ public:
   class BooleanColumnStatistics: public ColumnStatistics {
   public:
       BooleanColumnStatistics(std::unique_ptr<ColumnStatisticsPrivate> data);
-    virtual ~BooleanColumnStatistics();
+      virtual ~BooleanColumnStatistics(){};
 
     long getFalseCount() const;
     long getTrueCount() const;
@@ -94,7 +94,7 @@ public:
   class DateColumnStatistics: public ColumnStatistics {
   public:
       DateColumnStatistics(std::unique_ptr<ColumnStatisticsPrivate> data);
-    virtual ~DateColumnStatistics();
+      virtual ~DateColumnStatistics(){};
 
     /**
      * Get the minimum value for the column.
@@ -115,7 +115,7 @@ public:
   class DecimalColumnStatistics: public ColumnStatistics {
   public:
       DecimalColumnStatistics(std::unique_ptr<ColumnStatisticsPrivate> data);
-    virtual ~DecimalColumnStatistics();
+      virtual ~DecimalColumnStatistics(){};
 
     /**
      * Get the minimum value for the column.
@@ -162,7 +162,7 @@ public:
   class DoubleColumnStatistics: public ColumnStatistics {
   public:
       DoubleColumnStatistics(std::unique_ptr<ColumnStatisticsPrivate> data);
-    virtual ~DoubleColumnStatistics();
+      virtual ~DoubleColumnStatistics(){};
 
     /**
      * Get the smallest value in the column. Only defined if getNumberOfValues
@@ -192,7 +192,7 @@ public:
   class IntegerColumnStatistics: public ColumnStatistics {
   public:
       IntegerColumnStatistics(std::unique_ptr<ColumnStatisticsPrivate> data);
-    virtual ~IntegerColumnStatistics();
+      virtual ~IntegerColumnStatistics(){};
 
     /**
      * Get the smallest value in the column. Only defined if getNumberOfValues
@@ -228,7 +228,7 @@ public:
   class StringColumnStatistics: public ColumnStatistics {
   public:
       StringColumnStatistics(std::unique_ptr<ColumnStatisticsPrivate> data);
-    virtual ~StringColumnStatistics();
+      virtual ~StringColumnStatistics(){};
 
     /**
      * Get the minimum value for the column.
@@ -255,7 +255,7 @@ public:
   class TimestampColumnStatistics: public ColumnStatistics {
   public:
       TimestampColumnStatistics(std::unique_ptr<ColumnStatisticsPrivate> data);
-    virtual ~TimestampColumnStatistics();
+      virtual ~TimestampColumnStatistics(){};
 
     /**
      * Get the minimum value for the column.
@@ -310,6 +310,31 @@ public:
      */
     virtual unsigned long getNumberOfRows() const = 0;
   };
+
+
+class StripeStatistics {
+public:
+    virtual ~StripeStatistics(){};
+
+    /**
+     * Get the statistics of one col in the stripe.
+     * @return one column's statistics
+     */
+    virtual std::unique_ptr<ColumnStatistics> getColumnStatisticsInStripe(unsigned long index) const = 0;
+
+    /**
+     * Get the statistics of all cols in the stripe.
+     * @return all columns' statistics
+     */
+    virtual std::list<ColumnStatistics*> getStatisticsInStripe() const = 0;
+
+    /**
+     * Get the number of columns in this stripe
+     * @return columnstatistics
+     */
+    virtual unsigned long getNumberOfColumnStatistics() const = 0;
+};
+
 
   /**
    * Options for creating a Reader.
@@ -450,6 +475,13 @@ public:
       getStripe(unsigned long stripeIndex) const = 0;
 
     /**
+     * Get the statistics about a stripe.
+     * @param stripeIndex the stripe 0 to N-1 to get statistics about
+     * @return the statistics about that stripe
+     */
+      virtual std::unique_ptr<StripeStatistics> getStripeStatistics(unsigned long stripeIndex) const = 0;
+
+    /**
      * Get the length of the file.
      * @return the number of bytes in the file
      */
@@ -465,7 +497,7 @@ public:
      * Get the statistics about the columns in the file.
      * @return the information about the column
      */
-    virtual ColumnStatistics* getColumnStatistics(int index) const = 0;
+      virtual std::unique_ptr<ColumnStatistics> getColumnStatistics(unsigned long index) const = 0;
 
     /**
      * Get the type of the rows in the file. The top level is always a struct.

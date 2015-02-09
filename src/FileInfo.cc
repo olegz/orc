@@ -65,6 +65,10 @@ int main(int argc, char* argv[])
     Metadata metadata ;
     metadata.ParseFromArray(buffer.data(), metadataSize);
     std::cout << std::endl << "Metadata: " << std::endl ;
+
+    // get stripe statistics from metadata
+    std::cout << "Has " << metadata.stripestats_size() << " stripes in this file\n";
+
     postscript.PrintDebugString();
 
     // Read the footer
@@ -86,7 +90,8 @@ int main(int argc, char* argv[])
         type.PrintDebugString();
     };
 
-    std::cout << "\nStripe Statistics:" << std::endl;
+    
+    std::cout << "\nStripe Information:" << std::endl;
 
     StripeInformation stripe ;
     Stream section;
