@@ -49,6 +49,8 @@ namespace orc {
     CHAR = 17
   };
 
+  std::string kind2String(TypeKind t);
+
   class Type {
   public:
     virtual ~Type();

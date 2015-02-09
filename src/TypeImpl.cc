@@ -249,4 +249,30 @@ namespace orc {
     }
   }
 
+  std::string kind2String(TypeKind t) {
+      std::string name ;
+      switch(t) {
+        case BOOLEAN: { name = "BOOLEAN"; break; }
+        case BYTE: { name = "BYTE"; break; }
+        case SHORT: { name = "SHORT"; break; }
+        case INT: { name = "INT"; break; }
+        case LONG: { name = "LONG"; break; }
+        case FLOAT: { name = "FLOAT"; break; }
+        case DOUBLE: { name = "DOUBLE"; break; }
+        case STRING: { name = "STRING"; break; }
+        case BINARY: { name = "BINARY"; break; }
+        case TIMESTAMP: { name = "TIMESTAMP"; break; }
+        case LIST: { name = "LIST"; break; }
+        case MAP: { name = "MAP"; break; }
+        case STRUCT: { name = "STRUCT"; break; }
+        case UNION: { name = "UNION"; break; }
+        case DECIMAL: { name = "DECIMAL"; break; }
+        case DATE: { name = "DATE"; break; }
+        case VARCHAR: { name = "VARCHAR"; break; }
+        case CHAR: { name = "CHAR"; break; }
+        default: { name = "UNKNOWN"; break; }
+      }
+      return name ;
+    }
+
 }
