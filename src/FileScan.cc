@@ -84,10 +84,10 @@ int main(int argc, char* argv[]) {
 
   // index put into the readeroptions starts from 1
   for(int i = 1; i <= 9; i++){
-      if(i%3==1){
+      //if(i%3==1){
           cols.push_back(i);
           std::cout << " col " << i;
-      }
+          //}
   }
   std::cout << std::endl;
   opts.include(cols);
@@ -105,7 +105,6 @@ int main(int argc, char* argv[]) {
   // print out all selected columns statistics.
   std::list<orc::ColumnStatistics*> colStats = reader->getStatistics();
   std::cout << "File has " << colStats.size() << " col statistics\n";
-  int columnIdx = 0;
   std::list<int>::const_iterator colIter = cols.begin();
   for(std::list<orc::ColumnStatistics*>::const_iterator iter = colStats.begin(); 
       iter != colStats.end(), colIter!=cols.end(); iter++, colIter++){
@@ -113,18 +112,27 @@ int main(int argc, char* argv[]) {
       std::cout << "Column " << *colIter << " has " << (*iter)->getNumberOfValues() << " values" << std::endl;
 
       printColumnStatistics(**iter);
-      columnIdx++;
   }
   std::cout << std::endl;
-
   // test print out one column statistics.
   // e.g. print the forth column(col = 3)
   int col = 3;
   std::cout << "Get statistics of column " << col+1 << std::endl;
   printColumnStatistics(*(reader->getColumnStatistics(col)));
-  // test stripe statistics
-  
 
+  // test stripe statistics
+  std::cout << "\nfile has " << reader->getNumberOfStripes() << "stripes \n";
+  unsigned long stripe = 60;
+  if(stripe < reader->getNumberOfStripes()){
+      std::unique_ptr<orc::StripeStatistics> stripeStats = reader->getStripeStatistics(stripe);
+      std::cout << "Stripe " << stripe << " has " << stripeStats->getNumberOfColumnStatistics() << "columns \n";
+      for(uint i = 0; i < stripeStats->getNumberOfColumnStatistics()-1; ++i){
+          std::unique_ptr<orc::ColumnStatistics> colStats = stripeStats->getColumnStatisticsInStripe(i);
+          std::cout << "column has " << colStats->getNumberOfValues() << "values \n";
+          printColumnStatistics(*colStats);
+      }
+  }
+  
 
 
   std::unique_ptr<orc::ColumnVectorBatch> batch = reader->createRowBatch(1000);
