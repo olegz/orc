@@ -31,10 +31,13 @@
   #define nullptr NULL
   #define override
 
-  namespace std {
-    template<typename T>
-    inline T move(T& x) { return x; }
-  } // std
+  #ifndef _WIN32
+  // VS10 has already had this Adapter.
+    namespace std {
+      template<typename T>
+      inline T move(T& x) { return x; }
+    } // std
+  #endif
 
 
   /* Containers of unique_ptr<T> are replaced with std::vector<T*>
