@@ -33,6 +33,7 @@ namespace orc {
 class ColumnStatisticsPrivate{
 public:
     proto::ColumnStatistics columnStatistics;
+    ColumnStatisticsPrivate(){}
     ColumnStatisticsPrivate(proto::ColumnStatistics columnStatistics): columnStatistics(columnStatistics){}
     virtual ~ColumnStatisticsPrivate(){};
 };

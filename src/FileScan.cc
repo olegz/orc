@@ -48,30 +48,59 @@ int main(int argc, char* argv[]) {
     return -1;
   }
 
-  const orc::Type& schema = reader->getType();
   std::list<orc::ColumnStatistics*> colStats = reader->getStatistics();
   std::cout << "file has " << colStats.size() << "col statistics\n";
 
   int columnIdx = 0;
   for(std::list<orc::ColumnStatistics*>::const_iterator iter = colStats.begin(); iter != colStats.end(); iter++){
+      std::cout << std::endl;
       std::cout << "Column " << columnIdx << " has " << (*iter)->getNumberOfValues() << " values\n";
-      if(typeid(**iter) == typeid(orc::DateColumnStatistics)){
-          std::cout << "col data type is date\n";
-          const orc::DateColumnStatistics &dateCol = dynamic_cast<const orc::DateColumnStatistics&> (**iter);
-          std::cout << "Minimum is " << dateCol.getMinimum() << std::endl
-                    << "Maximum is " << dateCol.getMaximum() << std::endl;
-      }else if(typeid(**iter) == typeid(orc::IntegerColumnStatistics)){
-          std::cout << "col data type is Integer\n";
+
+      if(typeid(**iter) == typeid(orc::IntegerColumnStatistics)){
+          std::cout << "col data type is INTEGER\n";
           const orc::IntegerColumnStatistics &intCol = dynamic_cast<const orc::IntegerColumnStatistics&> (**iter);
           std::cout << "Minimum is " << intCol.getMinimum() << std::endl
-                    << "Maximum is " << intCol.getMaximum() << std::endl;
+                    << "Maximum is " << intCol.getMaximum() << std::endl
+                    << "Sum is " << intCol.getSum() << std::endl;
+
       }else if(typeid(**iter) == typeid(orc::StringColumnStatistics)){
-          std::cout << "col data type is string\n";
+          std::cout << "col data type is STRING\n";
           const orc::StringColumnStatistics &stringCol = dynamic_cast<const orc::StringColumnStatistics&> (**iter);
           std::cout << "Minimum is " << stringCol.getMinimum() << std::endl
                     << "Maximum is " << stringCol.getMaximum() << std::endl;
+
+      }else if(typeid(**iter) == typeid(orc::DoubleColumnStatistics)){
+          std::cout << "col data type is DOUBLE\n";
+          const orc::DoubleColumnStatistics &doubleCol = dynamic_cast<const orc::DoubleColumnStatistics&> (**iter);
+          std::cout << "Minimum is " << doubleCol.getMinimum() << std::endl
+                    << "Maximum is " << doubleCol.getMaximum() << std::endl
+                    << "Sum is " << doubleCol.getSum() << std::endl;
+
+      }else if(typeid(**iter) == typeid(orc::DateColumnStatistics)){
+          std::cout << "col data type is DATE\n";
+          const orc::DateColumnStatistics &dateCol = dynamic_cast<const orc::DateColumnStatistics&> (**iter);
+          std::cout << "Minimum is " << dateCol.getMinimum() << std::endl
+                    << "Maximum is " << dateCol.getMaximum() << std::endl;
+
+      }else if(typeid(**iter) == typeid(orc::BinaryColumnStatistics)){
+          std::cout << "col data type is BINARY\n";
+          const orc::BinaryColumnStatistics &binaryCol = dynamic_cast<const orc::BinaryColumnStatistics&> (**iter);
+          std::cout << "Total Length is " << binaryCol.getTotalLength() << std::endl;
+
+      }else if(typeid(**iter) == typeid(orc::DecimalColumnStatistics)){
+          std::cout << "col data type is DECIMAL\n";
+          const orc::DecimalColumnStatistics &decimalCol = 
+            dynamic_cast<const orc::DecimalColumnStatistics&> (**iter);
+          
+          std::cout << "Minimum's upper is " << decimalCol.getMinimum().upper 
+                    << "lower is " << decimalCol.getMinimum().lower << std::endl
+                    << "Maximum's upper is " << decimalCol.getMaximum().upper 
+                    << "lower is " << decimalCol.getMaximum().lower << std::endl;
+
+      }else if(typeid(**iter) == typeid(orc::BooleanColumnStatistics)){
+          std::cout << "col data type is BOOLEAN\n";
       }
-      //TODO: add more
+      
       columnIdx++;
   }
 

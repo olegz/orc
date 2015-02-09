@@ -430,36 +430,85 @@ public:
   std::list<ColumnStatistics*> ReaderImpl::getStatistics() const {
       std::list<ColumnStatistics*> result;
 
-      for(uint i=0; i < schema->getSubtypeCount(); ++i) {
-          if(selectedColumns.at(i)){
-              orc::TypeKind orcType = schema->getSubtype(i).getKind();
-              if((orcType == orc::BYTE) || (orcType==orc::SHORT)
-                 || (orcType==orc::INT) || (orcType==orc::LONG)){
+      for(uint colIdx=0; colIdx < schema->getSubtypeCount(); ++colIdx) {
+          if(selectedColumns.at(colIdx)){
+              orc::ColumnStatisticsPrivate* colPrivateTmp = 
+                new ColumnStatisticsPrivate(footer.statistics(colIdx+1));
+
+              orc::TypeKind colType = schema->getSubtype(colIdx).getKind();
+              switch(colType){
+                case orc::BYTE:
+                case orc::SHORT:
+                case orc::INT:
+                case orc::LONG:
+                {
                   IntegerColumnStatistics *col = new IntegerColumnStatistics(
-                      std::unique_ptr<ColumnStatisticsPrivate> (new ColumnStatisticsPrivate(footer.statistics(i))));
+                      std::unique_ptr<ColumnStatisticsPrivate> (colPrivateTmp));
                   result.push_back(col);
-              }else if((orcType==orc::STRING) || (orcType==orc::CHAR) || (orcType==orc::VARCHAR)){
+                  break;
+                }
+                case orc::STRING:
+                case orc::CHAR:
+                case orc::VARCHAR:
+                {
                   StringColumnStatistics *col = new StringColumnStatistics(
-                      std::unique_ptr<ColumnStatisticsPrivate> (new ColumnStatisticsPrivate(footer.statistics(i))));
+                      std::unique_ptr<ColumnStatisticsPrivate> (colPrivateTmp));
                   result.push_back(col);
-              }else{
-                  // TODO: add more
-                  ColumnStatistics *col = new ColumnStatistics(std::unique_ptr<ColumnStatisticsPrivate>
-                                                               (new ColumnStatisticsPrivate(footer.statistics(i))));
+                  break;
+                }
+                case orc::FLOAT:
+                case orc::DOUBLE:
+                {
+                  DoubleColumnStatistics *col = new DoubleColumnStatistics(
+                      std::unique_ptr<ColumnStatisticsPrivate> (colPrivateTmp));
                   result.push_back(col);
+                  break;
+                }
+                case orc::TIMESTAMP:
+                {
+                  TimestampColumnStatistics *col = new TimestampColumnStatistics(
+                      std::unique_ptr<ColumnStatisticsPrivate> (colPrivateTmp));
+                  result.push_back(col);
+                  break;
+                }
+                case orc::BINARY:
+                {
+                  BinaryColumnStatistics *col = new BinaryColumnStatistics(
+                      std::unique_ptr<ColumnStatisticsPrivate> (colPrivateTmp));
+                  result.push_back(col);
+                  break;
+                }
+                case orc::DECIMAL:
+                {
+                  DecimalColumnStatistics *col = new DecimalColumnStatistics(
+                      std::unique_ptr<ColumnStatisticsPrivate> (colPrivateTmp));
+                  result.push_back(col);
+                  break;
+                }
+                case orc::BOOLEAN:
+                {
+                  ColumnStatistics *col = new ColumnStatistics(
+                      std::unique_ptr<ColumnStatisticsPrivate> (colPrivateTmp));
+                  result.push_back(col);
+                  break;
+                }
+                default:
+                  throw ParseError("data type is not supported for the ORC file format");
               }
           }
       }
       return result;
   }
+
+// index start from 0
 std::unique_ptr<ColumnStatistics> ReaderImpl::getColumnStatistics(unsigned long index) const {
-    if(index > (unsigned int)footer.statistics_size()){
+    if(index >= (unsigned int)footer.statistics_size()){
         throw std::logic_error("column index out of range");
     }
 
     return std::unique_ptr<ColumnStatistics>
       (new ColumnStatistics(std::unique_ptr<ColumnStatisticsPrivate>
-                            (new ColumnStatisticsPrivate(footer.statistics(index)))));
+                            (new ColumnStatisticsPrivate(footer.statistics(index+1)))));
 }
 
 std::unique_ptr<StripeStatistics> ReaderImpl::getStripeStatistics(unsigned long stripeIndex) const {
@@ -716,10 +765,13 @@ std::unique_ptr<StripeStatistics> ReaderImpl::getStripeStatistics(unsigned long 
  * Didn't find the boolen statistics in protobuf.h
  **/
 // number of values
-ColumnStatistics::ColumnStatistics(std::unique_ptr<ColumnStatisticsPrivate> data)
+ColumnStatistics::ColumnStatistics(std::unique_ptr<ColumnStatisticsPrivate> data) :
+    privateBits(std::unique_ptr<ColumnStatisticsPrivate> 
+                (new ColumnStatisticsPrivate(data->columnStatistics))) 
 {
-    privateBits = data;
+    
 }
+
 ColumnStatistics::~ColumnStatistics() {
 
 }
