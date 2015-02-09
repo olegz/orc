@@ -68,7 +68,9 @@ int main(int argc, char* argv[])
 
     // get stripe statistics from metadata
     std::cout << "Has " << metadata.stripestats_size() << " stripes in this file\n";
-
+    for(int i = 0; i < metadata.stripestats_size(); ++i){
+        // TODO for stripe
+    }
     postscript.PrintDebugString();
 
     // Read the footer
@@ -90,6 +92,22 @@ int main(int argc, char* argv[])
         type.PrintDebugString();
     };
 
+    std::cout << "Has " << footer.statistics_size() << " Columns statistics in file" << std::endl;
+    for(int i = 0; i < footer.statistics_size(); ++i){
+        ColumnStatistics col = footer.statistics(i);
+        if(col.has_intstatistics()) {
+          std::cout << "column " << i << "is INT.\n" 
+                    << "Minimum = " << col.intstatistics().minimum() << std::endl
+                    << "Maximum = " << col.intstatistics().maximum() << std::endl;
+        }else if(col.has_stringstatistics()){
+            std::cout << "column " << i << "is STRING.\n" 
+                    << "Minimum = " << col.stringstatistics().minimum() << std::endl
+                    << "Maximum = " << col.stringstatistics().maximum() << std::endl;
+        }
+        if(col.has_numberofvalues()){
+            std::cout << "column has "<< col.numberofvalues() << " number of values\n";
+        }
+    }
     
     std::cout << "\nStripe Information:" << std::endl;
 
