@@ -25,15 +25,19 @@
 #include <memory>
 #include <iostream>
 #include <string>
+#include <vector>
 
 namespace orc {
 
   class ColumnPrinter {
+  protected:
+    bool hasNulls ;
+    const char* notNull;
   public:
     virtual ~ColumnPrinter();
     virtual void printRow(unsigned long rowId) = 0;
     // should be called once at the start of each batch of rows
-    virtual void reset(const ColumnVectorBatch& batch) = 0;
+    virtual void reset(const ColumnVectorBatch& batch);
   };
 
 

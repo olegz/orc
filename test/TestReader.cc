@@ -293,4 +293,95 @@ TEST(Reader, columnSelectionTest) {
   EXPECT_EQ(1920000, reader->getRowNumber());
 }
 
+TEST(Reader, stripeInformationTest) {
+  orc::ReaderOptions opts;
+  std::ostringstream filename;
+  filename << exampleDirectory << "/demo-11-none.orc";
+  std::unique_ptr<orc::Reader> reader =
+    orc::createReader(orc::readLocalFile(filename.str()), opts);
+
+  EXPECT_EQ(385, reader->getNumberOfStripes());
+
+  std::unique_ptr<orc::StripeInformation> stripeInfo = reader->getStripe(7);
+  EXPECT_EQ(92143, stripeInfo->getOffset());
+  EXPECT_EQ(13176, stripeInfo->getLength());
+  EXPECT_EQ(234, stripeInfo->getIndexLength());
+  EXPECT_EQ(12673, stripeInfo->getDataLength());
+  EXPECT_EQ(269, stripeInfo->getFooterLength());
+  EXPECT_EQ(5000, stripeInfo->getNumberOfRows());
+}
+
+TEST(Reader, readRangeTest) {
+  orc::ReaderOptions fullOpts, lastOpts, oobOpts, offsetOpts;
+  // stripes[N-1]
+  lastOpts.range(5067085, 1);
+  // stripes[N]
+  oobOpts.range(5067086, 4096);
+  // stripes[7, 16]
+  offsetOpts.range(80000, 130722);
+  std::ostringstream filename;
+  filename << exampleDirectory << "/demo-11-none.orc";
+  std::unique_ptr<orc::Reader> fullReader =
+    orc::createReader(orc::readLocalFile(filename.str()), fullOpts);
+  std::unique_ptr<orc::Reader> lastReader =
+    orc::createReader(orc::readLocalFile(filename.str()), lastOpts);
+  std::unique_ptr<orc::Reader> oobReader =
+    orc::createReader(orc::readLocalFile(filename.str()), oobOpts);
+  std::unique_ptr<orc::Reader> offsetReader =
+    orc::createReader(orc::readLocalFile(filename.str()), offsetOpts);
+
+  std::unique_ptr<orc::ColumnVectorBatch> oobBatch =
+    oobReader->createRowBatch(5000);
+  EXPECT_FALSE(oobReader->next(*oobBatch));
+
+  // advance fullReader to align with offsetReader
+  std::unique_ptr<orc::ColumnVectorBatch> fullBatch =
+    fullReader->createRowBatch(5000);
+  for (int i=0; i < 7; ++i) {
+    EXPECT_TRUE(fullReader->next(*fullBatch));
+    EXPECT_EQ(5000, fullBatch->numElements);
+  }
+
+  std::unique_ptr<orc::ColumnVectorBatch> offsetBatch =
+    offsetReader->createRowBatch(5000);
+  orc::LongVectorBatch* fullLongVector =
+    dynamic_cast<orc::LongVectorBatch*>
+    (dynamic_cast<orc::StructVectorBatch&>(*fullBatch).fields[0]);
+  int64_t* fullId = fullLongVector->data.data();
+  orc::LongVectorBatch* offsetLongVector =
+    dynamic_cast<orc::LongVectorBatch*>
+    (dynamic_cast<orc::StructVectorBatch&>(*offsetBatch).fields[0]);
+  int64_t* offsetId = offsetLongVector->data.data();
+  for (int i=7; i < 17; ++i) {
+    EXPECT_TRUE(fullReader->next(*fullBatch));
+    EXPECT_TRUE(offsetReader->next(*offsetBatch));
+    EXPECT_EQ(fullBatch->numElements, offsetBatch->numElements);
+    for (unsigned j=0; j < fullBatch->numElements; ++j) {
+      EXPECT_EQ(fullId[j], offsetId[j]);
+    }
+  }
+  EXPECT_FALSE(offsetReader->next(*offsetBatch));
+
+  // advance fullReader to align with lastReader
+  for (int i=17; i < 384; ++i) {
+    EXPECT_TRUE(fullReader->next(*fullBatch));
+    EXPECT_EQ(5000, fullBatch->numElements);
+  }
+
+  std::unique_ptr<orc::ColumnVectorBatch> lastBatch =
+    lastReader->createRowBatch(5000);
+  orc::LongVectorBatch* lastLongVector =
+    dynamic_cast<orc::LongVectorBatch*>
+    (dynamic_cast<orc::StructVectorBatch&>(*lastBatch).fields[0]);
+  int64_t* lastId = lastLongVector->data.data();
+  EXPECT_TRUE(fullReader->next(*fullBatch));
+  EXPECT_TRUE(lastReader->next(*lastBatch));
+  EXPECT_EQ(fullBatch->numElements, lastBatch->numElements);
+  for (unsigned i=0; i < fullBatch->numElements; ++i) {
+    EXPECT_EQ(fullId[i], lastId[i]);
+  }
+  EXPECT_FALSE(fullReader->next(*fullBatch));
+  EXPECT_FALSE(lastReader->next(*lastBatch));
+}
+
 }  // namespace

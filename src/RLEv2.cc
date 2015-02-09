@@ -121,7 +121,7 @@ unsigned char RleDecoderV2::readByte() {
     int bufferLength;
     const void* bufferPointer;
     if (!inputStream->Next(&bufferPointer, &bufferLength)) {
-      throw ParseError("bad read in readByte");
+      throw ParseError("bad read in RleDecoderV2::readByte");
     }
     bufferStart = static_cast<const char*>(bufferPointer);
     bufferEnd = bufferStart + bufferLength;
@@ -207,6 +207,12 @@ void RleDecoderV2::next(int64_t* const data,
                         const unsigned long numValues,
                         const char* const notNull) {
   unsigned long nRead = 0;
+
+  // Skip any nulls at the beginning
+  while (nRead < numValues && notNull && !notNull[nRead]) {
+    nRead++;
+  }
+
   while (nRead < numValues) {
     if (runRead == runLength) {
       firstByte = readByte();
@@ -231,6 +237,11 @@ void RleDecoderV2::next(int64_t* const data,
       break;
     default:
       throw ParseError("unknown encoding");
+    }
+
+    // Skip any trailing nulls
+    while (nRead < numValues && notNull && !notNull[nRead]) {
+      nRead++;
     }
   }
 }
@@ -486,11 +497,14 @@ uint64_t RleDecoderV2::nextDelta(int64_t* const data,
       ++runRead;
     }
 
+
+
     // write the unpacked values, add it to previous value and store final
     // value to result buffer. if the delta base value is negative then it
     // is a decreasing sequence else an increasing sequence
     unsigned long remaining = (offset + nRead) - pos;
     runRead += readLongs(data, pos, remaining, bitSize, notNull);
+
     if (deltaBase < 0) {
       for ( ; pos < offset + nRead; ++pos) {
         // skip null positions
@@ -509,7 +523,6 @@ uint64_t RleDecoderV2::nextDelta(int64_t* const data,
       }
     }
   }
-
   return nRead;
 }
 

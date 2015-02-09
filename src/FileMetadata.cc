@@ -38,7 +38,7 @@ int main(int argc, char* argv[])
   input.read(buffer.data(), postscriptSize);
   PostScript postscript ;
   postscript.ParseFromArray(buffer.data(), postscriptSize);
-  std::cout << std::endl << "Postscript: " << std::endl ;
+  std::cout << std::endl << " === Postscript === " << std::endl ;
   postscript.PrintDebugString();
 
   // Everything but the postscript is compressed
@@ -63,8 +63,6 @@ int main(int argc, char* argv[])
   input.read(buffer.data(), metadataSize);
   Metadata metadata ;
   metadata.ParseFromArray(buffer.data(), metadataSize);
-  std::cout << std::endl << "Metadata: " << std::endl ;
-  postscript.PrintDebugString();
 
   // Read the footer
   //input.seekg(fileSize -1 - postscriptSize-footerSize);
@@ -72,27 +70,17 @@ int main(int argc, char* argv[])
   input.read(buffer.data(), footerSize);
   Footer footer ;
   footer.ParseFromArray(buffer.data(), footerSize);
-  std::cout << std::endl << "Footer: " << std::endl ;
-  postscript.PrintDebugString();
+  std::cout << std::endl << " === Footer === " << std::endl ;
+  footer.PrintDebugString();
 
-  std::cout << std::endl << "Rows: " << footer.numberofrows() << std::endl;
-  std::cout << "Compression: " << postscript.compression() << std::endl;
-  if (postscript.compression() != NONE)
-      std::cout << "Compression size: " << postscript.compressionblocksize() << std::endl;
-  std::cout << "Type: " ;
-  for (int typeIx=0; typeIx < footer.types_size(); typeIx++) {
-      Type type = footer.types(typeIx);
-      type.PrintDebugString();
-  };
-
-  std::cout << "\nStripe Statistics:" << std::endl;
+  std::cout << std::endl << "=== Stripe Statistics ===" << std::endl;
 
   StripeInformation stripe ;
   Stream section;
   ColumnEncoding encoding;
   for (int64_t stripeIx=0; stripeIx<footer.stripes_size(); stripeIx++)
   {
-      std::cout << "  Stripe " << stripeIx+1 <<": " << std::endl ;
+      std::cout << "Stripe " << stripeIx+1 <<": " << std::endl ;
       stripe = footer.stripes(stripeIx);
       stripe.PrintDebugString();
 
