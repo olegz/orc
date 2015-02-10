@@ -25,7 +25,13 @@
 #include <sstream>
 
 #include "zlib.h"
+
+// Temporarily disable snappy in Windows.
+// TODO: in the long term, we should put snappy in libs
+// and use the snappy from there.
+#ifndef _WIN32
 #include "snappy.h"
+#endif
 
 namespace orc {
 
@@ -507,6 +513,7 @@ namespace orc {
     return result.str();
   }
 
+#ifndef _WIN32
   class SnappyDecompressionStream: public SeekableInputStream {
   public:
     SnappyDecompressionStream(std::unique_ptr<SeekableInputStream> inStream,
@@ -732,7 +739,7 @@ namespace orc {
     result << "snappy(" << input->getName() << ")";
     return result.str();
   }
-
+#endif // _WIN32
   std::unique_ptr<SeekableInputStream>
      createDecompressor(CompressionKind kind,
                         std::unique_ptr<SeekableInputStream> input,
@@ -743,9 +750,11 @@ namespace orc {
     case CompressionKind_ZLIB:
       return std::unique_ptr<SeekableInputStream>
         (new ZlibDecompressionStream(std::move(input), blockSize));
+#ifndef _WIN32
     case CompressionKind_SNAPPY:
       return std::unique_ptr<SeekableInputStream>
         (new SnappyDecompressionStream(std::move(input), blockSize));
+#endif // _WIN32
     case CompressionKind_LZO:
     default:
       throw NotImplementedYet("compression codec");
