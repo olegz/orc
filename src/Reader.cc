@@ -123,6 +123,58 @@ namespace orc {
   }
 
 
+  StripeInformation::~StripeInformation() {
+
+  }
+
+  class StripeInformationImpl : public StripeInformation {
+    unsigned long offset;
+    unsigned long indexLength;
+    unsigned long dataLength;
+    unsigned long footerLength;
+    unsigned long numRows;
+
+  public:
+
+    StripeInformationImpl(unsigned long offset,
+                          unsigned long indexLength,
+                          unsigned long dataLength,
+                          unsigned long footerLength,
+                          unsigned long numRows) :
+      offset(offset),
+      indexLength(indexLength),
+      dataLength(dataLength),
+      footerLength(footerLength),
+      numRows(numRows)
+    {}
+
+    ~StripeInformationImpl() {}
+
+    unsigned long getOffset() const override {
+      return offset;
+    }
+
+    unsigned long getLength() const override {
+      return indexLength + dataLength + footerLength;
+    }
+    unsigned long getIndexLength() const override {
+      return indexLength;
+    }
+
+    unsigned long getDataLength()const override {
+      return dataLength;
+    }
+
+    unsigned long getFooterLength() const override {
+      return footerLength;
+    }
+    
+    unsigned long getNumberOfRows() const override {
+      return numRows;
+    }
+};
+
+
 ColumnStatistics* convertColumnStatistics(const proto::ColumnStatistics&columnStats, orc::TypeKind colType)
 {
     orc::ColumnStatisticsPrivate* colPrivateTmp = 
@@ -182,7 +234,6 @@ ColumnStatistics* convertColumnStatistics(const proto::ColumnStatistics&columnSt
     }
 }
 
-
 class StripeStatisticsImpl: public StripeStatistics {
 private:
     unsigned long numberOfColStats;
@@ -210,12 +261,14 @@ public:
     {
         return colStats;
     }
-    
+
     unsigned long getNumberOfColumnStatistics() const override 
     {
         return numberOfColStats;
     }
 };
+
+
 
   Reader::~Reader() {
     // PASS
@@ -249,6 +302,7 @@ public:
     // reading state
     uint64_t previousRow;
     uint64_t currentStripe;
+    uint64_t lastStripe;
     uint64_t currentRowInStripe;
     uint64_t rowsInCurrentStripe;
     proto::StripeInformation currentStripeInfo;
@@ -340,6 +394,11 @@ public:
 
     //read last bytes into buffer to get PostScript
     unsigned long readSize = std::min(size, DIRECTORY_SIZE_GUESS);
+
+    if (readSize < 1) {
+      throw ParseError("File size too small");
+    }
+
     std::vector<char> buffer(readSize);
     stream->read(buffer.data(), size - readSize, readSize);
     readPostscript(buffer.data(), readSize);
@@ -352,26 +411,41 @@ public:
 
     readMetadata(buffer.data(), postscript.metadatalength(), size);
 
-    currentStripe = 0;
+    currentStripe = footer.stripes_size();
+    lastStripe = 0;
     currentRowInStripe = 0;
     unsigned long rowTotal = 0;
     firstRowOfStripe.resize(static_cast<size_t>(footer.stripes_size()));
     for(size_t i=0; i < static_cast<size_t>(footer.stripes_size()); ++i) {
       firstRowOfStripe[i] = rowTotal;
-      rowTotal += footer.stripes(static_cast<int>(i)).numberofrows();
-    }
-    selectedColumns.assign(static_cast<size_t>(footer.types_size()), false);
-
-    const std::list<int>& included = options.getInclude();
-    for(std::list<int>::const_iterator columnId = included.begin();
-        columnId != included.end(); ++columnId) {
-      selectTypeParent(static_cast<size_t>(*columnId));
-      selectTypeChildren(static_cast<size_t>(*columnId));
+      proto::StripeInformation stripeInfo = footer.stripes(static_cast<int>(i));
+      rowTotal += stripeInfo.numberofrows();
+      bool isStripeInRange = stripeInfo.offset() >= opts.getOffset() &&
+        stripeInfo.offset() < opts.getOffset() + opts.getLength();
+      if (isStripeInRange) {
+        if (i < currentStripe) {
+          currentStripe = i;
+        }
+        if (i > lastStripe) {
+          lastStripe = i;
+        }          
+      }
     }
 
     schema = convertType(footer.types(0), footer);
     schema->assignIds(0);
     previousRow = (std::numeric_limits<unsigned long>::max)();
+
+    selectedColumns.assign(static_cast<size_t>(footer.types_size()), false);
+
+    const std::list<int>& included = options.getInclude();
+    for(std::list<int>::const_iterator columnId = included.begin();
+        columnId != included.end(); ++columnId) {
+      if (*columnId <= (int)(schema->getSubtypeCount())) {
+        selectTypeParent(static_cast<size_t>(*columnId));
+        selectTypeChildren(static_cast<size_t>(*columnId));
+      }
+    }
   }
                          
   CompressionKind ReaderImpl::getCompression() const { 
@@ -387,9 +461,20 @@ public:
   }
 
   std::unique_ptr<StripeInformation> 
-      ReaderImpl::getStripe(unsigned long) const {
-    // TODO
-    return std::unique_ptr<StripeInformation>();
+  ReaderImpl::getStripe(unsigned long stripeIndex) const {
+    if (stripeIndex > getNumberOfStripes()) {
+      throw std::logic_error("stripe index out of range");
+    }
+    proto::StripeInformation stripeInfo =
+      footer.stripes(static_cast<int>(stripeIndex));
+
+    return std::unique_ptr<StripeInformation>
+      (new StripeInformationImpl
+       (stripeInfo.offset(),
+        stripeInfo.indexlength(),
+        stripeInfo.datalength(),
+        stripeInfo.footerlength(),
+        stripeInfo.numberofrows()));
   }
 
   unsigned long ReaderImpl::getNumberOfRows() const { 
@@ -536,8 +621,6 @@ std::unique_ptr<StripeStatistics> ReaderImpl::getStripeStatistics(unsigned long 
   }
 
   void ReaderImpl::readPostscript(char *buffer, unsigned long readSize) {
-
-    //get length of PostScript
     postscriptLength = buffer[readSize - 1] & 0xff;
 
     ensureOrcFooter(buffer, readSize);
@@ -711,7 +794,7 @@ void ReaderImpl::readMetadata(char* buffer, unsigned long readSize, unsigned lon
   }
 
   bool ReaderImpl::next(ColumnVectorBatch& data) {
-    if (currentStripe >= numberOfStripes) {
+    if (currentStripe > lastStripe) {
       data.numElements = 0;
       return false;
     }
