@@ -208,12 +208,14 @@ void RleDecoderV2::next(int64_t* const data,
                         const char* const notNull) {
   unsigned long nRead = 0;
 
-  // Skip any nulls at the beginning
-  while (nRead < numValues && notNull && !notNull[nRead]) {
-    nRead++;
-  }
-
   while (nRead < numValues) {
+    // Skip any nulls before attempting to read first byte.
+    while (notNull && !notNull[nRead]) {
+      if (++nRead == numValues) {
+        return; // ended with null values
+      }
+    }
+
     if (runRead == runLength) {
       firstByte = readByte();
     }
@@ -237,11 +239,6 @@ void RleDecoderV2::next(int64_t* const data,
       break;
     default:
       throw ParseError("unknown encoding");
-    }
-
-    // Skip any trailing nulls
-    while (nRead < numValues && notNull && !notNull[nRead]) {
-      nRead++;
     }
   }
 }
