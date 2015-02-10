@@ -970,6 +970,21 @@ long StringColumnStatistics::getTotalLength() const
 }
 
 // date
+BooleanColumnStatistics::BooleanColumnStatistics(std::unique_ptr<ColumnStatisticsPrivate> data) : 
+    ColumnStatistics(std::move(data))
+{
+}
+long BooleanColumnStatistics::getFalseCount() const
+{
+    return privateBits->columnStatistics.numberofvalues() - 
+      privateBits->columnStatistics.bucketstatistics().count_size();
+}
+
+long BooleanColumnStatistics::getTrueCount() const
+{
+    return privateBits->columnStatistics.bucketstatistics().count_size();
+}
+// date
 DateColumnStatistics::DateColumnStatistics(std::unique_ptr<ColumnStatisticsPrivate> data) : 
     ColumnStatistics(std::move(data))
 {
