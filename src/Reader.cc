@@ -388,10 +388,8 @@ public:
                          ): stream(std::move(input)), options(opts) {
     isMetadataLoaded = false;
     // figure out the size of the file using the option or filesystem
-    unsigned long streamsize = static_cast<unsigned long> (stream->getLength());
-    unsigned long size = std::min(options.getTailLocation(), streamsize);
-                                  // static_cast<unsigned long>
-                                  //    (stream->getLength()));
+    unsigned long size = std::min(options.getTailLocation(),
+                                  static_cast<unsigned long> (stream->getLength()));
 
     //read last bytes into buffer to get PostScript
     unsigned long readSize = std::min(size, DIRECTORY_SIZE_GUESS);
@@ -405,8 +403,8 @@ public:
     readPostscript(buffer.data(), readSize);
     readFooter(buffer.data(), readSize, size);
     
-   
-    unsigned long position = size - 1- postscript.footerlength() - postscriptLength - postscript.metadatalength();
+    // read metadata
+    unsigned long position = size - 1 - postscript.footerlength() - postscriptLength - postscript.metadatalength();
     buffer.resize(postscript.metadatalength());
     stream->read(buffer.data(), position, postscript.metadatalength());
 
@@ -579,7 +577,6 @@ public:
     return previousRow;
   }
 
-  // ColumnStatistics only contains statistics that are available for all data type
   std::list<ColumnStatistics*> ReaderImpl::getStatistics() const {
       std::list<ColumnStatistics*> result;
       for(uint colIdx=0; colIdx < schema->getSubtypeCount(); ++colIdx) {

@@ -78,17 +78,10 @@ int main(int argc, char* argv[]) {
         std::cout << "Usage: file-scan <filename>\n";
     }
     orc::ReaderOptions opts;
-    std::list<int> cols;
+    std::list<int> cols = {1,2,3,4,5,6,7,8,9};
   // 0 means all columns
   //cols.push_back(0);
 
-  // index put into the readeroptions starts from 1
-  for(int i = 1; i <= 9; i++){
-      //if(i%3==1){
-          cols.push_back(i);
-          std::cout << " col " << i;
-          //}
-  }
   std::cout << std::endl;
   opts.include(cols);
 
@@ -130,6 +123,7 @@ int main(int argc, char* argv[]) {
           std::unique_ptr<orc::ColumnStatistics> colStats = stripeStats->getColumnStatisticsInStripe(i);
           std::cout << "column has " << colStats->getNumberOfValues() << "values \n";
           printColumnStatistics(*colStats);
+          std::cout << std::endl;
       }
   }
   

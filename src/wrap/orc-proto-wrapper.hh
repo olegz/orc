@@ -27,7 +27,7 @@
   #pragma GCC diagnostic push
 #endif
 
- #include "orc_proto.pb.h"
+#include "orc_proto.pb.h"
 
 #ifdef __clang__
   #pragma clang diagnostic pop
