@@ -536,11 +536,13 @@ namespace orc {
     ASSERT_LT(compressedSize, buf.size());
     compressBuffer.writeHeader(compressedSize);
 
+    const long blockSize = 3;
     std::unique_ptr<SeekableInputStream> result = createDecompressor
         (CompressionKind_SNAPPY,
          std::unique_ptr<SeekableInputStream>
            (new SeekableArrayInputStream(compressBuffer.getBuffer(),
-                                         compressBuffer.getBufferSize())),
+                                         compressBuffer.getBufferSize(),
+                                         blockSize)),
          buf.size());
     const void *data;
     int length;
@@ -576,18 +578,19 @@ namespace orc {
     ::memcpy(input.data() + 3 * compressBuffer.getBufferSize(),
              compressBuffer.getBuffer(), compressBuffer.getBufferSize());
 
+    const long blockSize = 3;
     std::unique_ptr<SeekableInputStream> result = createDecompressor
         (CompressionKind_SNAPPY,
          std::unique_ptr<SeekableInputStream>
-         (new SeekableArrayInputStream(input.data(), input.size())),
+         (new SeekableArrayInputStream(input.data(), input.size(), blockSize)),
            buf.size());
     for (int i=0; i < 4; ++i) {
-        const void *data;
-        int length;
-        ASSERT_TRUE(result->Next(&data, &length));
-        for (int j=0; j < N; ++j) {
-            EXPECT_EQ(j % 8, (reinterpret_cast<const int *>(data))[j]);
-        }
+      const void *data;
+      int length;
+      ASSERT_TRUE(result->Next(&data, &length));
+      for (int j=0; j < N; ++j) {
+          EXPECT_EQ(j % 8, (reinterpret_cast<const int *>(data))[j]);
+      }
     }
   }
 
@@ -606,11 +609,13 @@ namespace orc {
     ASSERT_LT(compressedSize, buf.size());
     compressBuffer.writeHeader(compressedSize);
 
+    const long blockSize = 3;
     std::unique_ptr<SeekableInputStream> result = createDecompressor
         (CompressionKind_SNAPPY,
          std::unique_ptr<SeekableInputStream>
            (new SeekableArrayInputStream(compressBuffer.getBuffer(),
-                                         compressBuffer.getBufferSize())),
+                                         compressBuffer.getBufferSize(),
+                                         blockSize)),
          buf.size());
     const void *data;
     int length;
