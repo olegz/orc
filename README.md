@@ -1,4 +1,5 @@
 [![Build Status](https://travis-ci.org/hortonworks/orc.svg?branch=c%2B%2B)](https://travis-ci.org/hortonworks/orc)
+[![Build status](https://ci.appveyor.com/api/projects/status/pqcqker37ddy20s7?svg=true)](https://ci.appveyor.com/project/thanhdowisc/orc)
 
 # ORC File C++ Library
 
