@@ -44,6 +44,10 @@ add_library (orc STATIC
   ColumnPrinter.cc
   )
 
+if (MSVC)
+  add_dependencies (orc libprotobuf libprotobuf-lite protoc zlib zlibstatic)
+endif (MSVC)
+
 target_link_libraries (orc
   ${PROTOBUF_LITE_LIBRARIES}
   ${ZLIB_LIBRARIES}
