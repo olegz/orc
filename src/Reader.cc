@@ -32,7 +32,7 @@
 #include <sstream>
 #include <string>
 #include <vector>
-#include <stdlib.h>
+
 namespace orc {
 
   std::string printProtobufMessage(const google::protobuf::Message& message) {
@@ -879,14 +879,12 @@ void ReaderImpl::readMetadata(char* buffer, unsigned long readSize, unsigned lon
 
 /**
  * start column statistics: min, max, length, numofvalues
- * Didn't find the boolen statistics in protobuf.h
  **/
 // number of values
 ColumnStatistics::ColumnStatistics(std::unique_ptr<ColumnStatisticsPrivate> data) :
     privateBits(std::unique_ptr<ColumnStatisticsPrivate> 
                 (new ColumnStatisticsPrivate(data->columnStatistics))) 
 {
-    
 }
 
 ColumnStatistics::~ColumnStatistics() {
@@ -906,22 +904,32 @@ IntegerColumnStatistics::IntegerColumnStatistics(std::unique_ptr<ColumnStatistic
 }
 long IntegerColumnStatistics::getMinimum() const
 {
-    return privateBits->columnStatistics.intstatistics().minimum();
+    if(getNumberOfValues()){
+        return privateBits->columnStatistics.intstatistics().minimum();
+    }
+    throw std::logic_error("Cannot get minimum value: No value in column");
 }
 long IntegerColumnStatistics::getMaximum() const
 {
-    return privateBits->columnStatistics.intstatistics().maximum();
+    if(getNumberOfValues()){
+        return privateBits->columnStatistics.intstatistics().maximum();
+    }
+    throw std::logic_error("Cannot get maximum value: No value in column");
 }
 bool IntegerColumnStatistics::isSumDefined() const
 {
-    return privateBits->columnStatistics.intstatistics().has_sum();
+    if(privateBits->columnStatistics.intstatistics().has_sum() &&
+       privateBits->columnStatistics.intstatistics().sum() <= std::numeric_limits<long>::max() ){
+        return true;
+    }
+    return false;
 }
 long IntegerColumnStatistics::getSum() const
 {
     if(IntegerColumnStatistics::isSumDefined()){
         return privateBits->columnStatistics.intstatistics().sum();
     }
-    throw std::range_error("sum is not defined");
+    throw std::logic_error("sum is not defined");
 }
 
 // double
@@ -931,19 +939,25 @@ DoubleColumnStatistics::DoubleColumnStatistics(std::unique_ptr<ColumnStatisticsP
 }
 double DoubleColumnStatistics::getMinimum() const
 {
-    return privateBits->columnStatistics.doublestatistics().minimum();
+    if(getNumberOfValues()){
+        return privateBits->columnStatistics.doublestatistics().minimum();
+    }
+    throw std::logic_error("Cannot get minimum value: No value in column");
 }
 
 double DoubleColumnStatistics::getMaximum() const
 {
-    return privateBits->columnStatistics.doublestatistics().maximum();
+    if(getNumberOfValues()){
+        return privateBits->columnStatistics.doublestatistics().maximum();
+    }
+    throw std::logic_error("Cannot get minimum value: No value in column");
 }
 double DoubleColumnStatistics::getSum() const
 {
     if(privateBits->columnStatistics.doublestatistics().has_sum()){
         return privateBits->columnStatistics.doublestatistics().sum();
     }
-    throw std::range_error("sum is not defined");
+    throw std::logic_error("sum is not defined");
 }
 
 // string
@@ -962,14 +976,10 @@ std::string StringColumnStatistics::getMaximum() const
 }
 long StringColumnStatistics::getTotalLength() const
 {
-    if(privateBits->columnStatistics.stringstatistics().has_sum())
-    {
-        return privateBits->columnStatistics.stringstatistics().sum();
-    }
-    throw std::range_error("Can not get total length, not defined");
+    return privateBits->columnStatistics.stringstatistics().sum();
 }
 
-// date
+// boolean
 BooleanColumnStatistics::BooleanColumnStatistics(std::unique_ptr<ColumnStatisticsPrivate> data) : 
     ColumnStatistics(std::move(data))
 {
@@ -1020,7 +1030,7 @@ Decimal DecimalColumnStatistics::getSum() const
     {
         return stringToDecimal(privateBits->columnStatistics.decimalstatistics().sum());
     }
-    throw std::range_error("sum is not defined");
+    throw std::logic_error("sum is not defined");
 }
 
 // timestamp
@@ -1044,13 +1054,7 @@ BinaryColumnStatistics::BinaryColumnStatistics(std::unique_ptr<ColumnStatisticsP
 }
 long BinaryColumnStatistics::getTotalLength() const
 {
-    if(privateBits->columnStatistics.binarystatistics().has_sum())
-    {
-        return privateBits->columnStatistics.binarystatistics().sum();
-    }
-    throw std::range_error("Can not get total length, not defined");
+    return privateBits->columnStatistics.binarystatistics().sum();
 }
 
-
-
-}
+}// namespace
