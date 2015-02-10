@@ -126,7 +126,7 @@ int main(int argc, char* argv[]) {
   if(stripe < reader->getNumberOfStripes()){
       std::unique_ptr<orc::StripeStatistics> stripeStats = reader->getStripeStatistics(stripe);
       std::cout << "Stripe " << stripe << " has " << stripeStats->getNumberOfColumnStatistics() << "columns \n";
-      for(uint i = 0; i < stripeStats->getNumberOfColumnStatistics()-1; ++i){
+      for(uint i = 0; i < stripeStats->getNumberOfColumnStatistics(); ++i){
           std::unique_ptr<orc::ColumnStatistics> colStats = stripeStats->getColumnStatisticsInStripe(i);
           std::cout << "column has " << colStats->getNumberOfValues() << "values \n";
           printColumnStatistics(*colStats);

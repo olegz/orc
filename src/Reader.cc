@@ -174,7 +174,6 @@ namespace orc {
     }
 };
 
-
 ColumnStatistics* convertColumnStatistics(const proto::ColumnStatistics&columnStats, orc::TypeKind colType)
 {
     orc::ColumnStatisticsPrivate* colPrivateTmp = 
@@ -234,6 +233,7 @@ ColumnStatistics* convertColumnStatistics(const proto::ColumnStatistics&columnSt
     }
 }
 
+
 class StripeStatisticsImpl: public StripeStatistics {
 private:
     unsigned long numberOfColStats;
@@ -245,7 +245,8 @@ public:
             colStats.push_back(orc::convertColumnStatistics(stripeStats.colstats(i+1),
                                                             schema.getSubtype(i).getKind()));
         }
-        numberOfColStats = stripeStats.colstats_size();
+        // stripeStats has one more column than schema. 
+        numberOfColStats = stripeStats.colstats_size()-1;
     }
     std::unique_ptr<ColumnStatistics> getColumnStatisticsInStripe(unsigned long colIndex) const override
     {
@@ -267,7 +268,6 @@ public:
         return numberOfColStats;
     }
 };
-
 
 
   Reader::~Reader() {
@@ -381,6 +381,7 @@ public:
   InputStream::~InputStream() {
     // PASS
   };
+
 
   ReaderImpl::ReaderImpl(std::unique_ptr<InputStream> input,
                          const ReaderOptions& opts
@@ -577,8 +578,6 @@ public:
   unsigned long ReaderImpl::getRowNumber() const {
     return previousRow;
   }
-
-
 
   // ColumnStatistics only contains statistics that are available for all data type
   std::list<ColumnStatistics*> ReaderImpl::getStatistics() const {
@@ -900,7 +899,8 @@ long ColumnStatistics::getNumberOfValues() const
 }
 
 // int
-IntegerColumnStatistics::IntegerColumnStatistics(std::unique_ptr<ColumnStatisticsPrivate> data) : ColumnStatistics(data)
+IntegerColumnStatistics::IntegerColumnStatistics(std::unique_ptr<ColumnStatisticsPrivate> data) : 
+    ColumnStatistics(std::move(data))
 {
 
 }
@@ -925,7 +925,8 @@ long IntegerColumnStatistics::getSum() const
 }
 
 // double
-DoubleColumnStatistics::DoubleColumnStatistics(std::unique_ptr<ColumnStatisticsPrivate> data) : ColumnStatistics(data)
+DoubleColumnStatistics::DoubleColumnStatistics(std::unique_ptr<ColumnStatisticsPrivate> data) : 
+    ColumnStatistics(std::move(data))
 {
 }
 double DoubleColumnStatistics::getMinimum() const
@@ -946,7 +947,8 @@ double DoubleColumnStatistics::getSum() const
 }
 
 // string
-StringColumnStatistics::StringColumnStatistics(std::unique_ptr<ColumnStatisticsPrivate> data) : ColumnStatistics(data)
+StringColumnStatistics::StringColumnStatistics(std::unique_ptr<ColumnStatisticsPrivate> data) : 
+    ColumnStatistics(std::move(data))
 {
 }
 std::string StringColumnStatistics::getMinimum() const
@@ -968,7 +970,8 @@ long StringColumnStatistics::getTotalLength() const
 }
 
 // date
-DateColumnStatistics::DateColumnStatistics(std::unique_ptr<ColumnStatisticsPrivate> data) : ColumnStatistics(data)
+DateColumnStatistics::DateColumnStatistics(std::unique_ptr<ColumnStatisticsPrivate> data) : 
+    ColumnStatistics(std::move(data))
 {
 }
 long DateColumnStatistics::getMinimum() const
@@ -983,7 +986,8 @@ long DateColumnStatistics::getMaximum() const
 
 
 // decimal
-DecimalColumnStatistics::DecimalColumnStatistics(std::unique_ptr<ColumnStatisticsPrivate> data) : ColumnStatistics(data)
+DecimalColumnStatistics::DecimalColumnStatistics(std::unique_ptr<ColumnStatisticsPrivate> data) : 
+    ColumnStatistics(std::move(data))
 {
 }
 Decimal DecimalColumnStatistics::getMinimum() const
@@ -1005,7 +1009,8 @@ Decimal DecimalColumnStatistics::getSum() const
 }
 
 // timestamp
-TimestampColumnStatistics::TimestampColumnStatistics(std::unique_ptr<ColumnStatisticsPrivate> data) : ColumnStatistics(data)
+TimestampColumnStatistics::TimestampColumnStatistics(std::unique_ptr<ColumnStatisticsPrivate> data) : 
+    ColumnStatistics(std::move(data))
 {
 }
 long TimestampColumnStatistics::getMinimum() const
@@ -1018,7 +1023,8 @@ long TimestampColumnStatistics::getMaximum() const
 }
 
 // binary
-BinaryColumnStatistics::BinaryColumnStatistics(std::unique_ptr<ColumnStatisticsPrivate> data) : ColumnStatistics(data)
+BinaryColumnStatistics::BinaryColumnStatistics(std::unique_ptr<ColumnStatisticsPrivate> data) : 
+    ColumnStatistics(std::move(data))
 {
 }
 long BinaryColumnStatistics::getTotalLength() const

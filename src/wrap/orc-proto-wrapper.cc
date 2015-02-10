@@ -25,6 +25,8 @@
   #pragma clang diagnostic ignored "-Wunused-parameter"
   #pragma clang diagnostic ignored "-Wnested-anon-types"
 #else
+// TODO: temp add this to compile. doesn't have this is c++ branch
+  #pragma GCC diagnostic ignored "-Wsign-compare"
 #endif
 
 #include "orc_proto.pb.cc"
