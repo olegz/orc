@@ -510,9 +510,9 @@ namespace orc {
     }
 
     size_t getCompressedSize() const {
-      size_t header = static_cast<size_t>(buf[0]);
-      header |= static_cast<size_t>(buf[1]) << 8;
-      header |= static_cast<size_t>(buf[2]) << 16;
+      size_t header = static_cast<unsigned char>(buf[0]);
+      header |= static_cast<size_t>(static_cast<unsigned char>(buf[1])) << 8;
+      header |= static_cast<size_t>(static_cast<unsigned char>(buf[2])) << 16;
       return header >> 1;
     }
 
@@ -545,8 +545,82 @@ namespace orc {
     const void *data;
     int length;
     ASSERT_TRUE(result->Next(&data, &length));
+    ASSERT_EQ(N * sizeof(int), length);
     for (int i=0; i < N; ++i) {
       EXPECT_EQ(i % 8, (reinterpret_cast<const int *>(data))[i]);
+    }
+  }
+
+  TEST(Snappy, testMultiBuffer) {
+    const int N = 1024;
+    std::vector<char> buf(N * sizeof(int));
+    for (int i=0; i < N; ++i) {
+      (reinterpret_cast<int *>(buf.data()))[i] = i % 8;
+    }
+
+    CompressBuffer compressBuffer(snappy::MaxCompressedLength(buf.size()));
+    size_t compressedSize;
+    snappy::RawCompress(buf.data(), buf.size(), compressBuffer.getCompressed(),
+                        &compressedSize);
+    // compressed size must be < original
+    ASSERT_LT(compressedSize, buf.size());
+    compressBuffer.writeHeader(compressedSize);
+
+    std::vector<char> input(compressBuffer.getBufferSize() * 4);
+    ::memcpy(input.data(), compressBuffer.getBuffer(),
+             compressBuffer.getBufferSize());
+    ::memcpy(input.data() + compressBuffer.getBufferSize(),
+             compressBuffer.getBuffer(), compressBuffer.getBufferSize());
+    ::memcpy(input.data() + 2 * compressBuffer.getBufferSize(),
+             compressBuffer.getBuffer(), compressBuffer.getBufferSize());
+    ::memcpy(input.data() + 3 * compressBuffer.getBufferSize(),
+             compressBuffer.getBuffer(), compressBuffer.getBufferSize());
+
+    std::unique_ptr<SeekableInputStream> result = createDecompressor
+        (CompressionKind_SNAPPY,
+         std::unique_ptr<SeekableInputStream>
+         (new SeekableArrayInputStream(input.data(), input.size())),
+           buf.size());
+    for (int i=0; i < 4; ++i) {
+        const void *data;
+        int length;
+        ASSERT_TRUE(result->Next(&data, &length));
+        for (int j=0; j < N; ++j) {
+            EXPECT_EQ(j % 8, (reinterpret_cast<const int *>(data))[j]);
+        }
+    }
+  }
+
+  TEST(Snappy, testSkip) {
+    const int N = 1024;
+    std::vector<char> buf(N * sizeof(int));
+    for (int i=0; i < N; ++i) {
+      (reinterpret_cast<int *>(buf.data()))[i] = i % 8;
+    }
+
+    CompressBuffer compressBuffer(snappy::MaxCompressedLength(buf.size()));
+    size_t compressedSize;
+    snappy::RawCompress(buf.data(), buf.size(), compressBuffer.getCompressed(),
+                        &compressedSize);
+    // compressed size must be < original
+    ASSERT_LT(compressedSize, buf.size());
+    compressBuffer.writeHeader(compressedSize);
+
+    std::unique_ptr<SeekableInputStream> result = createDecompressor
+        (CompressionKind_SNAPPY,
+         std::unique_ptr<SeekableInputStream>
+           (new SeekableArrayInputStream(compressBuffer.getBuffer(),
+                                         compressBuffer.getBufferSize())),
+         buf.size());
+    const void *data;
+    int length;
+    // skip 1/2; in 2 jumps
+    ASSERT_TRUE(result->Skip(((N / 2) - 2) * sizeof(int)));
+    ASSERT_TRUE(result->Skip(2 * sizeof(int)));
+    ASSERT_TRUE(result->Next(&data, &length));
+    ASSERT_EQ((N / 2) * sizeof(int), length);
+    for (int i=N/2; i < N; ++i) {
+      EXPECT_EQ(i % 8, (reinterpret_cast<const int *>(data))[i - N/2]);
     }
   }
 
