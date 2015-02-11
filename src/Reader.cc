@@ -170,19 +170,19 @@ namespace orc {
 
   public:
 
-    StripeInformationImpl(unsigned long offset,
-                          unsigned long indexLength,
-                          unsigned long dataLength,
-                          unsigned long footerLength,
-                          unsigned long numRows) :
-      offset(offset),
-      indexLength(indexLength),
-      dataLength(dataLength),
-      footerLength(footerLength),
-      numRows(numRows)
+    StripeInformationImpl(unsigned long _offset,
+                          unsigned long _indexLength,
+                          unsigned long _dataLength,
+                          unsigned long _footerLength,
+                          unsigned long _numRows) :
+      offset(_offset),
+      indexLength(_indexLength),
+      dataLength(_dataLength),
+      footerLength(_footerLength),
+      numRows(_numRows)
     {}
 
-    ~StripeInformationImpl() {}
+    virtual ~StripeInformationImpl();
 
     unsigned long getOffset() const override {
       return offset;
@@ -211,6 +211,10 @@ namespace orc {
   };
 
   Reader::~Reader() {
+    // PASS
+  }
+
+  StripeInformationImpl::~StripeInformationImpl() {
     // PASS
   }
 
@@ -337,7 +341,7 @@ namespace orc {
     readPostscript(buffer.data(), readSize);
     readFooter(buffer.data(), readSize, size);
 
-    currentStripe = footer.stripes_size();
+    currentStripe = static_cast<uint64_t>(footer.stripes_size());
     lastStripe = 0;
     currentRowInStripe = 0;
     unsigned long rowTotal = 0;
@@ -367,7 +371,7 @@ namespace orc {
     const std::list<int>& included = options.getInclude();
     for(std::list<int>::const_iterator columnId = included.begin();
         columnId != included.end(); ++columnId) {
-      if (*columnId <= (int)(schema->getSubtypeCount())) {
+      if (*columnId <= static_cast<int>(schema->getSubtypeCount())) {
         selectTypeParent(static_cast<size_t>(*columnId));
         selectTypeChildren(static_cast<size_t>(*columnId));
       }
