@@ -318,7 +318,7 @@ public:
     virtual ~StripeStatistics(){};
 
     /**
-     * Get the statistics of one col in the stripe.
+     * Get the statistics of indexth col in the stripe.
      * @return one column's statistics
      */
     virtual std::unique_ptr<ColumnStatistics> getColumnStatisticsInStripe(unsigned long index) const = 0;

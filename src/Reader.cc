@@ -239,20 +239,26 @@ private:
     unsigned long numberOfColStats;
     std::list<ColumnStatistics*> colStats;
 public:
-    StripeStatisticsImpl(proto::StripeStatistics stripeStats, const Type & schema)
+    StripeStatisticsImpl(proto::StripeStatistics stripeStats, const Type & schema, 
+                         const std::vector<bool>& selectedColumns)
     {
         for(int i = 0; i < stripeStats.colstats_size()-1; i++){
-            colStats.push_back(orc::convertColumnStatistics(stripeStats.colstats(i+1),
-                                                            schema.getSubtype(i).getKind()));
+            if(selectedColumns.at(i+1)){
+                colStats.push_back(orc::convertColumnStatistics(stripeStats.colstats(i+1),
+                                                                schema.getSubtype(i).getKind()));
+            }
         }
-        // stripeStats has one more column than schema. 
-        numberOfColStats = stripeStats.colstats_size()-1;
+
+        numberOfColStats = colStats.size();
     }
     std::unique_ptr<ColumnStatistics> getColumnStatisticsInStripe(unsigned long colIndex) const override
     {
         if(colIndex > numberOfColStats){
             throw std::logic_error("column index out of range");
         }
+
+        // TODO: should return the colIndexth column statistics in selectedColumn OR all column?
+        // Now: return the colStats[colIndex], which means the colIndexth loaded column's statistics
         std::list<ColumnStatistics*>::const_iterator it = colStats.begin();
         std::advance(it, colIndex);
         return std::unique_ptr<ColumnStatistics> (*it);
@@ -608,7 +614,7 @@ std::unique_ptr<StripeStatistics> ReaderImpl::getStripeStatistics(unsigned long 
         throw std::logic_error("stripe index out of range");
     }
     return std::unique_ptr<StripeStatistics> 
-      (new StripeStatisticsImpl(metadata.stripestats(stripeIndex), getType()));
+      (new StripeStatisticsImpl(metadata.stripestats(stripeIndex), getType(), selectedColumns));
 }
 
 
