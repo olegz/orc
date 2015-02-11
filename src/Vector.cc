@@ -196,4 +196,53 @@ namespace orc {
       offsets.resize(cap + 1);
     }
   }
+
+  Decimal64VectorBatch::Decimal64VectorBatch(uint64_t cap
+                                             ): ColumnVectorBatch(cap),
+                                                values(cap) {
+    // PASS
+  }
+
+  Decimal64VectorBatch::~Decimal64VectorBatch() {
+    // PASS
+  }
+
+  std::string Decimal64VectorBatch::toString() const {
+    std::ostringstream buffer;
+    buffer << "Decimal64 vector  with "
+           << numElements << " of " << capacity << ">";
+    return buffer.str();
+  }
+
+  void Decimal64VectorBatch::resize(uint64_t cap) {
+    if (capacity < cap) {
+      ColumnVectorBatch::resize(cap);
+      values.resize(cap);
+    }
+  }
+
+  Decimal128VectorBatch::Decimal128VectorBatch(uint64_t cap
+                                               ): ColumnVectorBatch(cap),
+                                                  values(cap) {
+    // PASS
+  }
+
+  Decimal128VectorBatch::~Decimal128VectorBatch() {
+    // PASS
+  }
+
+  std::string Decimal128VectorBatch::toString() const {
+    std::ostringstream buffer;
+    buffer << "Decimal128 vector  with "
+           << numElements << " of " << capacity << ">";
+    return buffer.str();
+  }
+
+  void Decimal128VectorBatch::resize(uint64_t cap) {
+    if (capacity < cap) {
+      ColumnVectorBatch::resize(cap);
+      values.resize(cap);
+    }
+  }
+
 }

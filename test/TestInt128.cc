@@ -94,8 +94,19 @@ namespace orc {
     EXPECT_EQ("0xfffffffffffffeff00000000000001fe", x.toHexString());
   }
 
+  TEST(Int128, testLogic) {
+    Int128 n = Int128(0x00000000100000002, 0x0000000400000008);
+    n |= Int128(0x0000001000000020, 0x0000004000000080);
+    EXPECT_EQ("0x00000011000000220000004400000088", n.toHexString());
+    n =  Int128(0x0000111100002222, 0x0000333300004444);
+    n &= Int128(0x0000f00000000f00, 0x000000f00000000f);
+    EXPECT_EQ( "0x00001000000002000000003000000004", n.toHexString());
+  }
+
   TEST(Int128, testShift) {
     Int128 n(0x123456789abcdef0,0xfedcba9876543210);
+    EXPECT_EQ("0x123456789abcdef0fedcba9876543210", n.toHexString());
+    n <<= 0;
     EXPECT_EQ("0x123456789abcdef0fedcba9876543210", n.toHexString());
     n <<= 4;
     EXPECT_EQ("0x23456789abcdef0fedcba98765432100", n.toHexString());
@@ -116,6 +127,8 @@ namespace orc {
 
     n = Int128(0x123456789abcdef0,0xfedcba9876543210);
     EXPECT_EQ("0x123456789abcdef0fedcba9876543210", n.toHexString());
+    n >>= 0;
+    EXPECT_EQ("0x123456789abcdef0fedcba9876543210", n.toHexString());
     n >>= 4;
     EXPECT_EQ("0x0123456789abcdef0fedcba987654321", n.toHexString());
     n >>= 8;
@@ -135,6 +148,12 @@ namespace orc {
     n = Int128(static_cast<int64_t>(0xfedcba0987654321),0x1234567890abcdef);
     n >>= 129;
     EXPECT_EQ("0xffffffffffffffffffffffffffffffff", n.toHexString());
+    n = Int128(-1, 0xffffffffffffffff);
+    n >>= 4;
+    EXPECT_EQ("0x0fffffffffffffffffffffffffffffff", n.toHexString());
+    n = Int128(-0x100, 0xffffffffffffffff);
+    n >>= 68;
+    EXPECT_EQ("0xfffffffffffffffffffffffffffffff0", n.toHexString());
   }
 
   TEST(Int128, testCompare) {
@@ -529,10 +548,19 @@ namespace orc {
     EXPECT_EQ("98765432109876543210987654321", num.toString());
     num.negate();
     EXPECT_EQ("-98765432109876543210987654321", num.toString());
+
+    num = Int128("10000000000000000000000000000000000000");
+    EXPECT_EQ("10000000000000000000000000000000000000", num.toString());
+
+    num = Int128("-1234");
+    EXPECT_EQ("-1234", num.toString());
+
+    num = Int128("-12345678901122334455667788990011122233");
+    EXPECT_EQ("-12345678901122334455667788990011122233", num.toString());
   }
 
   TEST(Int128, testToDecimalString) {
-    Int128 num = Int128(0x4a4d87c2dc2025c4, 0xdc4f93d18360b478);
+    Int128 num = Int128("98765432109876543210987654321098765432");
     EXPECT_EQ("98765432109876543210987654321098765432",
               num.toDecimalString(0));
     EXPECT_EQ("987654321098765432109876543210987.65432",
