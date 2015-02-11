@@ -251,7 +251,7 @@ namespace orc {
 
   std::string kind2String(TypeKind t) {
       std::string name ;
-      switch(t) {
+      switch(static_cast<int>(t)) {
         case BOOLEAN: { name = "BOOLEAN"; break; }
         case BYTE: { name = "BYTE"; break; }
         case SHORT: { name = "SHORT"; break; }
