@@ -239,26 +239,21 @@ private:
     unsigned long numberOfColStats;
     std::list<ColumnStatistics*> colStats;
 public:
-    StripeStatisticsImpl(proto::StripeStatistics stripeStats, const Type & schema, 
-                         const std::vector<bool>& selectedColumns)
+    StripeStatisticsImpl(proto::StripeStatistics stripeStats, const Type & schema)
     {
         for(int i = 0; i < stripeStats.colstats_size()-1; i++){
-            if(selectedColumns.at(i+1)){
-                colStats.push_back(orc::convertColumnStatistics(stripeStats.colstats(i+1),
-                                                                schema.getSubtype(i).getKind()));
-            }
+            colStats.push_back(orc::convertColumnStatistics(stripeStats.colstats(i+1),
+                                                            schema.getSubtype(i).getKind()));
         }
 
         numberOfColStats = colStats.size();
     }
     std::unique_ptr<ColumnStatistics> getColumnStatisticsInStripe(unsigned long colIndex) const override
     {
-        if(colIndex > numberOfColStats){
+        if(colIndex >= numberOfColStats){
             throw std::logic_error("column index out of range");
         }
 
-        // TODO: should return the colIndexth column statistics in selectedColumn OR all column?
-        // Now: return the colStats[colIndex], which means the colIndexth loaded column's statistics
         std::list<ColumnStatistics*>::const_iterator it = colStats.begin();
         std::advance(it, colIndex);
         return std::unique_ptr<ColumnStatistics> (*it);
@@ -586,14 +581,9 @@ public:
   std::list<ColumnStatistics*> ReaderImpl::getStatistics() const {
       std::list<ColumnStatistics*> result;
       for(uint colIdx=0; colIdx < schema->getSubtypeCount(); ++colIdx) {
-
-          // colIdx + 1 because selectedColumns size = numberOfCols + 1. 
-          // same size of footer. Should skip selectedColumns.at(0)
-          if(selectedColumns.at(colIdx+1)){
-              orc::TypeKind colType = schema->getSubtype(colIdx).getKind();
-              proto::ColumnStatistics col = footer.statistics(colIdx+1);
-              result.push_back(convertColumnStatistics(col, colType));
-          }
+          orc::TypeKind colType = schema->getSubtype(colIdx).getKind();
+          proto::ColumnStatistics col = footer.statistics(colIdx+1);
+          result.push_back(convertColumnStatistics(col, colType));
       }
       return result;
   }
@@ -608,13 +598,13 @@ std::unique_ptr<ColumnStatistics> ReaderImpl::getColumnStatistics(unsigned long 
     return std::unique_ptr<ColumnStatistics> (convertColumnStatistics(col, colType));
 }
 
-
+// stripeIndex start from 0
 std::unique_ptr<StripeStatistics> ReaderImpl::getStripeStatistics(unsigned long stripeIndex) const {
     if(stripeIndex > (unsigned int)metadata.stripestats_size()){
         throw std::logic_error("stripe index out of range");
     }
     return std::unique_ptr<StripeStatistics> 
-      (new StripeStatisticsImpl(metadata.stripestats(stripeIndex), getType(), selectedColumns));
+      (new StripeStatisticsImpl(metadata.stripestats(stripeIndex+1), getType()));
 }
 
 
