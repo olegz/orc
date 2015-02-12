@@ -95,7 +95,7 @@ public:
   class DateColumnStatistics: public ColumnStatistics {
   public:
       DateColumnStatistics(std::unique_ptr<ColumnStatisticsPrivate> data);
-      virtual ~DateColumnStatistics(){};
+      virtual ~DateColumnStatistics(){}
 
     /**
      * Get the minimum value for the column.
