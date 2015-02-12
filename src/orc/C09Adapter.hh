@@ -22,6 +22,7 @@
 #if __cplusplus < 201103L
   #include <stdint.h>
   #include <climits>
+  #include <string>
 
   #ifndef UINT32_MAX
     #define UINT32_MAX (4294967295U)
@@ -38,6 +39,12 @@
       inline T move(T& x) { return x; }
     } // std
   #endif
+
+  namespace std {
+    // A poor man's stoll that converts str to a long long int base 10
+    long long stoll(std::string str);
+  } // namespace std
+
 
 
   /* Containers of unique_ptr<T> are replaced with std::vector<T*>

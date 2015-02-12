@@ -30,6 +30,7 @@ add_library (orc STATIC
   ${PROTO_HDRS}
   wrap/orc-proto-wrapper.cc
   ByteRLE.cc
+  C09Adapter.cc
   ColumnReader.cc
   Compression.cc
   Exceptions.cc
