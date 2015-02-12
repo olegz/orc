@@ -309,6 +309,8 @@ uint64_t RleDecoderV2::nextDirect(int64_t* const data,
   unsigned long nRead = std::min(runLength - runRead, numValues);
 
   runRead += readLongs(data, offset, nRead, bitSize, notNull);
+  bitsLeft = 0; // discard remaining bits
+
   if (isSigned) {
     if (notNull) {
       for (uint64_t pos = offset; pos < offset + nRead; ++pos) {
@@ -504,6 +506,7 @@ uint64_t RleDecoderV2::nextDelta(int64_t* const data,
     // is a decreasing sequence else an increasing sequence
     unsigned long remaining = (offset + nRead) - pos;
     runRead += readLongs(data, pos, remaining, bitSize, notNull);
+    bitsLeft = 0; // discard remaining bits
 
     if (deltaBase < 0) {
       for ( ; pos < offset + nRead; ++pos) {
