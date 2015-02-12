@@ -42,6 +42,26 @@ namespace orc {
     void reset(const ColumnVectorBatch& batch) override;
   };
 
+  class Decimal64ColumnPrinter: public ColumnPrinter {
+  private:
+    const int64_t* data;
+  public:
+    Decimal64ColumnPrinter(const ColumnVectorBatch& batch);
+    ~Decimal64ColumnPrinter() {}
+    void printRow(unsigned long rowId) override;
+    void reset(const ColumnVectorBatch& batch) override;
+  };
+
+  class Decimal128ColumnPrinter: public ColumnPrinter {
+  private:
+    const Int128* data;
+  public:
+    Decimal128ColumnPrinter(const ColumnVectorBatch& batch);
+    ~Decimal128ColumnPrinter() {}
+    void printRow(unsigned long rowId) override;
+    void reset(const ColumnVectorBatch& batch) override;
+  };
+
   class StringColumnPrinter: public ColumnPrinter {
   private:
     const char* const * start;
@@ -100,6 +120,40 @@ namespace orc {
     }
   }
 
+  Decimal64ColumnPrinter::Decimal64ColumnPrinter(const  ColumnVectorBatch& batch) {
+    reset(batch);
+  }
+
+  void Decimal64ColumnPrinter::reset(const  ColumnVectorBatch& batch) {
+    ColumnPrinter::reset(batch);
+    data = dynamic_cast<const Decimal64VectorBatch&>(batch).values.data();
+  }
+
+  void Decimal64ColumnPrinter::printRow(unsigned long rowId) {
+    if (hasNulls && !notNull[rowId]) {
+      std::cout << "NULL";
+    } else {
+      std::cout << data[rowId];
+    }
+  }
+
+  Decimal128ColumnPrinter::Decimal128ColumnPrinter(const  ColumnVectorBatch& batch) {
+     reset(batch);
+   }
+
+   void Decimal128ColumnPrinter::reset(const  ColumnVectorBatch& batch) {
+     ColumnPrinter::reset(batch);
+     data = dynamic_cast<const Decimal128VectorBatch&>(batch).values.data();
+   }
+
+   void Decimal128ColumnPrinter::printRow(unsigned long rowId) {
+     if (hasNulls && !notNull[rowId]) {
+       std::cout << "NULL";
+     } else {
+       std::cout << data[rowId].toString();
+     }
+   }
+
   StringColumnPrinter::StringColumnPrinter(const ColumnVectorBatch& batch) {
     reset(batch);
   }
@@ -129,6 +183,10 @@ namespace orc {
         fields.push_back(new DoubleColumnPrinter(**ptr));
       } else if (typeid(**ptr) == typeid(StringVectorBatch)) {
         fields.push_back(new StringColumnPrinter(**ptr));
+      } else if (typeid(**ptr) == typeid(Decimal128VectorBatch)) {
+        fields.push_back(new Decimal128ColumnPrinter(**ptr));
+      } else if (typeid(**ptr) == typeid(Decimal64VectorBatch)) {
+        fields.push_back(new Decimal64ColumnPrinter(**ptr));
       } else if (typeid(**ptr) == typeid(StructVectorBatch)) {
         fields.push_back(new StructColumnPrinter(**ptr));
       } else {
