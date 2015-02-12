@@ -702,6 +702,8 @@ namespace orc {
 
   std::unique_ptr<ColumnVectorBatch> ReaderImpl::createRowBatch
        (const Type& type, uint64_t capacity) const {
+    ColumnVectorBatch* result = nullptr;
+    const Type* subtype;
     switch (static_cast<int>(type.getKind())) {
     case BOOLEAN:
     case BYTE:
@@ -709,46 +711,62 @@ namespace orc {
     case INT:
     case LONG:
     case TIMESTAMP:
-    case DATE: {
-      LongVectorBatch* batch = new LongVectorBatch(capacity);
-      return std::unique_ptr<ColumnVectorBatch>
-        (dynamic_cast<ColumnVectorBatch*>(batch));
-    }
+    case DATE:
+      result = new LongVectorBatch(capacity);
+      break;
     case FLOAT:
-    case DOUBLE: {
-      DoubleVectorBatch* batch = new DoubleVectorBatch(capacity);
-      return std::unique_ptr<ColumnVectorBatch>
-        (dynamic_cast<ColumnVectorBatch*>(batch));
-    }
+    case DOUBLE:
+      result = new DoubleVectorBatch(capacity);
+      break;
     case STRING:
     case BINARY:
     case CHAR:
-    case VARCHAR: {
-      StringVectorBatch* batch = new StringVectorBatch(capacity);
-      return std::unique_ptr<ColumnVectorBatch>
-        (dynamic_cast<ColumnVectorBatch*>(batch));
-    }
-    case STRUCT: {
-      StructVectorBatch* structPtr = new StructVectorBatch(capacity);
-      std::unique_ptr<ColumnVectorBatch> result
-        (dynamic_cast<ColumnVectorBatch*>(structPtr));
-
+    case VARCHAR:
+      result = new StringVectorBatch(capacity);
+      break;
+    case STRUCT:
+      result = new StructVectorBatch(capacity);
       for(unsigned int i=0; i < type.getSubtypeCount(); ++i) {
-        const Type& child = type.getSubtype(i);
-        if (selectedColumns[static_cast<size_t>(child.getColumnId())]) {
-          structPtr->fields.push_back(createRowBatch(child, capacity
-                                                     ).release());
+        subtype = &(type.getSubtype(i));
+        if (selectedColumns[static_cast<size_t>(subtype->getColumnId())]) {
+          dynamic_cast<StructVectorBatch*>(result)->fields.push_back
+            (createRowBatch(*subtype, capacity).release());
         }
       }
-      return result;
-    }
+      break;
     case LIST:
+      result = new ListVectorBatch(capacity);
+      subtype = &(type.getSubtype(0));
+      if (selectedColumns[static_cast<size_t>(subtype->getColumnId())]) {
+        dynamic_cast<ListVectorBatch*>(result)->elements =
+          createRowBatch(*subtype, capacity);
+      }
+      break;
     case MAP:
-    case UNION:
+      result = new MapVectorBatch(capacity);
+      subtype = &(type.getSubtype(0));
+      if (selectedColumns[static_cast<size_t>(subtype->getColumnId())]) {
+        dynamic_cast<MapVectorBatch*>(result)->keys =
+          createRowBatch(*subtype, capacity);
+      }
+      subtype = &(type.getSubtype(1));
+      if (selectedColumns[static_cast<size_t>(subtype->getColumnId())]) {
+        dynamic_cast<MapVectorBatch*>(result)->elements =
+          createRowBatch(*subtype, capacity);
+      }
+      break;
     case DECIMAL:
+      if (type.getPrecision() == 0 || type.getPrecision() > 18) {
+        result = new Decimal128VectorBatch(capacity);
+      } else {
+        result = new Decimal64VectorBatch(capacity);
+      }
+      break;
+    case UNION:
     default:
       throw NotImplementedYet("not supported yet");
     }
+    return std::unique_ptr<ColumnVectorBatch>(result);
   }
 
   std::unique_ptr<ColumnVectorBatch> ReaderImpl::createRowBatch
