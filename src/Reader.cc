@@ -873,7 +873,6 @@ void ReaderImpl::readMetadata(char* buffer, unsigned long readSize, unsigned lon
 /**
  * start column statistics: min, max, length, numofvalues
  **/
-// number of values
 ColumnStatistics::ColumnStatistics(std::unique_ptr<ColumnStatisticsPrivate> data) :
     privateBits(std::unique_ptr<ColumnStatisticsPrivate> 
                 (new ColumnStatisticsPrivate(data->columnStatistics))) 
