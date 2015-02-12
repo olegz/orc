@@ -432,9 +432,9 @@ TEST(Reader, stripeStatistics) {
   // column[6]
   std::unique_ptr<orc::ColumnStatistics> col_6 = stripeStats->getColumnStatisticsInStripe(6);
   const orc::IntegerColumnStatistics& intStats = dynamic_cast<const orc::IntegerColumnStatistics&> (*(col_6.get()));
-  EXPECT_EQ(4, intStats.getMinimum());
-  EXPECT_EQ(5, intStats.getMaximum());
-  EXPECT_EQ(22600, intStats.getSum());
+  EXPECT_EQ(5, intStats.getMinimum());
+  EXPECT_EQ(6, intStats.getMaximum());
+  EXPECT_EQ(27000, intStats.getSum());
 }
 
 }  // namespace
