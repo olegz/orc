@@ -34,8 +34,8 @@ class ColumnStatisticsPrivate{
 public:
     proto::ColumnStatistics columnStatistics;
     ColumnStatisticsPrivate(){}
-    ColumnStatisticsPrivate(proto::ColumnStatistics columnStatistics): columnStatistics(columnStatistics){}
-    virtual ~ColumnStatisticsPrivate(){};
+    ColumnStatisticsPrivate(proto::ColumnStatistics colStatistics): columnStatistics(colStatistics){}
+    virtual ~ColumnStatisticsPrivate(){}
 };
 
   struct ReaderOptionsPrivate;
@@ -72,7 +72,7 @@ public:
   class BinaryColumnStatistics: public ColumnStatistics {
   public:
       BinaryColumnStatistics(std::unique_ptr<ColumnStatisticsPrivate> data);
-      virtual ~BinaryColumnStatistics(){};
+      virtual ~BinaryColumnStatistics(){}
 
     long getTotalLength() const;
   };
@@ -83,7 +83,7 @@ public:
   class BooleanColumnStatistics: public ColumnStatistics {
   public:
       BooleanColumnStatistics(std::unique_ptr<ColumnStatisticsPrivate> data);
-      virtual ~BooleanColumnStatistics(){};
+      virtual ~BooleanColumnStatistics(){}
 
     long getFalseCount() const;
     long getTrueCount() const;
@@ -116,7 +116,7 @@ public:
   class DecimalColumnStatistics: public ColumnStatistics {
   public:
       DecimalColumnStatistics(std::unique_ptr<ColumnStatisticsPrivate> data);
-      virtual ~DecimalColumnStatistics(){};
+      virtual ~DecimalColumnStatistics(){}
 
     /**
      * Get the minimum value for the column.
@@ -163,7 +163,7 @@ public:
   class DoubleColumnStatistics: public ColumnStatistics {
   public:
       DoubleColumnStatistics(std::unique_ptr<ColumnStatisticsPrivate> data);
-      virtual ~DoubleColumnStatistics(){};
+      virtual ~DoubleColumnStatistics(){}
 
     /**
      * Get the smallest value in the column. Only defined if getNumberOfValues
@@ -193,7 +193,7 @@ public:
   class IntegerColumnStatistics: public ColumnStatistics {
   public:
       IntegerColumnStatistics(std::unique_ptr<ColumnStatisticsPrivate> data);
-      virtual ~IntegerColumnStatistics(){};
+      virtual ~IntegerColumnStatistics(){}
 
     /**
      * Get the smallest value in the column. Only defined if getNumberOfValues
@@ -229,7 +229,7 @@ public:
   class StringColumnStatistics: public ColumnStatistics {
   public:
       StringColumnStatistics(std::unique_ptr<ColumnStatisticsPrivate> data);
-      virtual ~StringColumnStatistics(){};
+      virtual ~StringColumnStatistics(){}
 
     /**
      * Get the minimum value for the column.
@@ -256,7 +256,7 @@ public:
   class TimestampColumnStatistics: public ColumnStatistics {
   public:
       TimestampColumnStatistics(std::unique_ptr<ColumnStatisticsPrivate> data);
-      virtual ~TimestampColumnStatistics(){};
+      virtual ~TimestampColumnStatistics(){}
 
     /**
      * Get the minimum value for the column.
@@ -315,7 +315,7 @@ public:
 
 class StripeStatistics {
 public:
-    virtual ~StripeStatistics(){};
+    virtual ~StripeStatistics(){}
 
     /**
      * Get the statistics of indexth col in the stripe.
