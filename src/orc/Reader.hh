@@ -20,6 +20,7 @@
 #define ORC_READER_HH
 
 #include "Vector.hh"
+#include "../wrap/orc-proto-wrapper.hh"
 
 #include <memory>
 #include <string>
@@ -28,7 +29,13 @@
 namespace orc {
 
   // classes that hold data members so we can maintain binary compatibility
-  class ColumnStatisticsPrivate;
+  // class ColumnStatisticsPrivate;
+class ColumnStatisticsPrivate{
+public:
+    proto::ColumnStatistics columnStatistics;
+    ColumnStatisticsPrivate(proto::ColumnStatistics colStatistics): columnStatistics(colStatistics){}
+};
+
   struct ReaderOptionsPrivate;
 
   enum CompressionKind {
@@ -42,12 +49,12 @@ namespace orc {
    * Statistics that are available for all types of columns.
    */
   class ColumnStatistics {
-  private:
+  protected:
     std::unique_ptr<ColumnStatisticsPrivate> privateBits;
 
   public:
-    ColumnStatistics(std::unique_ptr<ColumnStatisticsPrivate> data);
-    virtual ~ColumnStatistics();
+      ColumnStatistics(std::unique_ptr<ColumnStatisticsPrivate> data);
+      virtual ~ColumnStatistics();
 
     /**
      * Get the number of values in this column. It will differ from the number
@@ -62,8 +69,8 @@ namespace orc {
    */
   class BinaryColumnStatistics: public ColumnStatistics {
   public:
-    BinaryColumnStatistics(std::unique_ptr<ColumnStatisticsPrivate> data);
-    virtual ~BinaryColumnStatistics();
+      BinaryColumnStatistics(std::unique_ptr<ColumnStatisticsPrivate> data);
+      virtual ~BinaryColumnStatistics(){}
 
     long getTotalLength() const;
   };
@@ -73,8 +80,8 @@ namespace orc {
    */
   class BooleanColumnStatistics: public ColumnStatistics {
   public:
-    BooleanColumnStatistics(std::unique_ptr<ColumnStatisticsPrivate> data);
-    virtual ~BooleanColumnStatistics();
+      BooleanColumnStatistics(std::unique_ptr<ColumnStatisticsPrivate> data);
+      virtual ~BooleanColumnStatistics(){}
 
     long getFalseCount() const;
     long getTrueCount() const;
@@ -85,8 +92,8 @@ namespace orc {
    */
   class DateColumnStatistics: public ColumnStatistics {
   public:
-    DateColumnStatistics(std::unique_ptr<ColumnStatisticsPrivate> data);
-    virtual ~DateColumnStatistics();
+      DateColumnStatistics(std::unique_ptr<ColumnStatisticsPrivate> data);
+      virtual ~DateColumnStatistics(){}
 
     /**
      * Get the minimum value for the column.
@@ -106,8 +113,8 @@ namespace orc {
    */
   class DecimalColumnStatistics: public ColumnStatistics {
   public:
-    DecimalColumnStatistics(std::unique_ptr<ColumnStatisticsPrivate> data);
-    virtual ~DecimalColumnStatistics();
+      DecimalColumnStatistics(std::unique_ptr<ColumnStatisticsPrivate> data);
+      virtual ~DecimalColumnStatistics(){}
 
     /**
      * Get the minimum value for the column.
@@ -133,8 +140,8 @@ namespace orc {
    */
   class DoubleColumnStatistics: public ColumnStatistics {
   public:
-    DoubleColumnStatistics(std::unique_ptr<ColumnStatisticsPrivate> data);
-    virtual ~DoubleColumnStatistics();
+      DoubleColumnStatistics(std::unique_ptr<ColumnStatisticsPrivate> data);
+      virtual ~DoubleColumnStatistics(){}
 
     /**
      * Get the smallest value in the column. Only defined if getNumberOfValues
@@ -163,8 +170,8 @@ namespace orc {
    */
   class IntegerColumnStatistics: public ColumnStatistics {
   public:
-    IntegerColumnStatistics(std::unique_ptr<ColumnStatisticsPrivate> data);
-    virtual ~IntegerColumnStatistics();
+      IntegerColumnStatistics(std::unique_ptr<ColumnStatisticsPrivate> data);
+      virtual ~IntegerColumnStatistics(){}
 
     /**
      * Get the smallest value in the column. Only defined if getNumberOfValues
@@ -199,8 +206,8 @@ namespace orc {
    */
   class StringColumnStatistics: public ColumnStatistics {
   public:
-    StringColumnStatistics(std::unique_ptr<ColumnStatisticsPrivate> data);
-    virtual ~StringColumnStatistics();
+      StringColumnStatistics(std::unique_ptr<ColumnStatisticsPrivate> data);
+      virtual ~StringColumnStatistics(){}
 
     /**
      * Get the minimum value for the column.
@@ -226,8 +233,8 @@ namespace orc {
    */
   class TimestampColumnStatistics: public ColumnStatistics {
   public:
-    TimestampColumnStatistics(std::unique_ptr<ColumnStatisticsPrivate> data);
-    virtual ~TimestampColumnStatistics();
+      TimestampColumnStatistics(std::unique_ptr<ColumnStatisticsPrivate> data);
+      virtual ~TimestampColumnStatistics(){}
 
     /**
      * Get the minimum value for the column.
@@ -282,6 +289,31 @@ namespace orc {
      */
     virtual unsigned long getNumberOfRows() const = 0;
   };
+
+
+class StripeStatistics {
+public:
+    virtual ~StripeStatistics(){}
+
+    /**
+     * Get the statistics of indexth col in the stripe.
+     * @return one column's statistics
+     */
+    virtual std::unique_ptr<ColumnStatistics> getColumnStatisticsInStripe(unsigned long index) const = 0;
+
+    /**
+     * Get the statistics of all cols in the stripe.
+     * @return all columns' statistics
+     */
+    virtual std::list<ColumnStatistics*> getStatisticsInStripe() const = 0;
+
+    /**
+     * Get the number of columns in this stripe
+     * @return columnstatistics
+     */
+    virtual unsigned long getNumberOfColumnStatistics() const = 0;
+};
+
 
   /**
    * Options for creating a Reader.
@@ -471,6 +503,13 @@ namespace orc {
       getStripe(unsigned long stripeIndex) const = 0;
 
     /**
+     * Get the statistics about a stripe.
+     * @param stripeIndex the stripe 0 to N-1 to get statistics about
+     * @return the statistics about that stripe
+     */
+      virtual std::unique_ptr<StripeStatistics> getStripeStatistics(unsigned long stripeIndex) const = 0;
+
+    /**
      * Get the length of the file.
      * @return the number of bytes in the file
      */
@@ -481,6 +520,12 @@ namespace orc {
      * @return the information about the column
      */
     virtual std::list<ColumnStatistics*> getStatistics() const = 0;
+
+    /**
+     * Get the statistics about the columns in the file.
+     * @return the information about the column
+     */
+      virtual std::unique_ptr<ColumnStatistics> getColumnStatistics(unsigned long index) const = 0;
 
     /**
      * Get the type of the rows in the file. The top level is always a struct.
