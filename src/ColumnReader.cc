@@ -1258,7 +1258,7 @@ namespace orc {
     scaleDecoder = createRleDecoder(stripe.getStream
                                     (columnId,
                                      proto::Stream_Kind_SECONDARY),
-                                    false, vers);
+                                    true, vers);
     const ReaderOptions options = stripe.getReaderOptions();
     scale = options.getForcedScaleOnHive11Decimal();
     throwOnOverflow = options.getThrowOnHive11DecimalOverflow();

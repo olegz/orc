@@ -18,6 +18,7 @@
 
 #include "ColumnPrinter.hh"
 #include <typeinfo>
+#include <sstream>
 #include <stdexcept>
 
 namespace orc {
@@ -45,6 +46,7 @@ namespace orc {
   class Decimal64ColumnPrinter: public ColumnPrinter {
   private:
     const int64_t* data;
+    int32_t scale;
   public:
     Decimal64ColumnPrinter(const ColumnVectorBatch& batch);
     ~Decimal64ColumnPrinter() {}
@@ -55,6 +57,7 @@ namespace orc {
   class Decimal128ColumnPrinter: public ColumnPrinter {
   private:
     const Int128* data;
+    int32_t scale;
   public:
     Decimal128ColumnPrinter(const ColumnVectorBatch& batch);
     ~Decimal128ColumnPrinter() {}
@@ -120,20 +123,51 @@ namespace orc {
     }
   }
 
-  Decimal64ColumnPrinter::Decimal64ColumnPrinter(const  ColumnVectorBatch& batch) {
-    reset(batch);
+  Decimal64ColumnPrinter::Decimal64ColumnPrinter(const  ColumnVectorBatch& bch
+                                                 ) {
+    reset(bch);
   }
 
   void Decimal64ColumnPrinter::reset(const  ColumnVectorBatch& batch) {
     ColumnPrinter::reset(batch);
     data = dynamic_cast<const Decimal64VectorBatch&>(batch).values.data();
+    scale =dynamic_cast<const Decimal64VectorBatch&>(batch).scale;
+  }
+
+  std::string toDecimalString(int64_t value, int32_t scale) {
+    std::stringstream buffer;
+    if (scale == 0) {
+      buffer << value;
+      return buffer.str();
+    }
+    std::string sign = "";
+    if (value < 0) {
+      sign = "-";
+      value = -value;
+    }
+    buffer << value;
+    std::string str = buffer.str();
+    int32_t len = static_cast<int32_t>(str.length());
+    if (len > scale) {
+      return sign + str.substr(0, static_cast<size_t>(len - scale)) + "." +
+        str.substr(static_cast<size_t>(len - scale),
+                   static_cast<size_t>(scale));
+    } else if (len == scale) {
+      return sign + "0." + str;
+    } else {
+      std::string result = sign + "0.";
+      for(int32_t i=0; i < scale - len; ++i) {
+        result += "0";
+      }
+      return result + str;
+    }
   }
 
   void Decimal64ColumnPrinter::printRow(unsigned long rowId) {
     if (hasNulls && !notNull[rowId]) {
       std::cout << "NULL";
     } else {
-      std::cout << data[rowId];
+      std::cout << toDecimalString(data[rowId], scale);
     }
   }
 
@@ -144,13 +178,14 @@ namespace orc {
    void Decimal128ColumnPrinter::reset(const  ColumnVectorBatch& batch) {
      ColumnPrinter::reset(batch);
      data = dynamic_cast<const Decimal128VectorBatch&>(batch).values.data();
+     scale =dynamic_cast<const Decimal128VectorBatch&>(batch).scale;
    }
 
    void Decimal128ColumnPrinter::printRow(unsigned long rowId) {
      if (hasNulls && !notNull[rowId]) {
        std::cout << "NULL";
      } else {
-       std::cout << data[rowId].toString();
+       std::cout << data[rowId].toDecimalString(scale);
      }
    }
 

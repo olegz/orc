@@ -2865,7 +2865,7 @@ TEST(DecimalColumnReader, testDecimalHive11) {
     .WillRepeatedly(testing::Return(new SeekableArrayInputStream(numBuffer,
                                                                  65, 3)));
 
-  unsigned char scaleBuffer[] = {0x3e, 0x00, 0x06};
+  unsigned char scaleBuffer[] = {0x3e, 0x00, 0x0c};
   EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_SECONDARY))
     .WillRepeatedly(testing::Return(new SeekableArrayInputStream(scaleBuffer,
                                                                  3)));
@@ -2961,7 +2961,7 @@ TEST(DecimalColumnReader, testDecimalHive11Skip) {
   EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_DATA))
     .WillRepeatedly(testing::Return(new SeekableArrayInputStream(numBuffer,
                                                                  119)));
-  unsigned char scaleBuffer[] = { 0x0a, 0x00, 0x03};
+  unsigned char scaleBuffer[] = { 0x0a, 0x00, 0x06};
   EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_SECONDARY))
     .WillRepeatedly(testing::Return(new SeekableArrayInputStream(scaleBuffer,
                                                                  3)));
@@ -3043,7 +3043,7 @@ TEST(DecimalColumnReader, testDecimalHive11ScaleUp) {
   EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_DATA))
     .WillRepeatedly(testing::Return(new SeekableArrayInputStream(numBuffer,
                                                                  21)));
-  unsigned char scaleBuffer[] = { 0x12, 0xff, 0x14};
+  unsigned char scaleBuffer[] = { 0x12, 0xff, 0x28};
   EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_SECONDARY))
     .WillRepeatedly(testing::Return(new SeekableArrayInputStream(scaleBuffer,
                                                                  3)));
@@ -3194,7 +3194,7 @@ TEST(DecimalColumnReader, testDecimalHive11OverflowException) {
   EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_DATA))
     .WillRepeatedly(testing::Return(new SeekableArrayInputStream(numBuffer,
                                                                  19)));
-  unsigned char scaleBuffer[] = { 0xff, 0x06};
+  unsigned char scaleBuffer[] = { 0xff, 0x0c};
   EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_SECONDARY))
     .WillRepeatedly(testing::Return(new SeekableArrayInputStream(scaleBuffer,
                                                                  2)));
@@ -3248,7 +3248,7 @@ TEST(DecimalColumnReader, testDecimalHive11OverflowExceptionNull) {
   EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_DATA))
     .WillRepeatedly(testing::Return(new SeekableArrayInputStream(numBuffer,
                                                                  19)));
-  unsigned char scaleBuffer[] = { 0xff, 0x06};
+  unsigned char scaleBuffer[] = { 0xff, 0x0c};
   EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_SECONDARY))
     .WillRepeatedly(testing::Return(new SeekableArrayInputStream(scaleBuffer,
                                                                  2)));
@@ -3311,7 +3311,7 @@ TEST(DecimalColumnReader, testDecimalHive11OverflowNull) {
   EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_DATA))
     .WillRepeatedly(testing::Return(new SeekableArrayInputStream(numBuffer,
                                                                  41)));
-  unsigned char scaleBuffer[] = { 0x01, 0x00, 0x06};
+  unsigned char scaleBuffer[] = { 0x01, 0x00, 0x0c};
   EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_SECONDARY))
     .WillRepeatedly(testing::Return(new SeekableArrayInputStream(scaleBuffer,
                                                                  3)));
@@ -3391,7 +3391,7 @@ TEST(DecimalColumnReader, testDecimalHive11BigBatches) {
   for(size_t i=0; i < 48; i += 3) {
     scaleBuffer[i] = 0x7d;
     scaleBuffer[i + 1] = 0x00;
-    scaleBuffer[i + 2] = (i < 24) ? 0x05 : 0x04;
+    scaleBuffer[i + 2] = (i < 24) ? 0x0a : 0x08;
   }
   EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_SECONDARY))
     .WillRepeatedly(testing::Return(new SeekableArrayInputStream(scaleBuffer,
