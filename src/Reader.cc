@@ -486,7 +486,7 @@ namespace orc {
 
     unsigned long len = MAGIC.length();
     if (postscriptLength < len + 1) {
-      throw ParseError("Malformed ORC file: invalid postscript length");
+      throw ParseError("Invalid postscript length");
     }
 
     // Look for the magic string at the end of the postscript.
@@ -495,7 +495,7 @@ namespace orc {
       std::vector<char> frontBuffer(MAGIC.length());
       stream->read(frontBuffer.data(), 0, MAGIC.length());
       if (memcmp(frontBuffer.data(), MAGIC.c_str(), MAGIC.length()) != 0) {
-        throw ParseError("Malformed ORC file: invalid postscript");
+        throw ParseError("Not an ORC file");
       }
     }
   }
@@ -527,7 +527,7 @@ namespace orc {
 
     if (!postscript.ParseFromArray(buffer+readSize-1-postscriptLength,
                                    static_cast<int>(postscriptLength))) {
-      throw ParseError("bad postscript parse");
+      throw ParseError("Failed to parse the postscript");
     }
     if (postscript.has_compressionblocksize()) {
       blockSize = postscript.compressionblocksize();
@@ -547,7 +547,7 @@ namespace orc {
     //check if extra bytes need to be read
     unsigned long tailSize = 1 + postscriptLength + footerSize;
     if (tailSize > readSize) {
-      throw NotImplementedYet("need more footer data.");
+      throw NotImplementedYet("Failed to read the entire footer");
     }
     std::unique_ptr<SeekableInputStream> pbStream =
       createDecompressor(compression,
@@ -559,7 +559,7 @@ namespace orc {
     // TODO: do not SeekableArrayInputStream, rather use an array
 //    if (!footer.ParseFromArray(buffer+readSize-tailSize, footerSize)) {
     if (!footer.ParseFromZeroCopyStream(pbStream.get())) {
-      throw ParseError("bad footer parse");
+      throw ParseError("Failed to parse the footer");
     }
     numberOfStripes = static_cast<unsigned long>(footer.stripes_size());
   }
