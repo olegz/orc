@@ -400,4 +400,56 @@ TEST(Reader, nullsAtEndRLEv2Test) {
   ASSERT_EQ(70000, count);
 }
 
+TEST(Reader, columnStatistics) {
+  orc::ReaderOptions opts;
+  std::ostringstream filename;
+  filename << exampleDirectory << "/demo-11-none.orc";
+  std::unique_ptr<orc::Reader> reader =
+    orc::createReader(orc::readLocalFile(filename.str()), opts);
+  
+  // test column statistics
+  EXPECT_EQ(9, reader->getStatistics().size());
+
+  // column[5]
+  std::unique_ptr<orc::ColumnStatistics> col_5 = reader->getColumnStatistics(5);
+  const orc::StringColumnStatistics& strStats = dynamic_cast<const orc::StringColumnStatistics&> (*(col_5.get()));
+  EXPECT_EQ("Good", strStats.getMinimum());
+  EXPECT_EQ("Unknown", strStats.getMaximum());
+  
+  // column[6]
+  std::unique_ptr<orc::ColumnStatistics> col_6 = reader->getColumnStatistics(6);
+  const orc::IntegerColumnStatistics& intStats = dynamic_cast<const orc::IntegerColumnStatistics&> (*(col_6.get()));
+  EXPECT_EQ(0, intStats.getMinimum());
+  EXPECT_EQ(6, intStats.getMaximum());
+  EXPECT_EQ(5762400, intStats.getSum());
+}
+
+TEST(Reader, stripeStatistics) {
+  orc::ReaderOptions opts;
+  std::ostringstream filename;
+  filename << exampleDirectory << "/demo-11-none.orc";
+  std::unique_ptr<orc::Reader> reader =
+    orc::createReader(orc::readLocalFile(filename.str()), opts);
+  
+  // test stripe statistics
+  // stripe[60]
+  unsigned long stripeIdx = 60;
+  std::unique_ptr<orc::StripeStatistics> stripeStats = reader->getStripeStatistics(stripeIdx);
+
+  EXPECT_EQ(9, stripeStats->getNumberOfColumnStatistics());
+
+  // column[5]
+  std::unique_ptr<orc::ColumnStatistics> col_5 = stripeStats->getColumnStatisticsInStripe(5);
+  const orc::StringColumnStatistics& strStats = dynamic_cast<const orc::StringColumnStatistics&> (*(col_5.get()));
+  EXPECT_EQ("Good", strStats.getMinimum());
+  EXPECT_EQ("Unknown", strStats.getMaximum());
+  
+  // column[6]
+  std::unique_ptr<orc::ColumnStatistics> col_6 = stripeStats->getColumnStatisticsInStripe(6);
+  const orc::IntegerColumnStatistics& intStats = dynamic_cast<const orc::IntegerColumnStatistics&> (*(col_6.get()));
+  EXPECT_EQ(5, intStats.getMinimum());
+  EXPECT_EQ(6, intStats.getMaximum());
+  EXPECT_EQ(27000, intStats.getSum());
+}
+
 }  // namespace

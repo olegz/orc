@@ -19,14 +19,14 @@
 #include "ColumnPrinter.hh"
 #include "Exceptions.hh"
 
-#include <string>
 #include <memory>
+#include <string>
 #include <iostream>
 #include <string>
 
 int main(int argc, char* argv[]) {
   if (argc < 2) {
-    std::cout << "Usage: file-dump <filename>\n";
+    std::cout << "Usage: file-contents <filename>\n";
     return 1;
   }
   std::cout << std::nounitbuf;
