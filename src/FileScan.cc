@@ -32,8 +32,12 @@ void printColumnStatistics(const orc::ColumnStatistics &colStats)
     const orc::IntegerColumnStatistics &intCol =
         dynamic_cast<const orc::IntegerColumnStatistics&> (colStats);
     std::cout << "Minimum is " << intCol.getMinimum() << std::endl
-        << "Maximum is " << intCol.getMaximum() << std::endl
-        << "Sum is " << intCol.getSum() << std::endl;
+        << "Maximum is " << intCol.getMaximum() << std::endl;
+    if (intCol.isSumDefined()) {
+      std::cout<< "Sum is " << intCol.getSum() << std::endl;
+    } else {
+      std::cout<< "Sum is not defined" << std::endl;
+    }
     } else if(typeid(colStats) == typeid(orc::StringColumnStatistics)) {
       std::cout << "col data type is STRING\n";
       const orc::StringColumnStatistics &stringCol =
@@ -92,43 +96,43 @@ int main(int argc, char* argv[]) {
     return -1;
   }
 
-  // print out all selected columns statistics.
-  std::list<orc::ColumnStatistics*> colStats = reader->getStatistics();
-  std::cout << "File has " << colStats.size() << " col statistics\n";
-  std::list<int>::const_iterator colIter = cols.begin();
-  for(std::list<orc::ColumnStatistics*>::const_iterator iter = colStats.begin();
-      iter != colStats.end(), colIter!=cols.end(); iter++, colIter++) {
-    std::cout << std::endl;
-    std::cout << "Column " << *colIter << " has "
-        << (*iter)->getNumberOfValues() << " values" << std::endl;
-    printColumnStatistics(**iter);
-  }
-  std::cout << std::endl;
-
-  // test print out one column statistics.
-  // e.g. print the forth column(col = 3)
-  int col = 3;
-  std::cout << "Get statistics of column " << col+1 << std::endl;
-  printColumnStatistics(*(reader->getColumnStatistics(col)));
-
-  // test stripe statistics
-  std::cout << std::endl << "File has "
-      << reader->getNumberOfStripes() << "stripes \n";
-  unsigned long stripe = 60;
-  if(stripe < reader->getNumberOfStripes()) {
-    std::unique_ptr<orc::StripeStatistics> stripeStats =
-        reader->getStripeStatistics(stripe);
-    std::cout << "Stripe " << stripe << " has "
-        << stripeStats->getNumberOfColumnStatistics() << "columns \n";
-    for(uint i = 0; i < stripeStats->getNumberOfColumnStatistics(); ++i){
-      std::unique_ptr<orc::ColumnStatistics> colStats =
-          stripeStats->getColumnStatisticsInStripe(i);
-      std::cout << "column has "
-          << colStats->getNumberOfValues() << "values" << std::endl;
-      printColumnStatistics(*colStats);
-      std::cout << std::endl;
-    }
-  }
+//  // print out all selected columns statistics.
+//  std::list<orc::ColumnStatistics*> colStats = reader->getStatistics();
+//  std::cout << "File has " << colStats.size() << " col statistics\n";
+//  std::list<int>::const_iterator colIter = cols.begin();
+//  for(std::list<orc::ColumnStatistics*>::const_iterator iter = colStats.begin();
+//      iter != colStats.end(), colIter!=cols.end(); iter++, colIter++) {
+//    std::cout << std::endl;
+//    std::cout << "Column " << *colIter << " has "
+//        << (*iter)->getNumberOfValues() << " values" << std::endl;
+//    printColumnStatistics(**iter);
+//  }
+//  std::cout << std::endl;
+//
+//  // test print out one column statistics.
+//  // e.g. print the forth column(col = 3)
+//  int col = 3;
+//  std::cout << "Get statistics of column " << col+1 << std::endl;
+//  printColumnStatistics(*(reader->getColumnStatistics(col)));
+//
+//  // test stripe statistics
+//  std::cout << std::endl << "File has "
+//      << reader->getNumberOfStripes() << "stripes \n";
+//  unsigned long stripe = 60;
+//  if(stripe < reader->getNumberOfStripes()) {
+//    std::unique_ptr<orc::StripeStatistics> stripeStats =
+//        reader->getStripeStatistics(stripe);
+//    std::cout << "Stripe " << stripe << " has "
+//        << stripeStats->getNumberOfColumnStatistics() << "columns \n";
+//    for(uint i = 0; i < stripeStats->getNumberOfColumnStatistics(); ++i){
+//      std::unique_ptr<orc::ColumnStatistics> colStats =
+//          stripeStats->getColumnStatisticsInStripe(i);
+//      std::cout << "column has "
+//          << colStats->getNumberOfValues() << "values" << std::endl;
+//      printColumnStatistics(*colStats);
+//      std::cout << std::endl;
+//    }
+//  }
   
   std::unique_ptr<orc::ColumnVectorBatch> batch = reader->createRowBatch(1000);
   unsigned long rows = 0;

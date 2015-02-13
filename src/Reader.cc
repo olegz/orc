@@ -238,6 +238,12 @@ ColumnStatistics* convertColumnStatistics(const proto::ColumnStatistics&columnSt
               std::unique_ptr<ColumnStatisticsPrivate> (colPrivateTmp));
           return col;
       }
+      case orc::DATE:
+      {
+        DateColumnStatistics *col = new DateColumnStatistics(
+            std::unique_ptr<ColumnStatisticsPrivate> (colPrivateTmp));
+        return col;
+      }
       case orc::TIMESTAMP:
       {
           TimestampColumnStatistics *col = new TimestampColumnStatistics(
@@ -982,18 +988,11 @@ long IntegerColumnStatistics::getMaximum() const
 }
 bool IntegerColumnStatistics::isSumDefined() const
 {
-    if(privateBits->columnStatistics.intstatistics().has_sum() &&
-       privateBits->columnStatistics.intstatistics().sum() <= std::numeric_limits<long>::max() ){
-        return true;
-    }
-    return false;
+    return privateBits->columnStatistics.intstatistics().has_sum();
 }
 long IntegerColumnStatistics::getSum() const
 {
-    if(IntegerColumnStatistics::isSumDefined()){
-        return privateBits->columnStatistics.intstatistics().sum();
-    }
-    throw std::logic_error("sum is not defined");
+  return privateBits->columnStatistics.intstatistics().sum();
 }
 
 // double
