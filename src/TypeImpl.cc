@@ -19,6 +19,9 @@
 #include "Exceptions.hh"
 #include "TypeImpl.hh"
 
+#include <iostream>
+#include <sstream>
+
 namespace orc {
 
   Type::~Type() {
@@ -124,6 +127,79 @@ namespace orc {
     return scale;
   }
 
+  std::string TypeImpl::toString() const {
+    switch (static_cast<int>(kind)) {
+    case BOOLEAN:
+      return "boolean";
+    case BYTE:
+      return "tinyint";
+    case SHORT:
+      return "smallint";
+    case INT:
+      return "int";
+    case LONG:
+      return "bigint";
+    case FLOAT:
+      return "float";
+    case DOUBLE:
+      return "double";
+    case STRING:
+      return "string";
+    case BINARY:
+      return "binary";
+    case TIMESTAMP:
+      return "timestamp";
+    case LIST:
+      return "array<" + subTypes[0]->toString() + ">";
+    case MAP:
+      return "map<" + subTypes[0]->toString() + "," +
+        subTypes[1]->toString() +  ">";
+    case STRUCT: {
+      std::string result = "struct<";
+      for(size_t i=0; i < subTypes.size(); ++i) {
+        if (i != 0) {
+          result += ",";
+        }
+        result += fieldNames[i];
+        result += ":";
+        result += subTypes[i]->toString();
+      }
+      result += ">";
+      return result;
+    }
+    case UNION: {
+      std::string result = "uniontype<";
+      for(size_t i=0; i < subTypes.size(); ++i) {
+        if (i != 0) {
+          result += ",";
+        }
+        result += subTypes[i]->toString();
+      }
+      result += ">";
+      return result;
+    }
+    case DECIMAL: {
+      std::stringstream result;
+      result << "decimal(" << precision << "," << scale << ")";
+      return result.str();
+    }
+    case DATE:
+      return "date";
+    case VARCHAR: {
+      std::stringstream result;
+      result << "varchar(" << maxLength << ")";
+      return result.str();
+    }
+    case CHAR: {
+      std::stringstream result;
+      result << "char(" << maxLength << ")";
+      return result.str();
+    }
+    default:
+      throw NotImplementedYet("Unknown type");
+    }
+  }
+
   std::unique_ptr<Type> createPrimitiveType(TypeKind kind) {
     return std::unique_ptr<Type>(new TypeImpl(kind));
   }
@@ -189,6 +265,7 @@ namespace orc {
     return std::unique_ptr<Type>(new TypeImpl(UNION, typeVector));
   }
 
+  std::string printProtobufMessage(const google::protobuf::Message& message);
   std::unique_ptr<Type> convertType(const proto::Type& type,
                                     const proto::Footer& footer) {
     switch (static_cast<int>(type.kind())) {

@@ -189,7 +189,7 @@ namespace orc {
   public:
     BinaryColumnStatisticsImpl(const proto::ColumnStatistics& stats);
     virtual ~BinaryColumnStatisticsImpl();
-      
+
     bool hasTotalLength() const override {
       return _hasTotalLength;
     }
@@ -207,7 +207,7 @@ namespace orc {
 
     std::string toString() const override {
       std::ostringstream buffer;
-      buffer << "Data type: Binary" << std::endl 
+      buffer << "Data type: Binary" << std::endl
              << "Values: " << valueCount << std::endl;
       if(_hasTotalLength){
         buffer << "Total length: " << totalLength << std::endl;
@@ -254,7 +254,7 @@ namespace orc {
 
     std::string toString() const override {
       std::ostringstream buffer;
-      buffer << "Data type: Boolean" << std::endl 
+      buffer << "Data type: Boolean" << std::endl
              << "Values: " << valueCount << std::endl;
       if(_hasCount){
         buffer << "(true: " << trueCount << "; false: " << valueCount - trueCount << ")" << std::endl;
@@ -1377,6 +1377,8 @@ namespace orc {
   bool ReaderImpl::next(ColumnVectorBatch& data) {
     if (currentStripe > lastStripe) {
       data.numElements = 0;
+      previousRow = firstRowOfStripe[lastStripe] +
+        footer.stripes(static_cast<int>(lastStripe)).numberofrows();
       return false;
     }
     if (currentRowInStripe == 0) {
@@ -1559,7 +1561,7 @@ namespace orc {
     if (!pb.has_binarystatistics()) {
       _hasTotalLength = false;
     }else{
-      _hasTotalLength = pb.binarystatistics().has_sum();  
+      _hasTotalLength = pb.binarystatistics().has_sum();
       totalLength = static_cast<uint64_t>(pb.binarystatistics().sum());
     }
   }
