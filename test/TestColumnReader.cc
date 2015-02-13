@@ -2561,6 +2561,11 @@ TEST(DecimalColumnReader, testDecimal64) {
     .WillRepeatedly(testing::Return(new SeekableArrayInputStream(numBuffer,
                                                                  65, 3)));
 
+  // [0x02] * 65
+  EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_SECONDARY))
+      .WillRepeatedly(testing::Return(new SeekableArrayInputStream
+                       ( { 0x3e, 0x00, 0x04 })));
+
   // create the row type
   std::unique_ptr<Type> rowType =
     createStructType( { createDecimalType(12, 2) }, { "col0" });
@@ -2633,6 +2638,11 @@ TEST(DecimalColumnReader, testDecimal64Skip) {
     .WillRepeatedly(testing::Return(new SeekableArrayInputStream(numBuffer,
                                                                  45)));
 
+  // [0x0a] * 9
+  EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_SECONDARY))
+      .WillRepeatedly(testing::Return(new SeekableArrayInputStream
+                       ( { 0x06, 0x00, 0x14 })));
+
   // create the row type
   std::unique_ptr<Type> rowType =
     createStructType( { createDecimalType(12, 10) }, { "col0" });
@@ -2699,6 +2709,11 @@ TEST(DecimalColumnReader, testDecimal128) {
   EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_DATA))
     .WillRepeatedly(testing::Return(new SeekableArrayInputStream(numBuffer,
                                                                  65, 3)));
+
+  // [0x02] * 65
+  EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_SECONDARY))
+      .WillRepeatedly(testing::Return(new SeekableArrayInputStream
+                       ( { 0x3e, 0x00, 0x04 })));
 
   // create the row type
   std::unique_ptr<Type> rowType =
@@ -2784,6 +2799,10 @@ TEST(DecimalColumnReader, testDecimal128Skip) {
   EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_DATA))
     .WillRepeatedly(testing::Return(new SeekableArrayInputStream(numBuffer,
                                                                  119)));
+  // [0x02] * 13
+  EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_SECONDARY))
+      .WillRepeatedly(testing::Return(new SeekableArrayInputStream
+                       ( { 0x0a, 0x00, 0x4a })));
 
   // create the row type
   std::unique_ptr<Type> rowType =

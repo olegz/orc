@@ -215,6 +215,14 @@ namespace orc {
 
     // the numeric values
     std::vector<int64_t> values;
+
+  protected:
+    /**
+     * Contains the scales that were read from the file. Should NOT be
+     * used.
+     */
+    std::vector<int64_t> readScales;
+    friend class Decimal64ColumnReader;
   };
 
   struct Decimal128VectorBatch: public ColumnVectorBatch {
@@ -228,6 +236,15 @@ namespace orc {
 
     // the numeric values
     std::vector<Int128> values;
+
+  protected:
+    /**
+     * Contains the scales that were read from the file. Should NOT be
+     * used.
+     */
+    std::vector<int64_t> readScales;
+    friend class Decimal128ColumnReader;
+    friend class DecimalHive11ColumnReader;
   };
 
 }

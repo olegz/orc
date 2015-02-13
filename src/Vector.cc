@@ -199,7 +199,8 @@ namespace orc {
 
   Decimal64VectorBatch::Decimal64VectorBatch(uint64_t cap
                                              ): ColumnVectorBatch(cap),
-                                                values(cap) {
+                                                values(cap),
+                                                readScales(cap) {
     // PASS
   }
 
@@ -218,12 +219,14 @@ namespace orc {
     if (capacity < cap) {
       ColumnVectorBatch::resize(cap);
       values.resize(cap);
+      readScales.resize(cap);
     }
   }
 
   Decimal128VectorBatch::Decimal128VectorBatch(uint64_t cap
                                                ): ColumnVectorBatch(cap),
-                                                  values(cap) {
+                                                  values(cap),
+                                                  readScales(cap) {
     // PASS
   }
 
@@ -242,6 +245,7 @@ namespace orc {
     if (capacity < cap) {
       ColumnVectorBatch::resize(cap);
       values.resize(cap);
+      readScales.resize(cap);
     }
   }
 

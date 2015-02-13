@@ -991,11 +991,18 @@ namespace orc {
   }
 
   class Decimal64ColumnReader: public ColumnReader {
+  public:
+    static const int32_t MAX_PRECISION_64 = 18;
+    static const int32_t MAX_PRECISION_128 = 38;
+    static const int64_t POWERS_OF_TEN[MAX_PRECISION_64 + 1];
+
   protected:
     std::unique_ptr<SeekableInputStream> valueStream;
     int32_t scale;
     const char* buffer;
     const char* bufferEnd;
+
+    std::unique_ptr<RleDecoder> scaleDecoder;
 
     /**
      * Read the valueStream for more bytes.
@@ -1012,6 +1019,26 @@ namespace orc {
       }
     }
 
+    void readInt64(int64_t& value, int32_t currentScale) {
+      value = 0;
+      size_t offset = 0;
+      while (true) {
+        readBuffer();
+        unsigned char ch = static_cast<unsigned char>(*(buffer++));
+        value |= static_cast<uint64_t>(ch & 0x7f) << offset;
+        offset += 7;
+        if (!(ch & 0x80)) {
+          break;
+        }
+      }
+      value = unZigZag(static_cast<uint64_t>(value));
+      if (scale > currentScale) {
+        value *= POWERS_OF_TEN[scale - currentScale];
+      } else if (scale < currentScale) {
+        value /= POWERS_OF_TEN[currentScale - scale];
+      }
+    }
+
   public:
     Decimal64ColumnReader(const Type& type, StripeStreams& stipe);
     ~Decimal64ColumnReader();
@@ -1021,12 +1048,29 @@ namespace orc {
     void next(ColumnVectorBatch& rowBatch,
               unsigned long numValues,
               char *notNull) override;
-
-    static const int32_t MAX_PRECISION_64 = 18;
-    static const int32_t MAX_PRECISION_128 = 38;
   };
   const int32_t Decimal64ColumnReader::MAX_PRECISION_64;
   const int32_t Decimal64ColumnReader::MAX_PRECISION_128;
+  const int64_t Decimal64ColumnReader::POWERS_OF_TEN[MAX_PRECISION_64 + 1]=
+    {1,
+     10,
+     100,
+     1000,
+     10000,
+     100000,
+     1000000,
+     10000000,
+     100000000,
+     1000000000,
+     10000000000,
+     100000000000,
+     1000000000000,
+     10000000000000,
+     100000000000000,
+     1000000000000000,
+     10000000000000000,
+     100000000000000000,
+     1000000000000000000};
 
   Decimal64ColumnReader::Decimal64ColumnReader(const Type& type,
                                                StripeStreams& stripe
@@ -1035,6 +1079,11 @@ namespace orc {
     valueStream = stripe.getStream(columnId, proto::Stream_Kind_DATA);
     buffer = nullptr;
     bufferEnd = nullptr;
+    RleVersion vers = convertRleVersion(stripe.getEncoding(columnId).kind());
+    scaleDecoder = createRleDecoder(stripe.getStream
+                                    (columnId,
+                                     proto::Stream_Kind_SECONDARY),
+                                    true, vers);
   }
 
   Decimal64ColumnReader::~Decimal64ColumnReader() {
@@ -1050,6 +1099,7 @@ namespace orc {
         skipped += 1;
       }
     }
+    scaleDecoder->skip(numValues);
     return numValues;
   }
 
@@ -1061,38 +1111,39 @@ namespace orc {
     Decimal64VectorBatch &batch =
       dynamic_cast<Decimal64VectorBatch&>(rowBatch);
     int64_t* values = batch.values.data();
+    // read the next group of scales
+    int64_t* scaleBuffer = batch.readScales.data();
+    scaleDecoder->next(scaleBuffer, numValues, notNull);
     batch.scale = scale;
     if (notNull) {
       for(size_t i=0; i < numValues; ++i) {
         if (notNull[i]) {
-          uint64_t result = 0;
-          size_t offset = 0;
-          while (true) {
-            readBuffer();
-            unsigned char ch = static_cast<unsigned char>(*(buffer++));
-            result |= static_cast<uint64_t>(ch & 0x7f) << offset;
-            offset += 7;
-            if (!(ch & 0x80)) {
-              break;
-            }
-          }
-          values[i] = unZigZag(result);
+          readInt64(values[i], static_cast<int32_t>(scaleBuffer[i]));
         }
       }
     } else {
       for(size_t i=0; i < numValues; ++i) {
-        uint64_t result = 0;
-        size_t offset = 0;
-        while (true) {
-          readBuffer();
-          unsigned char ch = static_cast<unsigned char>(*(buffer++));
-          result |= static_cast<uint64_t>(ch & 0x7f) << offset;
-          offset += 7;
-          if (!(ch & 0x80)) {
-            break;
-          }
-        }
-        values[i] = unZigZag(result);
+        readInt64(values[i], static_cast<int32_t>(scaleBuffer[i]));
+      }
+    }
+  }
+
+  void scaleInt128(Int128& value, int32_t scale, int32_t currentScale) {
+    if (scale > currentScale) {
+      while(scale > currentScale) {
+        int scaleAdjust = std::min(Decimal64ColumnReader::MAX_PRECISION_64,
+                                   scale - currentScale);
+        value *= Decimal64ColumnReader::POWERS_OF_TEN[scaleAdjust];
+        currentScale += scaleAdjust;
+      }
+    } else if (scale < currentScale) {
+      Int128 remainder;
+      while(currentScale > scale) {
+        int scaleAdjust = std::min(Decimal64ColumnReader::MAX_PRECISION_64,
+                                   currentScale - scale);
+        value = value.divide(Decimal64ColumnReader::POWERS_OF_TEN[scaleAdjust],
+                             remainder);
+        currentScale -= scaleAdjust;
       }
     }
   }
@@ -1107,7 +1158,7 @@ namespace orc {
               char *notNull) override;
 
   private:
-    void readInt128(Int128& value) {
+    void readInt128(Int128& value, int32_t currentScale) {
       value = 0;
       Int128 work;
       uint32_t offset = 0;
@@ -1123,6 +1174,7 @@ namespace orc {
         }
       }
       unZigZagInt128(value);
+      scaleInt128(value, scale, currentScale);
     }
   };
 
@@ -1145,27 +1197,25 @@ namespace orc {
     Decimal128VectorBatch &batch =
       dynamic_cast<Decimal128VectorBatch&>(rowBatch);
     Int128* values = batch.values.data();
+    // read the next group of scales
+    int64_t* scaleBuffer = batch.readScales.data();
+    scaleDecoder->next(scaleBuffer, numValues, notNull);
     batch.scale = scale;
     if (notNull) {
       for(size_t i=0; i < numValues; ++i) {
         if (notNull[i]) {
-          readInt128(values[i]);
+          readInt128(values[i], static_cast<int32_t>(scaleBuffer[i]));
         }
       }
     } else {
       for(size_t i=0; i < numValues; ++i) {
-        readInt128(values[i]);
+        readInt128(values[i], static_cast<int32_t>(scaleBuffer[i]));
       }
     }
   }
 
   class DecimalHive11ColumnReader: public Decimal64ColumnReader {
   private:
-    static const size_t BUFFER_SIZE=1024;
-    static const int64_t POWERS_OF_TEN[MAX_PRECISION_64 + 1];
-
-    int64_t scaleBuffer[BUFFER_SIZE];
-    std::unique_ptr<RleDecoder> scaleDecoder;
     bool throwOnOverflow;
     std::ostream* errorStream;
 
@@ -1201,20 +1251,7 @@ namespace orc {
         return result;
       }
       unZigZagInt128(value);
-      if (scale > currentScale) {
-        while(scale > currentScale) {
-          int scaleAdjust = std::min(MAX_PRECISION_64, scale - currentScale);
-          value *= POWERS_OF_TEN[scaleAdjust];
-          currentScale += scaleAdjust;
-        }
-      } else if (scale < currentScale) {
-        Int128 remainder;
-        while(currentScale > scale) {
-          int scaleAdjust = std::min(MAX_PRECISION_64, currentScale - scale);
-          value = value.divide(POWERS_OF_TEN[scaleAdjust], remainder);
-          currentScale -= scaleAdjust;
-        }
-      }
+      scaleInt128(value, scale, currentScale);
       return value >= MIN_VALUE && value <= MAX_VALUE;
     }
 
@@ -1222,43 +1259,15 @@ namespace orc {
     DecimalHive11ColumnReader(const Type& type, StripeStreams& stipe);
     ~DecimalHive11ColumnReader();
 
-    unsigned long skip(unsigned long) override;
-
     void next(ColumnVectorBatch& rowBatch,
               unsigned long numValues,
               char *notNull) override;
   };
-  const size_t DecimalHive11ColumnReader::BUFFER_SIZE;
-  const int64_t DecimalHive11ColumnReader::POWERS_OF_TEN[MAX_PRECISION_64 + 1]=
-    {1,
-     10,
-     100,
-     1000,
-     10000,
-     100000,
-     1000000,
-     10000000,
-     100000000,
-     1000000000,
-     10000000000,
-     100000000000,
-     1000000000000,
-     10000000000000,
-     100000000000000,
-     1000000000000000,
-     10000000000000000,
-     100000000000000000,
-     1000000000000000000};
 
   DecimalHive11ColumnReader::DecimalHive11ColumnReader(const Type& type,
                                                        StripeStreams& stripe
                                                        ): Decimal64ColumnReader
                                                           (type, stripe) {
-    RleVersion vers = convertRleVersion(stripe.getEncoding(columnId).kind());
-    scaleDecoder = createRleDecoder(stripe.getStream
-                                    (columnId,
-                                     proto::Stream_Kind_SECONDARY),
-                                    true, vers);
     const ReaderOptions options = stripe.getReaderOptions();
     scale = options.getForcedScaleOnHive11Decimal();
     throwOnOverflow = options.getThrowOnHive11DecimalOverflow();
@@ -1269,12 +1278,6 @@ namespace orc {
     // PASS
   }
 
-  unsigned long DecimalHive11ColumnReader::skip(unsigned long numValues) {
-    numValues = Decimal64ColumnReader::skip(numValues);
-    scaleDecoder->skip(numValues);
-    return numValues;
-  }
-
   void DecimalHive11ColumnReader::next(ColumnVectorBatch& rowBatch,
                                        unsigned long numValues,
                                        char *notNull) {
@@ -1283,37 +1286,14 @@ namespace orc {
     Decimal128VectorBatch &batch =
       dynamic_cast<Decimal128VectorBatch&>(rowBatch);
     Int128* values = batch.values.data();
+    // read the next group of scales
+    int64_t* scaleBuffer = batch.readScales.data();
+    scaleDecoder->next(scaleBuffer, numValues, notNull);
     batch.scale = scale;
-    size_t posn = 0;
     if (notNull) {
-      while (posn < numValues) {
-        size_t groupSize = std::min(BUFFER_SIZE, numValues - posn);
-        // read the next group of scales
-        scaleDecoder->next(scaleBuffer, groupSize, notNull + posn);
-        for(size_t i=0; i < groupSize; ++i) {
-          if (notNull[posn + i]) {
-            if (!readInt128(values[posn + i],
-                            static_cast<int32_t>(scaleBuffer[i]))) {
-              if (throwOnOverflow) {
-                throw ParseError("Hive 0.11 decimal was more than 38 digits.");
-              } else {
-                *errorStream << "Warning: "
-                             << "Hive 0.11 decimal with more than 38 digits "
-                             << "replaced by NULL.\n";
-                notNull[posn + i] = false;
-              }
-            }
-          }
-        }
-        posn += groupSize;
-      }
-    } else {
-      while (posn < numValues) {
-        size_t groupSize = std::min(BUFFER_SIZE, numValues - posn);
-        // read the next group of scales
-        scaleDecoder->next(scaleBuffer, groupSize, 0);
-        for(size_t i=0; i < groupSize; ++i) {
-          if (!readInt128(values[posn + i],
+      for(size_t i=0; i < numValues; ++i) {
+        if (notNull[i]) {
+          if (!readInt128(values[i],
                           static_cast<int32_t>(scaleBuffer[i]))) {
             if (throwOnOverflow) {
               throw ParseError("Hive 0.11 decimal was more than 38 digits.");
@@ -1321,12 +1301,25 @@ namespace orc {
               *errorStream << "Warning: "
                            << "Hive 0.11 decimal with more than 38 digits "
                            << "replaced by NULL.\n";
-              batch.hasNulls = true;
-              batch.notNull[posn + i] = false;
+              notNull[i] = false;
             }
           }
         }
-        posn += groupSize;
+      }
+    } else {
+      for(size_t i=0; i < numValues; ++i) {
+        if (!readInt128(values[i],
+                        static_cast<int32_t>(scaleBuffer[i]))) {
+          if (throwOnOverflow) {
+            throw ParseError("Hive 0.11 decimal was more than 38 digits.");
+          } else {
+            *errorStream << "Warning: "
+                         << "Hive 0.11 decimal with more than 38 digits "
+                         << "replaced by NULL.\n";
+            batch.hasNulls = true;
+            batch.notNull[i] = false;
+          }
+        }
       }
     }
   }
