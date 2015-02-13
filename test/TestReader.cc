@@ -384,6 +384,21 @@ TEST(Reader, readRangeTest) {
   EXPECT_FALSE(lastReader->next(*lastBatch));
 }
 
+TEST(Reader, nullsAtEndRLEv2Test) {
+  orc::ReaderOptions opts;
+  std::ostringstream filename;
+  filename << exampleDirectory << "/nulls-at-end-snappy.orc";
+  std::unique_ptr<orc::Reader> reader =
+    orc::createReader(orc::readLocalFile(filename.str()), opts);
+
+  unsigned long count = 0;
+  std::unique_ptr<orc::ColumnVectorBatch> batch =
+    reader->createRowBatch(1300);
+  while (reader->next(*batch)) {
+    count += batch->numElements;
+  }
+  ASSERT_EQ(70000, count);
+}
 
 TEST(Reader, columnStatistics) {
   orc::ReaderOptions opts;

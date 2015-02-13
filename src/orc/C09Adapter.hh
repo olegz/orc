@@ -22,6 +22,7 @@
 #if __cplusplus < 201103L
   #include <stdint.h>
   #include <climits>
+  #include <string>
 
   #ifndef UINT32_MAX
     #define UINT32_MAX (4294967295U)
@@ -31,10 +32,19 @@
   #define nullptr NULL
   #define override
 
+  #ifndef _WIN32
+  // VS10 has already had this Adapter.
+    namespace std {
+      template<typename T>
+      inline T move(T& x) { return x; }
+    } // std
+  #endif
+
   namespace std {
-    template<typename T>
-    inline T move(T& x) { return x; }
-  } // std
+    // A poor man's stoll that converts str to a long long int base 10
+    long long stoll(std::string str);
+  } // namespace std
+
 
 
   /* Containers of unique_ptr<T> are replaced with std::vector<T*>

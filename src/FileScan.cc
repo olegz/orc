@@ -62,11 +62,10 @@ void printColumnStatistics(const orc::ColumnStatistics &colStats)
         std::cout << "col data type is DECIMAL\n";
         const orc::DecimalColumnStatistics &decimalCol = 
           dynamic_cast<const orc::DecimalColumnStatistics&> (colStats);
-          
-        std::cout << "Minimum's upper is " << decimalCol.getMinimum().upper 
-                  << "lower is " << decimalCol.getMinimum().lower << std::endl
-                  << "Maximum's upper is " << decimalCol.getMaximum().upper 
-                  << "lower is " << decimalCol.getMaximum().lower << std::endl;
+        std::cout << "Minimum's value is " << decimalCol.getMinimum().value.toString()
+                  << "scale is " << decimalCol.getMinimum().scale << std::endl
+                  << "Maximum's value is " << decimalCol.getMaximum().value.toString()
+                  << "scale is " << decimalCol.getMaximum().scale << std::endl;
 
     }else if(typeid(colStats) == typeid(orc::BooleanColumnStatistics)){
         std::cout << "col data type is BOOLEAN\n";

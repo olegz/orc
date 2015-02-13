@@ -133,26 +133,6 @@ public:
      * @return sum of all the values
      */
     Decimal getSum() const;
-
-      /**
-       * convert string to struct Decimal
-       */
-      inline Decimal stringToDecimal(std::string dec) const
-      {
-          Decimal result;
-          std::size_t foundPoint = dec.find(".");
-          // no decimal point, it is int
-          if(foundPoint == std::string::npos){
-              result.upper = atol(dec.c_str());
-              result.lower = 0;
-          }else{
-              std::string upper = dec.substr(0,foundPoint);
-              std::string lower = dec.substr(foundPoint+1);
-              result.upper = atol(upper.c_str());
-              result.lower = atol(lower.c_str());
-          }
-          return result;
-      }
   };
 
   /**
@@ -376,10 +356,42 @@ public:
     ReaderOptions& range(unsigned long offset, unsigned long length);
 
     /**
+     * For Hive 0.11 (and 0.12) decimals, the precision was unlimited
+     * and thus may overflow the 38 digits that is supported. If one
+     * of the Hive 0.11 decimals is too large, the reader may either convert
+     * the value to NULL or throw an exception. That choice is controlled
+     * by this setting.
+     *
+     * Defaults to true.
+     *
+     * @param shouldThrow should the reader throw a ParseError?
+     * @return returns *this
+     */
+    ReaderOptions& throwOnHive11DecimalOverflow(bool shouldThrow);
+
+    /**
+     * For Hive 0.11 (and 0.12) written decimals, which have unlimited
+     * scale and precision, the reader forces the scale to a consistent
+     * number that is configured. This setting changes the scale that is
+     * forced upon these old decimals. See also throwOnHive11DecimalOverflow.
+     *
+     * Defaults to 6.
+     *
+     * @param forcedScale the scale that will be forced on Hive 0.11 decimals
+     * @return returns *this
+     */
+    ReaderOptions& forcedScaleOnHive11Decimal(int32_t forcedScale);
+
+    /**
      * Set the location of the tail as defined by the logical length of the
      * file.
      */
     ReaderOptions& setTailLocation(unsigned long offset);
+
+    /**
+     * Set the stream to use for printing warning or error messages.
+     */
+    ReaderOptions& setErrorStream(std::ostream& stream);
 
     /**
      * Get the list of selected columns to read. All children of the selected
@@ -404,6 +416,23 @@ public:
      * @return if not set, return the maximum long.
      */
     unsigned long getTailLocation() const;
+
+    /**
+     * Should the reader throw a ParseError when a Hive 0.11 decimal is
+     * larger than the supported 38 digits of precision? Otherwise, the
+     * data item is replaced by a NULL.
+     */
+    bool getThrowOnHive11DecimalOverflow() const;
+
+    /**
+     * What scale should all Hive 0.11 decimals be normalized to?
+     */
+    int32_t getForcedScaleOnHive11Decimal() const;
+
+    /**
+     * Get the stream to write warnings or errors to.
+     */
+    std::ostream* getErrorStream() const;
   };
 
   /**
@@ -470,7 +499,7 @@ public:
      * @param stripeIndex the stripe 0 to N-1 to get information about
      * @return the information about that stripe
      */
-    virtual std::unique_ptr<StripeInformation> 
+    virtual std::unique_ptr<StripeInformation>
       getStripe(unsigned long stripeIndex) const = 0;
 
     /**

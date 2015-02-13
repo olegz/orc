@@ -19,12 +19,13 @@
 #ifndef ORC_VECTOR_HH
 #define ORC_VECTOR_HH
 
+#include "C09Adapter.hh"
+#include "Int128.hh"
+
 #include <list>
 #include <memory>
 #include <string>
 #include <vector>
-
-#include "C09Adapter.hh"
 
 namespace orc {
 
@@ -199,9 +200,36 @@ namespace orc {
   };
 
   struct Decimal {
-    long upper;
-    long lower;
+    Int128 value;
+    uint32_t scale;
   };
+
+  struct Decimal64VectorBatch: public ColumnVectorBatch {
+    Decimal64VectorBatch(uint64_t capacity);
+    virtual ~Decimal64VectorBatch();
+    std::string toString() const;
+    void resize(uint64_t capacity);
+
+    // the number of places after the decimal
+    int32_t scale;
+
+    // the numeric values
+    std::vector<int64_t> values;
+  };
+
+  struct Decimal128VectorBatch: public ColumnVectorBatch {
+    Decimal128VectorBatch(uint64_t capacity);
+    virtual ~Decimal128VectorBatch();
+    std::string toString() const;
+    void resize(uint64_t capacity);
+
+    // the number of places after the decimal
+    int32_t scale;
+
+    // the numeric values
+    std::vector<Int128> values;
+  };
+
 }
 
 #endif

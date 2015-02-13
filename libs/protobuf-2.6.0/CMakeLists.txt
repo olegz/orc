@@ -222,16 +222,16 @@ if (MSVC)
     PROPERTY COMPILE_DEFINITIONS _USRDLL LIBPROTOC_EXPORTS
   )
     
-  add_executable(a_protoc
+  add_executable(protoc
     src/google/protobuf/compiler/main.cc
   )
    
   set_property(
-    TARGET a_protoc
+    TARGET protoc
     PROPERTY _CONSOLE
   )
   
-  target_link_libraries(a_protoc
+  target_link_libraries(protoc
     libprotobuf
     libprotoc
   )

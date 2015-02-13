@@ -208,13 +208,16 @@ void RleDecoderV2::next(int64_t* const data,
                         const char* const notNull) {
   unsigned long nRead = 0;
 
-  // Skip any nulls at the beginning
-  while (nRead < numValues && notNull && !notNull[nRead]) {
-    nRead++;
-  }
-
   while (nRead < numValues) {
+    // Skip any nulls before attempting to read first byte.
+    while (notNull && !notNull[nRead]) {
+      if (++nRead == numValues) {
+        return; // ended with null values
+      }
+    }
+
     if (runRead == runLength) {
+      resetRun();
       firstByte = readByte();
     }
 
@@ -237,11 +240,6 @@ void RleDecoderV2::next(int64_t* const data,
       break;
     default:
       throw ParseError("unknown encoding");
-    }
-
-    // Skip any trailing nulls
-    while (nRead < numValues && notNull && !notNull[nRead]) {
-      nRead++;
     }
   }
 }
@@ -295,8 +293,6 @@ uint64_t RleDecoderV2::nextDirect(int64_t* const data,
     // extract the number of fixed bits
     unsigned char fbo = (firstByte >> 1) & 0x1f;
     bitSize = decodeBitWidth(fbo);
-    bitsLeft = 0;
-    curByte = 0;
 
     // extract the run length
     runLength = static_cast<uint64_t>(firstByte & 0x01) << 8;
@@ -309,6 +305,8 @@ uint64_t RleDecoderV2::nextDirect(int64_t* const data,
   unsigned long nRead = std::min(runLength - runRead, numValues);
 
   runRead += readLongs(data, offset, nRead, bitSize, notNull);
+  bitsLeft = 0; // discard remaining bits
+
   if (isSigned) {
     if (notNull) {
       for (uint64_t pos = offset; pos < offset + nRead; ++pos) {
@@ -360,6 +358,9 @@ uint64_t RleDecoderV2::nextPatched(int64_t* const data,
 
     // extract the length of the patch list
     size_t pl = fourthByte & 0x1f;
+    if (pl == 0) {
+      throw ParseError("Corrupt PATCHED_BASE encoded data (pl==0)!");
+    }
 
     // read the next base width number of bytes to extract base value
     base = readLongBE(byteSize);
@@ -375,7 +376,7 @@ uint64_t RleDecoderV2::nextPatched(int64_t* const data,
     unpackedIdx = 0;
     readLongs(unpacked.data(), 0, runLength, bitSize);
     // any remaining bits are thrown out
-    bitsLeft = 0;
+    resetReadLongs();
 
     // TODO: something more efficient than resize
     unpackedPatch.resize(pl);
@@ -383,12 +384,12 @@ uint64_t RleDecoderV2::nextPatched(int64_t* const data,
     // TODO: Skip corrupt?
     //    if ((patchBitSize + pgw) > 64 && !skipCorrupt) {
     if ((patchBitSize + pgw) > 64) {
-      throw ParseError("Corrupt PATCHED_BASE encoded data!");
+      throw ParseError("Corrupt PATCHED_BASE encoded data (patchBitSize + pgw > 64)!");
     }
     uint32_t cfb = getClosestFixedBits(patchBitSize + pgw);
     readLongs(unpackedPatch.data(), 0, pl, cfb);
     // any remaining bits are thrown out
-    bitsLeft = 0;
+    resetReadLongs();
 
     // apply the patch directly when decoding the packed data
     patchMask = ((1L << patchBitSize) - 1);
@@ -497,13 +498,12 @@ uint64_t RleDecoderV2::nextDelta(int64_t* const data,
       ++runRead;
     }
 
-
-
     // write the unpacked values, add it to previous value and store final
     // value to result buffer. if the delta base value is negative then it
     // is a decreasing sequence else an increasing sequence
     unsigned long remaining = (offset + nRead) - pos;
     runRead += readLongs(data, pos, remaining, bitSize, notNull);
+    bitsLeft = 0; // discard remaining bits
 
     if (deltaBase < 0) {
       for ( ; pos < offset + nRead; ++pos) {

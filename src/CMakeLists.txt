@@ -30,6 +30,7 @@ add_library (orc STATIC
   ${PROTO_HDRS}
   wrap/orc-proto-wrapper.cc
   ByteRLE.cc
+  C09Adapter.cc
   ColumnReader.cc
   Compression.cc
   Exceptions.cc
@@ -43,6 +44,10 @@ add_library (orc STATIC
   Vector.cc
   ColumnPrinter.cc
   )
+
+if (MSVC)
+  add_dependencies (orc libprotobuf libprotobuf-lite protoc zlib zlibstatic)
+endif (MSVC)
 
 target_link_libraries (orc
   ${PROTOBUF_LITE_LIBRARIES}

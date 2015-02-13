@@ -25,7 +25,13 @@
 #include <sstream>
 
 #include "zlib.h"
+
+// Temporarily disable snappy in Windows.
+// TODO: in the long term, we should put snappy in libs
+// and use the snappy from there.
+#ifndef _WIN32
 #include "snappy.h"
+#endif
 
 namespace orc {
 
@@ -507,6 +513,7 @@ namespace orc {
     return result.str();
   }
 
+#ifndef _WIN32
   class SnappyDecompressionStream: public SeekableInputStream {
   public:
     SnappyDecompressionStream(std::unique_ptr<SeekableInputStream> inStream,
@@ -638,7 +645,9 @@ namespace orc {
     } else if (state == DECOMPRESS_START) {
       // Get contiguous bytes of compressed block.
       const char *compressed = inputBufferPtr;
-      if (remainingLength > availSize) {
+      if (remainingLength == availSize) {
+          inputBufferPtr += availSize;
+      } else {
         // Did not read enough from input.
         if (inputBuffer.capacity() < remainingLength) {
           inputBuffer.resize(remainingLength);
@@ -677,6 +686,7 @@ namespace orc {
       *data = outputBuffer.data();
       *size = static_cast<int>(outputBufferLength);
       outputBufferPtr = outputBuffer.data() + outputBufferLength;
+      outputBufferLength = 0;
     }
 
     bytesReturned += *size;
@@ -684,8 +694,9 @@ namespace orc {
   }
 
   void SnappyDecompressionStream::BackUp(int count) {
-    if (static_cast<unsigned long>(count) > outputBufferLength) {
-      throw std::logic_error("can't backup that far");
+    if (outputBufferPtr == nullptr || outputBufferLength != 0) {
+      throw std::logic_error("Backup without previous Next in "
+                             "SnappyDecompressionStream");
     }
     outputBufferPtr -= static_cast<size_t>(count);
     outputBufferLength = static_cast<size_t>(count);
@@ -728,7 +739,7 @@ namespace orc {
     result << "snappy(" << input->getName() << ")";
     return result.str();
   }
-
+#endif // _WIN32
   std::unique_ptr<SeekableInputStream>
      createDecompressor(CompressionKind kind,
                         std::unique_ptr<SeekableInputStream> input,
@@ -739,9 +750,11 @@ namespace orc {
     case CompressionKind_ZLIB:
       return std::unique_ptr<SeekableInputStream>
         (new ZlibDecompressionStream(std::move(input), blockSize));
+#ifndef _WIN32
     case CompressionKind_SNAPPY:
       return std::unique_ptr<SeekableInputStream>
         (new SnappyDecompressionStream(std::move(input), blockSize));
+#endif // _WIN32
     case CompressionKind_LZO:
     default:
       throw NotImplementedYet("compression codec");

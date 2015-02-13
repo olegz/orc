@@ -22,7 +22,7 @@
 #include "Exceptions.hh"
 #include "RLE.hh"
 #include "TypeImpl.hh"
-
+#include "orc/Int128.hh"
 #include <google/protobuf/text_format.h>
 
 #include <algorithm>
@@ -46,21 +46,28 @@ namespace orc {
     unsigned long dataStart;
     unsigned long dataLength;
     unsigned long tailLocation;
+    bool throwOnHive11DecimalOverflow;
+    int32_t forcedScaleOnHive11Decimal;
+    std::ostream* errorStream;
+
     ReaderOptionsPrivate() {
       includedColumns.assign(1,0);
       dataStart = 0;
       dataLength = std::numeric_limits<unsigned long>::max();
       tailLocation = std::numeric_limits<unsigned long>::max();
+      throwOnHive11DecimalOverflow = true;
+      forcedScaleOnHive11Decimal = 6;
+      errorStream = &std::cerr;
     }
   };
 
-  ReaderOptions::ReaderOptions(): 
+  ReaderOptions::ReaderOptions():
     privateBits(std::unique_ptr<ReaderOptionsPrivate>
                   (new ReaderOptionsPrivate())) {
     // PASS
   }
 
-  ReaderOptions::ReaderOptions(const ReaderOptions& rhs): 
+  ReaderOptions::ReaderOptions(const ReaderOptions& rhs):
     privateBits(std::unique_ptr<ReaderOptionsPrivate>
                 (new ReaderOptionsPrivate(*(rhs.privateBits.get())))) {
     // PASS
@@ -72,14 +79,14 @@ namespace orc {
    privateBits.reset(rhs.privateBits.release());
    rhs.privateBits.reset(l);
   }
-  
+
   ReaderOptions& ReaderOptions::operator=(const ReaderOptions& rhs) {
     if (this != &rhs) {
       privateBits.reset(new ReaderOptionsPrivate(*(rhs.privateBits.get())));
     }
     return *this;
   }
-  
+
   ReaderOptions::~ReaderOptions() {
     // PASS
   }
@@ -94,7 +101,7 @@ namespace orc {
     return *this;
   }
 
-  ReaderOptions& ReaderOptions::range(unsigned long offset, 
+  ReaderOptions& ReaderOptions::range(unsigned long offset,
                                       unsigned long length) {
     privateBits->dataStart = offset;
     privateBits->dataLength = length;
@@ -122,6 +129,33 @@ namespace orc {
     return privateBits->tailLocation;
   }
 
+  ReaderOptions& ReaderOptions::throwOnHive11DecimalOverflow(bool shouldThrow){
+    privateBits->throwOnHive11DecimalOverflow = shouldThrow;
+    return *this;
+  }
+
+  bool ReaderOptions::getThrowOnHive11DecimalOverflow() const {
+    return privateBits->throwOnHive11DecimalOverflow;
+  }
+
+  ReaderOptions& ReaderOptions::forcedScaleOnHive11Decimal(int32_t forcedScale
+                                                           ) {
+    privateBits->forcedScaleOnHive11Decimal = forcedScale;
+    return *this;
+  }
+
+  int32_t ReaderOptions::getForcedScaleOnHive11Decimal() const {
+    return privateBits->forcedScaleOnHive11Decimal;
+  }
+
+  ReaderOptions& ReaderOptions::setErrorStream(std::ostream& stream) {
+    privateBits->errorStream = &stream;
+    return *this;
+  }
+
+  std::ostream* ReaderOptions::getErrorStream() const {
+    return privateBits->errorStream;
+  }
 
   StripeInformation::~StripeInformation() {
 
@@ -136,19 +170,19 @@ namespace orc {
 
   public:
 
-    StripeInformationImpl(unsigned long offset,
-                          unsigned long indexLength,
-                          unsigned long dataLength,
-                          unsigned long footerLength,
-                          unsigned long numRows) :
-      offset(offset),
-      indexLength(indexLength),
-      dataLength(dataLength),
-      footerLength(footerLength),
-      numRows(numRows)
+    StripeInformationImpl(unsigned long _offset,
+                          unsigned long _indexLength,
+                          unsigned long _dataLength,
+                          unsigned long _footerLength,
+                          unsigned long _numRows) :
+      offset(_offset),
+      indexLength(_indexLength),
+      dataLength(_dataLength),
+      footerLength(_footerLength),
+      numRows(_numRows)
     {}
 
-    ~StripeInformationImpl() {}
+    virtual ~StripeInformationImpl();
 
     unsigned long getOffset() const override {
       return offset;
@@ -224,12 +258,16 @@ ColumnStatistics* convertColumnStatistics(const proto::ColumnStatistics&columnSt
       }
       case orc::BOOLEAN:
       {
-          ColumnStatistics *col = new ColumnStatistics(
+          BooleanColumnStatistics *col = new BooleanColumnStatistics(
               std::unique_ptr<ColumnStatisticsPrivate> (colPrivateTmp));
           return col;
       }
+      case STRUCT:
+      case LIST:
+      case MAP:
+      case UNION:
       default:
-        throw ParseError("data type is not supported for the ORC file format");
+        throw NotImplementedYet("not supported yet");
     }
 }
 
@@ -272,6 +310,10 @@ public:
 
 
   Reader::~Reader() {
+    // PASS
+  }
+
+  StripeInformationImpl::~StripeInformationImpl() {
     // PASS
   }
 
@@ -322,7 +364,7 @@ public:
     void checkOrcVersion();
     void selectTypeParent(size_t columnId);
     void selectTypeChildren(size_t columnId);
-    std::unique_ptr<ColumnVectorBatch> createRowBatch(const Type& type, 
+    std::unique_ptr<ColumnVectorBatch> createRowBatch(const Type& type,
                                                       uint64_t capacity
                                                       ) const;
 
@@ -332,9 +374,10 @@ public:
      * @param stream the stream to read from
      * @param options options for reading
      */
-    ReaderImpl(std::unique_ptr<InputStream> stream, 
+    ReaderImpl(std::unique_ptr<InputStream> stream,
                const ReaderOptions& options);
 
+    const ReaderOptions& getReaderOptions() const;
     CompressionKind getCompression() const override;
 
     unsigned long getNumberOfRows() const override;
@@ -342,7 +385,7 @@ public:
     unsigned long getRowIndexStride() const override;
 
     const std::string& getStreamName() const override;
-    
+
     std::list<std::string> getMetadataKeys() const override;
 
     std::string getMetadataValue(const std::string& key) const override;
@@ -390,7 +433,8 @@ public:
     isMetadataLoaded = false;
     // figure out the size of the file using the option or filesystem
     unsigned long size = std::min(options.getTailLocation(),
-                                  static_cast<unsigned long> (stream->getLength()));
+                                  static_cast<unsigned long>
+                                     (stream->getLength()));
 
     //read last bytes into buffer to get PostScript
     unsigned long readSize = std::min(size, DIRECTORY_SIZE_GUESS);
@@ -411,7 +455,7 @@ public:
 
     readMetadata(buffer.data(), postscript.metadatalength(), size);
 
-    currentStripe = footer.stripes_size();
+    currentStripe = static_cast<uint64_t>(footer.stripes_size());
     lastStripe = 0;
     currentRowInStripe = 0;
     unsigned long rowTotal = 0;
@@ -428,7 +472,7 @@ public:
         }
         if (i > lastStripe) {
           lastStripe = i;
-        }          
+        }
       }
     }
 
@@ -441,14 +485,18 @@ public:
     const std::list<int>& included = options.getInclude();
     for(std::list<int>::const_iterator columnId = included.begin();
         columnId != included.end(); ++columnId) {
-      if (*columnId <= (int)(schema->getSubtypeCount())) {
+      if (*columnId <= static_cast<int>(schema->getSubtypeCount())) {
         selectTypeParent(static_cast<size_t>(*columnId));
         selectTypeChildren(static_cast<size_t>(*columnId));
       }
     }
   }
-                         
-  CompressionKind ReaderImpl::getCompression() const { 
+
+  const ReaderOptions& ReaderImpl::getReaderOptions() const {
+    return options;
+  }
+
+  CompressionKind ReaderImpl::getCompression() const {
     return compression;
   }
 
@@ -460,7 +508,7 @@ public:
     return numberOfStripes;
   }
 
-  std::unique_ptr<StripeInformation> 
+  std::unique_ptr<StripeInformation>
   ReaderImpl::getStripe(unsigned long stripeIndex) const {
     if (stripeIndex > getNumberOfStripes()) {
       throw std::logic_error("stripe index out of range");
@@ -477,7 +525,7 @@ public:
         stripeInfo.numberofrows()));
   }
 
-  unsigned long ReaderImpl::getNumberOfRows() const { 
+  unsigned long ReaderImpl::getNumberOfRows() const {
     return footer.numberofrows();
   }
 
@@ -552,7 +600,7 @@ public:
 
     unsigned long len = MAGIC.length();
     if (postscriptLength < len + 1) {
-      throw ParseError("Malformed ORC file: invalid postscript length");
+      throw ParseError("Invalid postscript length");
     }
 
     // Look for the magic string at the end of the postscript.
@@ -561,7 +609,7 @@ public:
       std::vector<char> frontBuffer(MAGIC.length());
       stream->read(frontBuffer.data(), 0, MAGIC.length());
       if (memcmp(frontBuffer.data(), MAGIC.c_str(), MAGIC.length()) != 0) {
-        throw ParseError("Malformed ORC file: invalid postscript");
+        throw ParseError("Not an ORC file");
       }
     }
   }
@@ -617,9 +665,9 @@ std::unique_ptr<StripeStatistics> ReaderImpl::getStripeStatistics(unsigned long 
 
     ensureOrcFooter(buffer, readSize);
 
-    if (!postscript.ParseFromArray(buffer+readSize-1-postscriptLength, 
+    if (!postscript.ParseFromArray(buffer+readSize-1-postscriptLength,
                                    static_cast<int>(postscriptLength))) {
-      throw ParseError("bad postscript parse");
+      throw ParseError("Failed to parse the postscript");
     }
     if (postscript.has_compressionblocksize()) {
       blockSize = postscript.compressionblocksize();
@@ -639,7 +687,7 @@ std::unique_ptr<StripeStatistics> ReaderImpl::getStripeStatistics(unsigned long 
     //check if extra bytes need to be read
     unsigned long tailSize = 1 + postscriptLength + footerSize;
     if (tailSize > readSize) {
-      throw NotImplementedYet("need more footer data.");
+      throw NotImplementedYet("Failed to read the entire footer");
     }
     std::unique_ptr<SeekableInputStream> pbStream =
       createDecompressor(compression,
@@ -651,7 +699,7 @@ std::unique_ptr<StripeStatistics> ReaderImpl::getStripeStatistics(unsigned long 
     // TODO: do not SeekableArrayInputStream, rather use an array
 //    if (!footer.ParseFromArray(buffer+readSize-tailSize, footerSize)) {
     if (!footer.ParseFromZeroCopyStream(pbStream.get())) {
-      throw ParseError("bad footer parse");
+      throw ParseError("Failed to parse the footer");
     }
     numberOfStripes = static_cast<unsigned long>(footer.stripes_size());
   }
@@ -661,19 +709,19 @@ std::unique_ptr<StripeStatistics> ReaderImpl::getStripeStatistics(unsigned long 
     unsigned long footerStart = info.offset() + info.indexlength() +
       info.datalength();
     unsigned long footerLength = info.footerlength();
-    std::unique_ptr<SeekableInputStream> pbStream = 
+    std::unique_ptr<SeekableInputStream> pbStream =
       createDecompressor(compression,
                          std::unique_ptr<SeekableInputStream>
-                         (new SeekableFileInputStream(stream.get(), 
+                         (new SeekableFileInputStream(stream.get(),
                                                       footerStart,
-                                                      footerLength, 
+                                                      footerLength,
                                                       static_cast<long>
                                                       (blockSize)
                                                       )),
                          blockSize);
     proto::StripeFooter result;
     if (!result.ParseFromZeroCopyStream(pbStream.get())) {
-      throw ParseError(std::string("bad StripeFooter from ") + 
+      throw ParseError(std::string("bad StripeFooter from ") +
                        pbStream->getName());
     }
     return result;
@@ -716,11 +764,13 @@ void ReaderImpl::readMetadata(char* buffer, unsigned long readSize, unsigned lon
 
     virtual ~StripeStreamsImpl();
 
+    virtual const ReaderOptions& getReaderOptions() const override;
+
     virtual const std::vector<bool> getSelectedColumns() const override;
 
     virtual proto::ColumnEncoding getEncoding(int columnId) const override;
 
-    virtual std::unique_ptr<SeekableInputStream> 
+    virtual std::unique_ptr<SeekableInputStream>
                     getStream(int columnId,
                               proto::Stream_Kind kind) const override;
   };
@@ -729,7 +779,7 @@ void ReaderImpl::readMetadata(char* buffer, unsigned long readSize, unsigned lon
                                        const proto::StripeFooter& _footer,
                                        unsigned long _stripeStart,
                                        InputStream& _input
-                                       ): reader(_reader), 
+                                       ): reader(_reader),
                                           footer(_footer),
                                           stripeStart(_stripeStart),
                                           input(_input) {
@@ -740,6 +790,10 @@ void ReaderImpl::readMetadata(char* buffer, unsigned long readSize, unsigned lon
     // PASS
   }
 
+  const ReaderOptions& StripeStreamsImpl::getReaderOptions() const {
+    return reader.getReaderOptions();
+  }
+
   const std::vector<bool> StripeStreamsImpl::getSelectedColumns() const {
     return reader.getSelectedColumns();
   }
@@ -748,13 +802,13 @@ void ReaderImpl::readMetadata(char* buffer, unsigned long readSize, unsigned lon
     return footer.columns(columnId);
   }
 
-  std::unique_ptr<SeekableInputStream> 
+  std::unique_ptr<SeekableInputStream>
         StripeStreamsImpl::getStream(int columnId,
                                      proto::Stream_Kind kind) const {
     unsigned long offset = stripeStart;
     for(int i = 0; i < footer.streams_size(); ++i) {
       const proto::Stream& stream = footer.streams(i);
-      if (stream.kind() == kind && 
+      if (stream.kind() == kind &&
           stream.column() == static_cast<unsigned int>(columnId)) {
         return createDecompressor(reader.getCompression(),
                                   std::unique_ptr<SeekableInputStream>
@@ -775,7 +829,7 @@ void ReaderImpl::readMetadata(char* buffer, unsigned long readSize, unsigned lon
     currentStripeInfo = footer.stripes(static_cast<int>(currentStripe));
     currentStripeFooter = getStripeFooter(currentStripeInfo);
     rowsInCurrentStripe = currentStripeInfo.numberofrows();
-    StripeStreamsImpl stripeStreams(*this, currentStripeFooter, 
+    StripeStreamsImpl stripeStreams(*this, currentStripeFooter,
                                     currentStripeInfo.offset(),
                                     *(stream.get()));
     reader = buildReader(*(schema.get()), stripeStreams);
@@ -793,8 +847,8 @@ void ReaderImpl::readMetadata(char* buffer, unsigned long readSize, unsigned lon
     if (currentRowInStripe == 0) {
       startNextStripe();
     }
-    uint64_t rowsToRead = 
-      std::min(static_cast<uint64_t>(data.capacity), 
+    uint64_t rowsToRead =
+      std::min(static_cast<uint64_t>(data.capacity),
                rowsInCurrentStripe - currentRowInStripe);
     data.numElements = rowsToRead;
     reader->next(data, rowsToRead, 0);
@@ -810,6 +864,8 @@ void ReaderImpl::readMetadata(char* buffer, unsigned long readSize, unsigned lon
 
   std::unique_ptr<ColumnVectorBatch> ReaderImpl::createRowBatch
        (const Type& type, uint64_t capacity) const {
+    ColumnVectorBatch* result = nullptr;
+    const Type* subtype;
     switch (static_cast<int>(type.getKind())) {
     case BOOLEAN:
     case BYTE:
@@ -817,46 +873,62 @@ void ReaderImpl::readMetadata(char* buffer, unsigned long readSize, unsigned lon
     case INT:
     case LONG:
     case TIMESTAMP:
-    case DATE: {
-      LongVectorBatch* batch = new LongVectorBatch(capacity);
-      return std::unique_ptr<ColumnVectorBatch>
-        (dynamic_cast<ColumnVectorBatch*>(batch));
-    }
+    case DATE:
+      result = new LongVectorBatch(capacity);
+      break;
     case FLOAT:
-    case DOUBLE: {
-      DoubleVectorBatch* batch = new DoubleVectorBatch(capacity);
-      return std::unique_ptr<ColumnVectorBatch>
-        (dynamic_cast<ColumnVectorBatch*>(batch));
-    }
+    case DOUBLE:
+      result = new DoubleVectorBatch(capacity);
+      break;
     case STRING:
     case BINARY:
     case CHAR:
-    case VARCHAR: {
-      StringVectorBatch* batch = new StringVectorBatch(capacity);
-      return std::unique_ptr<ColumnVectorBatch>
-        (dynamic_cast<ColumnVectorBatch*>(batch));
-    }
-    case STRUCT: {
-      StructVectorBatch* structPtr = new StructVectorBatch(capacity);
-      std::unique_ptr<ColumnVectorBatch> result
-        (dynamic_cast<ColumnVectorBatch*>(structPtr));
-
+    case VARCHAR:
+      result = new StringVectorBatch(capacity);
+      break;
+    case STRUCT:
+      result = new StructVectorBatch(capacity);
       for(unsigned int i=0; i < type.getSubtypeCount(); ++i) {
-        const Type& child = type.getSubtype(i);
-        if (selectedColumns[static_cast<size_t>(child.getColumnId())]) {
-          structPtr->fields.push_back(createRowBatch(child, capacity
-                                                     ).release());
+        subtype = &(type.getSubtype(i));
+        if (selectedColumns[static_cast<size_t>(subtype->getColumnId())]) {
+          dynamic_cast<StructVectorBatch*>(result)->fields.push_back
+            (createRowBatch(*subtype, capacity).release());
         }
       }
-      return result;
-    }
+      break;
     case LIST:
+      result = new ListVectorBatch(capacity);
+      subtype = &(type.getSubtype(0));
+      if (selectedColumns[static_cast<size_t>(subtype->getColumnId())]) {
+        dynamic_cast<ListVectorBatch*>(result)->elements =
+          createRowBatch(*subtype, capacity);
+      }
+      break;
     case MAP:
-    case UNION:
+      result = new MapVectorBatch(capacity);
+      subtype = &(type.getSubtype(0));
+      if (selectedColumns[static_cast<size_t>(subtype->getColumnId())]) {
+        dynamic_cast<MapVectorBatch*>(result)->keys =
+          createRowBatch(*subtype, capacity);
+      }
+      subtype = &(type.getSubtype(1));
+      if (selectedColumns[static_cast<size_t>(subtype->getColumnId())]) {
+        dynamic_cast<MapVectorBatch*>(result)->elements =
+          createRowBatch(*subtype, capacity);
+      }
+      break;
     case DECIMAL:
+      if (type.getPrecision() == 0 || type.getPrecision() > 18) {
+        result = new Decimal128VectorBatch(capacity);
+      } else {
+        result = new Decimal64VectorBatch(capacity);
+      }
+      break;
+    case UNION:
     default:
       throw NotImplementedYet("not supported yet");
     }
+    return std::unique_ptr<ColumnVectorBatch>(result);
   }
 
   std::unique_ptr<ColumnVectorBatch> ReaderImpl::createRowBatch
@@ -864,7 +936,7 @@ void ReaderImpl::readMetadata(char* buffer, unsigned long readSize, unsigned lon
     return createRowBatch(*(schema.get()), capacity);
   }
 
-  std::unique_ptr<Reader> createReader(std::unique_ptr<InputStream> stream, 
+  std::unique_ptr<Reader> createReader(std::unique_ptr<InputStream> stream,
                                        const ReaderOptions& options) {
     return std::unique_ptr<Reader>(new ReaderImpl(std::move(stream), options));
   }
@@ -1003,6 +1075,21 @@ long DateColumnStatistics::getMaximum() const
 
 
 // decimal
+Decimal stringToDecimal(std::string dec)
+{
+    Decimal result;
+    std::size_t foundPoint = dec.find(".");
+    // no decimal point, it is int
+    if(foundPoint == std::string::npos){
+        result.value = orc::Int128(dec.c_str());
+        result.scale = 0;
+    }else{
+        result.scale = dec.substr(foundPoint+1).length();
+        result.value = orc::Int128(dec.replace(foundPoint, 1, ""));
+    }
+    return result;
+}
+
 DecimalColumnStatistics::DecimalColumnStatistics(std::unique_ptr<ColumnStatisticsPrivate> data) : 
     ColumnStatistics(std::move(data))
 {

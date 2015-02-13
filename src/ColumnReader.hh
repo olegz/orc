@@ -31,6 +31,11 @@ namespace orc {
     virtual ~StripeStreams();
 
     /**
+     * Get the reader options.
+     */
+    virtual const ReaderOptions& getReaderOptions() const = 0;
+
+    /**
      * Get the array of booleans for which columns are selected.
      * @return the address of an array which contains true at the index of
      *    each columnId is selected.

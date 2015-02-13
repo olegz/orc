@@ -34,6 +34,7 @@ public:
   std::unique_ptr<SeekableInputStream> getStream(int columnId,
       proto::Stream_Kind kind
       ) const override;
+  MOCK_CONST_METHOD0(getReaderOptions, const ReaderOptions&());
   MOCK_CONST_METHOD0(getSelectedColumns, const std::vector<bool>());
   MOCK_CONST_METHOD1(getEncoding, proto::ColumnEncoding (int));
   MOCK_CONST_METHOD2(getStreamProxy, SeekableInputStream*
@@ -2525,6 +2526,900 @@ TEST(TestColumnReader, testTimestampSkipWithNulls) {
   }
 }
 
+TEST(DecimalColumnReader, testDecimal64) {
+  MockStripeStreams streams;
+
+  // set getSelectedColumns()
+  std::vector<bool> selectedColumns = { true, true};
+  EXPECT_CALL(streams, getSelectedColumns())
+      .WillRepeatedly(testing::Return(selectedColumns));
+
+  // set getEncoding
+  proto::ColumnEncoding directEncoding;
+  directEncoding.set_kind(proto::ColumnEncoding_Kind_DIRECT);
+  EXPECT_CALL(streams, getEncoding(testing::_))
+      .WillRepeatedly(testing::Return(directEncoding));
+
+  // set getStream
+  EXPECT_CALL(streams, getStreamProxy(testing::_, proto::Stream_Kind_PRESENT))
+      .WillRepeatedly(testing::Return(nullptr));
+
+  // [0xff] * (64/8) + [0x00] * (56/8) + [0x01]
+  EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_PRESENT))
+      .WillRepeatedly(testing::Return(new SeekableArrayInputStream
+                       ( { 0x05, 0xff, 0x04, 0x00, 0xff, 0x01 })));
+
+  char numBuffer[65];
+  for(int i=0; i < 65; ++i) {
+    if (i < 32) {
+      numBuffer[i] = static_cast<char>(0x3f - 2*i);
+    } else {
+      numBuffer[i] = static_cast<char>(2*(i - 32));
+    }
+  }
+  EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_DATA))
+    .WillRepeatedly(testing::Return(new SeekableArrayInputStream(numBuffer,
+                                                                 65, 3)));
+
+  // create the row type
+  std::unique_ptr<Type> rowType =
+    createStructType( { createDecimalType(12, 2) }, { "col0" });
+  rowType->assignIds(0);
+
+  std::unique_ptr<ColumnReader> reader = buildReader(*rowType, streams);
+
+  StructVectorBatch batch(64);
+  Decimal64VectorBatch *decimals = new Decimal64VectorBatch(64);
+  batch.fields.push_back(decimals);
+  reader->next(batch, 64, 0);
+  EXPECT_EQ(false, batch.hasNulls);
+  EXPECT_EQ(64, batch.numElements);
+  EXPECT_EQ(false, decimals->hasNulls);
+  EXPECT_EQ(64, decimals->numElements);
+  EXPECT_EQ(2, decimals->scale);
+  int64_t *values = decimals->values.data();
+  for(int64_t i = 0; i < 64; ++i) {
+    EXPECT_EQ(i - 32, values[i]);
+  }
+  reader->next(batch, 64, 0);
+  EXPECT_EQ(false, batch.hasNulls);
+  EXPECT_EQ(64, batch.numElements);
+  EXPECT_EQ(true, decimals->hasNulls);
+  EXPECT_EQ(64, decimals->numElements);
+  for(size_t i=0; i < 63; ++i) {
+    EXPECT_EQ(0, decimals->notNull[i]);
+  }
+  EXPECT_EQ(1, decimals->notNull[63]);
+  EXPECT_EQ(32, decimals->values.data()[63]);
+}
+
+TEST(DecimalColumnReader, testDecimal64Skip) {
+  MockStripeStreams streams;
+
+  // set getSelectedColumns()
+  std::vector<bool> selectedColumns = { true, true};
+  EXPECT_CALL(streams, getSelectedColumns())
+      .WillRepeatedly(testing::Return(selectedColumns));
+
+  // set getEncoding
+  proto::ColumnEncoding directEncoding;
+  directEncoding.set_kind(proto::ColumnEncoding_Kind_DIRECT);
+  EXPECT_CALL(streams, getEncoding(testing::_))
+      .WillRepeatedly(testing::Return(directEncoding));
+
+  // set getStream
+  EXPECT_CALL(streams, getStreamProxy(testing::_, proto::Stream_Kind_PRESENT))
+      .WillRepeatedly(testing::Return(nullptr));
+
+  // [0xff]
+  unsigned char presentBuffer[] = {0xfe, 0xff, 0x80};
+  EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_PRESENT))
+      .WillRepeatedly(testing::Return(new SeekableArrayInputStream
+                                      (presentBuffer, 3)));
+
+  // [493827160549382716, 4938271605493827, 49382716054938, 493827160549,
+  //  4938271605, 49382716, 493827, 4938, 49]
+  unsigned char numBuffer[] =
+    { 0xf8, 0xe8, 0xe2, 0xcf, 0xf4, 0xcb, 0xb6, 0xda, 0x0d,
+      0x86, 0xc1, 0xcc, 0xcd, 0x9e, 0xd5, 0xc5, 0x11,
+      0xb4, 0xf6, 0xfc, 0xf3, 0xb9, 0xba, 0x16,
+      0xca, 0xe7, 0xa3, 0xa6, 0xdf, 0x1c,
+      0xea, 0xad, 0xc0, 0xe5, 0x24,
+      0xf8, 0x94, 0x8c, 0x2f,
+      0x86, 0xa4, 0x3c,
+      0x94, 0x4d,
+      0x62 };
+  EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_DATA))
+    .WillRepeatedly(testing::Return(new SeekableArrayInputStream(numBuffer,
+                                                                 45)));
+
+  // create the row type
+  std::unique_ptr<Type> rowType =
+    createStructType( { createDecimalType(12, 10) }, { "col0" });
+  rowType->assignIds(0);
+
+  std::unique_ptr<ColumnReader> reader = buildReader(*rowType, streams);
+
+  StructVectorBatch batch(64);
+  Decimal64VectorBatch *decimals = new Decimal64VectorBatch(64);
+  batch.fields.push_back(decimals);
+  reader->next(batch, 6, 0);
+  EXPECT_EQ(false, batch.hasNulls);
+  EXPECT_EQ(6, batch.numElements);
+  EXPECT_EQ(false, decimals->hasNulls);
+  EXPECT_EQ(6, decimals->numElements);
+  EXPECT_EQ(10, decimals->scale);
+  int64_t *values = decimals->values.data();
+  EXPECT_EQ(493827160549382716, values[0]);
+  EXPECT_EQ(4938271605493827, values[1]);
+  EXPECT_EQ(49382716054938, values[2]);
+  EXPECT_EQ(493827160549, values[3]);
+  EXPECT_EQ(4938271605, values[4]);
+  EXPECT_EQ(49382716, values[5]);
+  reader->skip(2);
+  reader->next(batch, 1, 0);
+  EXPECT_EQ(false, batch.hasNulls);
+  EXPECT_EQ(1, batch.numElements);
+  EXPECT_EQ(false, decimals->hasNulls);
+  EXPECT_EQ(1, decimals->numElements);
+  EXPECT_EQ(49, values[0]);
+}
+
+TEST(DecimalColumnReader, testDecimal128) {
+  MockStripeStreams streams;
+
+  // set getSelectedColumns()
+  std::vector<bool> selectedColumns = { true, true};
+  EXPECT_CALL(streams, getSelectedColumns())
+      .WillRepeatedly(testing::Return(selectedColumns));
+
+  // set getEncoding
+  proto::ColumnEncoding directEncoding;
+  directEncoding.set_kind(proto::ColumnEncoding_Kind_DIRECT);
+  EXPECT_CALL(streams, getEncoding(testing::_))
+      .WillRepeatedly(testing::Return(directEncoding));
+
+  // set getStream
+  EXPECT_CALL(streams, getStreamProxy(testing::_, proto::Stream_Kind_PRESENT))
+      .WillRepeatedly(testing::Return(nullptr));
+
+  // [0xff] * (64/8) + [0x00] * (56/8) + [0x01]
+  EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_PRESENT))
+      .WillRepeatedly(testing::Return(new SeekableArrayInputStream
+                       ( { 0x05, 0xff, 0x04, 0x00, 0xff, 0x01 })));
+
+  char numBuffer[65];
+  for(int i=0; i < 65; ++i) {
+    if (i < 32) {
+      numBuffer[i] = static_cast<char>(0x3f - 2*i);
+    } else {
+      numBuffer[i] = static_cast<char>(2*(i - 32));
+    }
+  }
+  EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_DATA))
+    .WillRepeatedly(testing::Return(new SeekableArrayInputStream(numBuffer,
+                                                                 65, 3)));
+
+  // create the row type
+  std::unique_ptr<Type> rowType =
+    createStructType( { createDecimalType(32, 2) }, { "col0" });
+  rowType->assignIds(0);
+
+  std::unique_ptr<ColumnReader> reader = buildReader(*rowType, streams);
+
+  StructVectorBatch batch(64);
+  Decimal128VectorBatch *decimals = new Decimal128VectorBatch(64);
+  batch.fields.push_back(decimals);
+  reader->next(batch, 64, 0);
+  EXPECT_EQ(false, batch.hasNulls);
+  EXPECT_EQ(64, batch.numElements);
+  EXPECT_EQ(false, decimals->hasNulls);
+  EXPECT_EQ(64, decimals->numElements);
+  EXPECT_EQ(2, decimals->scale);
+  Int128 *values = decimals->values.data();
+  for(int64_t i = 0; i < 64; ++i) {
+    EXPECT_EQ(i - 32, values[i].toLong());
+  }
+  reader->next(batch, 64, 0);
+  EXPECT_EQ(false, batch.hasNulls);
+  EXPECT_EQ(64, batch.numElements);
+  EXPECT_EQ(true, decimals->hasNulls);
+  EXPECT_EQ(64, decimals->numElements);
+  for(size_t i=0; i < 63; ++i) {
+    EXPECT_EQ(0, decimals->notNull[i]);
+  }
+  EXPECT_EQ(1, decimals->notNull[63]);
+  EXPECT_EQ(32, decimals->values.data()[63].toLong());
+}
+
+TEST(DecimalColumnReader, testDecimal128Skip) {
+  MockStripeStreams streams;
+
+  // set getSelectedColumns()
+  std::vector<bool> selectedColumns = { true, true};
+  EXPECT_CALL(streams, getSelectedColumns())
+      .WillRepeatedly(testing::Return(selectedColumns));
+
+  // set getEncoding
+  proto::ColumnEncoding directEncoding;
+  directEncoding.set_kind(proto::ColumnEncoding_Kind_DIRECT);
+  EXPECT_CALL(streams, getEncoding(testing::_))
+      .WillRepeatedly(testing::Return(directEncoding));
+
+  // set getStream
+  EXPECT_CALL(streams, getStreamProxy(testing::_, proto::Stream_Kind_PRESENT))
+      .WillRepeatedly(testing::Return(nullptr));
+
+  // [0xff, 0xf8]
+  unsigned char presentBuffer[] = {0xfe, 0xff, 0xf8};
+  EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_PRESENT))
+      .WillRepeatedly(testing::Return(new SeekableArrayInputStream
+                                      (presentBuffer, 3)));
+
+  // [493827160549382716, 4938271605493827, 49382716054938, 493827160549,
+  //  4938271605, 49382716, 493827, 4938, 49,
+  //  17320508075688772935274463415058723669,
+  //  -17320508075688772935274463415058723669,
+  //  99999999999999999999999999999999999999,
+  //  -99999999999999999999999999999999999999]
+  unsigned char numBuffer[] =
+    { 0xf8, 0xe8, 0xe2, 0xcf, 0xf4, 0xcb, 0xb6, 0xda, 0x0d,
+      0x86, 0xc1, 0xcc, 0xcd, 0x9e, 0xd5, 0xc5, 0x11,
+      0xb4, 0xf6, 0xfc, 0xf3, 0xb9, 0xba, 0x16,
+      0xca, 0xe7, 0xa3, 0xa6, 0xdf, 0x1c,
+      0xea, 0xad, 0xc0, 0xe5, 0x24,
+      0xf8, 0x94, 0x8c, 0x2f,
+      0x86, 0xa4, 0x3c,
+      0x94, 0x4d,
+      0x62,
+      0xaa, 0xcd, 0xb3, 0xf2, 0x9e, 0xf0, 0x99, 0xd6, 0xbe, 0xf8, 0xb6,
+      0x9e, 0xe4, 0xb7, 0xfd, 0xce, 0x8f, 0x34,
+      0xa9, 0xcd, 0xb3, 0xf2, 0x9e, 0xf0, 0x99, 0xd6, 0xbe, 0xf8, 0xb6,
+      0x9e, 0xe4, 0xb7, 0xfd, 0xce, 0x8f, 0x34,
+      0xfe, 0xff, 0xff, 0xff, 0xff, 0x8f, 0x91, 0x8a, 0x93, 0xe8, 0xa3,
+      0xec, 0xd0, 0x96, 0xd4, 0xcc, 0xf6, 0xac, 0x02,
+      0xfd, 0xff, 0xff, 0xff, 0xff, 0x8f, 0x91, 0x8a, 0x93, 0xe8, 0xa3,
+      0xec, 0xd0, 0x96, 0xd4, 0xcc, 0xf6, 0xac, 0x02,
+    };
+  EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_DATA))
+    .WillRepeatedly(testing::Return(new SeekableArrayInputStream(numBuffer,
+                                                                 119)));
+
+  // create the row type
+  std::unique_ptr<Type> rowType =
+    createStructType( { createDecimalType(38, 37) }, { "col0" });
+  rowType->assignIds(0);
+
+  std::unique_ptr<ColumnReader> reader = buildReader(*rowType, streams);
+
+  StructVectorBatch batch(64);
+  Decimal128VectorBatch *decimals = new Decimal128VectorBatch(64);
+  batch.fields.push_back(decimals);
+  reader->next(batch, 6, 0);
+  EXPECT_EQ(false, batch.hasNulls);
+  EXPECT_EQ(6, batch.numElements);
+  EXPECT_EQ(false, decimals->hasNulls);
+  EXPECT_EQ(6, decimals->numElements);
+  EXPECT_EQ(37, decimals->scale);
+  Int128 *values = decimals->values.data();
+  EXPECT_EQ(493827160549382716, values[0].toLong());
+  EXPECT_EQ(4938271605493827, values[1].toLong());
+  EXPECT_EQ(49382716054938, values[2].toLong());
+  EXPECT_EQ(493827160549, values[3].toLong());
+  EXPECT_EQ(4938271605, values[4].toLong());
+  EXPECT_EQ(49382716, values[5].toLong());
+  reader->skip(2);
+  reader->next(batch, 5, 0);
+  EXPECT_EQ(false, batch.hasNulls);
+  EXPECT_EQ(5, batch.numElements);
+  EXPECT_EQ(false, decimals->hasNulls);
+  EXPECT_EQ(5, decimals->numElements);
+  EXPECT_EQ(49, values[0].toLong());
+  EXPECT_EQ("1.7320508075688772935274463415058723669",
+            values[1].toDecimalString(decimals->scale));
+  EXPECT_EQ("-1.7320508075688772935274463415058723669",
+            values[2].toDecimalString(decimals->scale));
+  EXPECT_EQ("9.9999999999999999999999999999999999999",
+            values[3].toDecimalString(decimals->scale));
+  EXPECT_EQ("-9.9999999999999999999999999999999999999",
+            values[4].toDecimalString(decimals->scale));
+}
+
+TEST(DecimalColumnReader, testDecimalHive11) {
+  MockStripeStreams streams;
+
+  // set getReaderOptions()
+  ReaderOptions readerOptions;
+  EXPECT_CALL(streams, getReaderOptions())
+    .WillRepeatedly(testing::ReturnRef(readerOptions));
+
+  // set getSelectedColumns()
+  std::vector<bool> selectedColumns = { true, true};
+  EXPECT_CALL(streams, getSelectedColumns())
+      .WillRepeatedly(testing::Return(selectedColumns));
+
+  // set getEncoding
+  proto::ColumnEncoding directEncoding;
+  directEncoding.set_kind(proto::ColumnEncoding_Kind_DIRECT);
+  EXPECT_CALL(streams, getEncoding(testing::_))
+      .WillRepeatedly(testing::Return(directEncoding));
+
+  // set getStream
+  EXPECT_CALL(streams, getStreamProxy(testing::_, proto::Stream_Kind_PRESENT))
+      .WillRepeatedly(testing::Return(nullptr));
+
+  // [0xff] * (64/8) + [0x00] * (56/8) + [0x01]
+  EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_PRESENT))
+      .WillRepeatedly(testing::Return(new SeekableArrayInputStream
+                       ( { 0x05, 0xff, 0x04, 0x00, 0xff, 0x01 })));
+
+  char numBuffer[65];
+  for(int i=0; i < 65; ++i) {
+    if (i < 32) {
+      numBuffer[i] = static_cast<char>(0x3f - 2*i);
+    } else {
+      numBuffer[i] = static_cast<char>(2*(i - 32));
+    }
+  }
+  EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_DATA))
+    .WillRepeatedly(testing::Return(new SeekableArrayInputStream(numBuffer,
+                                                                 65, 3)));
+
+  unsigned char scaleBuffer[] = {0x3e, 0x00, 0x0c};
+  EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_SECONDARY))
+    .WillRepeatedly(testing::Return(new SeekableArrayInputStream(scaleBuffer,
+                                                                 3)));
+
+  // create the row type
+  std::unique_ptr<Type> rowType =
+    createStructType( { createDecimalType(0, 0) }, { "col0" });
+  rowType->assignIds(0);
+
+  std::unique_ptr<ColumnReader> reader = buildReader(*rowType, streams);
+
+  StructVectorBatch batch(64);
+  Decimal128VectorBatch *decimals = new Decimal128VectorBatch(64);
+  batch.fields.push_back(decimals);
+  reader->next(batch, 64, 0);
+  EXPECT_EQ(false, batch.hasNulls);
+  EXPECT_EQ(64, batch.numElements);
+  EXPECT_EQ(false, decimals->hasNulls);
+  EXPECT_EQ(64, decimals->numElements);
+  EXPECT_EQ(6, decimals->scale);
+  Int128 *values = decimals->values.data();
+  for(int64_t i = 0; i < 64; ++i) {
+    EXPECT_EQ(i - 32, values[i].toLong());
+  }
+  reader->next(batch, 64, 0);
+  EXPECT_EQ(false, batch.hasNulls);
+  EXPECT_EQ(64, batch.numElements);
+  EXPECT_EQ(true, decimals->hasNulls);
+  EXPECT_EQ(64, decimals->numElements);
+  for(size_t i=0; i < 63; ++i) {
+    EXPECT_EQ(0, decimals->notNull[i]);
+  }
+  EXPECT_EQ(1, decimals->notNull[63]);
+  EXPECT_EQ(32, decimals->values.data()[63].toLong());
+}
+
+TEST(DecimalColumnReader, testDecimalHive11Skip) {
+  MockStripeStreams streams;
+
+  // set getReaderOptions()
+  ReaderOptions readerOptions;
+  readerOptions.throwOnHive11DecimalOverflow(false)
+    .forcedScaleOnHive11Decimal(3);
+  EXPECT_CALL(streams, getReaderOptions())
+      .WillRepeatedly(testing::ReturnRef(readerOptions));
+
+  // set getSelectedColumns()
+  std::vector<bool> selectedColumns = { true, true};
+  EXPECT_CALL(streams, getSelectedColumns())
+      .WillRepeatedly(testing::Return(selectedColumns));
+
+  // set getEncoding
+  proto::ColumnEncoding directEncoding;
+  directEncoding.set_kind(proto::ColumnEncoding_Kind_DIRECT);
+  EXPECT_CALL(streams, getEncoding(testing::_))
+      .WillRepeatedly(testing::Return(directEncoding));
+
+  // set getStream
+  EXPECT_CALL(streams, getStreamProxy(testing::_, proto::Stream_Kind_PRESENT))
+      .WillRepeatedly(testing::Return(nullptr));
+
+  // [0xff, 0xf8]
+  unsigned char presentBuffer[] = {0xfe, 0xff, 0xf8};
+  EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_PRESENT))
+      .WillRepeatedly(testing::Return(new SeekableArrayInputStream
+                                      (presentBuffer, 3)));
+
+  // [493827160549382716, 4938271605493827, 49382716054938, 493827160549,
+  //  4938271605, 49382716, 493827, 4938, 49,
+  //  17320508075688772935274463415058723669,
+  //  -17320508075688772935274463415058723669,
+  //  99999999999999999999999999999999999999,
+  //  -99999999999999999999999999999999999999]
+  unsigned char numBuffer[] =
+    { 0xf8, 0xe8, 0xe2, 0xcf, 0xf4, 0xcb, 0xb6, 0xda, 0x0d,
+      0x86, 0xc1, 0xcc, 0xcd, 0x9e, 0xd5, 0xc5, 0x11,
+      0xb4, 0xf6, 0xfc, 0xf3, 0xb9, 0xba, 0x16,
+      0xca, 0xe7, 0xa3, 0xa6, 0xdf, 0x1c,
+      0xea, 0xad, 0xc0, 0xe5, 0x24,
+      0xf8, 0x94, 0x8c, 0x2f,
+      0x86, 0xa4, 0x3c,
+      0x94, 0x4d,
+      0x62,
+      0xaa, 0xcd, 0xb3, 0xf2, 0x9e, 0xf0, 0x99, 0xd6, 0xbe, 0xf8, 0xb6,
+      0x9e, 0xe4, 0xb7, 0xfd, 0xce, 0x8f, 0x34,
+      0xa9, 0xcd, 0xb3, 0xf2, 0x9e, 0xf0, 0x99, 0xd6, 0xbe, 0xf8, 0xb6,
+      0x9e, 0xe4, 0xb7, 0xfd, 0xce, 0x8f, 0x34,
+      0xfe, 0xff, 0xff, 0xff, 0xff, 0x8f, 0x91, 0x8a, 0x93, 0xe8, 0xa3,
+      0xec, 0xd0, 0x96, 0xd4, 0xcc, 0xf6, 0xac, 0x02,
+      0xfd, 0xff, 0xff, 0xff, 0xff, 0x8f, 0x91, 0x8a, 0x93, 0xe8, 0xa3,
+      0xec, 0xd0, 0x96, 0xd4, 0xcc, 0xf6, 0xac, 0x02,
+    };
+  EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_DATA))
+    .WillRepeatedly(testing::Return(new SeekableArrayInputStream(numBuffer,
+                                                                 119)));
+  unsigned char scaleBuffer[] = { 0x0a, 0x00, 0x06};
+  EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_SECONDARY))
+    .WillRepeatedly(testing::Return(new SeekableArrayInputStream(scaleBuffer,
+                                                                 3)));
+
+  // create the row type
+  std::unique_ptr<Type> rowType =
+    createStructType( { createDecimalType(0, 0) }, { "col0" });
+  rowType->assignIds(0);
+
+  std::unique_ptr<ColumnReader> reader = buildReader(*rowType, streams);
+
+  StructVectorBatch batch(64);
+  Decimal128VectorBatch *decimals = new Decimal128VectorBatch(64);
+  batch.fields.push_back(decimals);
+  reader->next(batch, 6, 0);
+  EXPECT_EQ(false, batch.hasNulls);
+  EXPECT_EQ(6, batch.numElements);
+  EXPECT_EQ(false, decimals->hasNulls);
+  EXPECT_EQ(6, decimals->numElements);
+  EXPECT_EQ(3, decimals->scale);
+  Int128 *values = decimals->values.data();
+  EXPECT_EQ(493827160549382716, values[0].toLong());
+  EXPECT_EQ(4938271605493827, values[1].toLong());
+  EXPECT_EQ(49382716054938, values[2].toLong());
+  EXPECT_EQ(493827160549, values[3].toLong());
+  EXPECT_EQ(4938271605, values[4].toLong());
+  EXPECT_EQ(49382716, values[5].toLong());
+  reader->skip(2);
+  reader->next(batch, 5, 0);
+  EXPECT_EQ(false, batch.hasNulls);
+  EXPECT_EQ(5, batch.numElements);
+  EXPECT_EQ(false, decimals->hasNulls);
+  EXPECT_EQ(5, decimals->numElements);
+  EXPECT_EQ(49, values[0].toLong());
+  EXPECT_EQ("17320508075688772935274463415058723.669",
+            values[1].toDecimalString(decimals->scale));
+  EXPECT_EQ("-17320508075688772935274463415058723.669",
+            values[2].toDecimalString(decimals->scale));
+  EXPECT_EQ("99999999999999999999999999999999999.999",
+            values[3].toDecimalString(decimals->scale));
+  EXPECT_EQ("-99999999999999999999999999999999999.999",
+            values[4].toDecimalString(decimals->scale));
+}
+
+TEST(DecimalColumnReader, testDecimalHive11ScaleUp) {
+  MockStripeStreams streams;
+
+  // set getReaderOptions()
+  ReaderOptions readerOptions;
+  readerOptions.forcedScaleOnHive11Decimal(20);
+  EXPECT_CALL(streams, getReaderOptions())
+      .WillRepeatedly(testing::ReturnRef(readerOptions));
+
+  // set getSelectedColumns()
+  std::vector<bool> selectedColumns = { true, true};
+  EXPECT_CALL(streams, getSelectedColumns())
+      .WillRepeatedly(testing::Return(selectedColumns));
+
+  // set getEncoding
+  proto::ColumnEncoding directEncoding;
+  directEncoding.set_kind(proto::ColumnEncoding_Kind_DIRECT);
+  EXPECT_CALL(streams, getEncoding(testing::_))
+      .WillRepeatedly(testing::Return(directEncoding));
+
+  // set getStream
+  EXPECT_CALL(streams, getStreamProxy(testing::_, proto::Stream_Kind_PRESENT))
+      .WillRepeatedly(testing::Return(nullptr));
+
+  // [0xff, 0xff, 0xf8]
+  unsigned char presentBuffer[] = {0xfd, 0xff, 0xff, 0xf8};
+  EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_PRESENT))
+      .WillRepeatedly(testing::Return(new SeekableArrayInputStream
+                                      (presentBuffer, 4)));
+
+  // [1] * 21
+  unsigned char numBuffer[] = {0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02,
+                               0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02,
+                               0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02};
+  EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_DATA))
+    .WillRepeatedly(testing::Return(new SeekableArrayInputStream(numBuffer,
+                                                                 21)));
+  unsigned char scaleBuffer[] = { 0x12, 0xff, 0x28};
+  EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_SECONDARY))
+    .WillRepeatedly(testing::Return(new SeekableArrayInputStream(scaleBuffer,
+                                                                 3)));
+
+  // create the row type
+  std::unique_ptr<Type> rowType =
+    createStructType( { createDecimalType(0, 0) }, { "col0" });
+  rowType->assignIds(0);
+
+  std::unique_ptr<ColumnReader> reader = buildReader(*rowType, streams);
+
+  StructVectorBatch batch(64);
+  Decimal128VectorBatch *decimals = new Decimal128VectorBatch(64);
+  batch.fields.push_back(decimals);
+  reader->next(batch, 21, 0);
+  EXPECT_EQ(false, batch.hasNulls);
+  EXPECT_EQ(21, batch.numElements);
+  EXPECT_EQ(false, decimals->hasNulls);
+  EXPECT_EQ(21, decimals->numElements);
+  EXPECT_EQ(20, decimals->scale);
+  Int128 *values = decimals->values.data();
+  Int128 expected = 1;
+  for(int i = 0; i < 21; ++i) {
+    EXPECT_EQ(expected.toString(), values[i].toString());
+    expected *= 10;
+  }
+}
+
+TEST(DecimalColumnReader, testDecimalHive11ScaleDown) {
+  MockStripeStreams streams;
+
+  // set getReaderOptions()
+  ReaderOptions readerOptions;
+  readerOptions.forcedScaleOnHive11Decimal(0);
+  EXPECT_CALL(streams, getReaderOptions())
+      .WillRepeatedly(testing::ReturnRef(readerOptions));
+
+  // set getSelectedColumns()
+  std::vector<bool> selectedColumns = { true, true};
+  EXPECT_CALL(streams, getSelectedColumns())
+      .WillRepeatedly(testing::Return(selectedColumns));
+
+  // set getEncoding
+  proto::ColumnEncoding directEncoding;
+  directEncoding.set_kind(proto::ColumnEncoding_Kind_DIRECT);
+  EXPECT_CALL(streams, getEncoding(testing::_))
+      .WillRepeatedly(testing::Return(directEncoding));
+
+  // set getStream
+  EXPECT_CALL(streams, getStreamProxy(testing::_, proto::Stream_Kind_PRESENT))
+      .WillRepeatedly(testing::Return(nullptr));
+
+  // [0xff, 0xff, 0xf8]
+  unsigned char presentBuffer[] = {0xfd, 0xff, 0xff, 0xf8};
+  EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_PRESENT))
+      .WillRepeatedly(testing::Return(new SeekableArrayInputStream
+                                      (presentBuffer, 4)));
+
+  // [100000000000000000000] * 21
+  unsigned char numBuffer[] = {
+    0x80, 0x80, 0x80, 0xb1, 0xac, 0x8b, 0xaf, 0xc7, 0xd7, 0x15,
+    0x80, 0x80, 0x80, 0xb1, 0xac, 0x8b, 0xaf, 0xc7, 0xd7, 0x15,
+    0x80, 0x80, 0x80, 0xb1, 0xac, 0x8b, 0xaf, 0xc7, 0xd7, 0x15,
+    0x80, 0x80, 0x80, 0xb1, 0xac, 0x8b, 0xaf, 0xc7, 0xd7, 0x15,
+    0x80, 0x80, 0x80, 0xb1, 0xac, 0x8b, 0xaf, 0xc7, 0xd7, 0x15,
+    0x80, 0x80, 0x80, 0xb1, 0xac, 0x8b, 0xaf, 0xc7, 0xd7, 0x15,
+    0x80, 0x80, 0x80, 0xb1, 0xac, 0x8b, 0xaf, 0xc7, 0xd7, 0x15,
+    0x80, 0x80, 0x80, 0xb1, 0xac, 0x8b, 0xaf, 0xc7, 0xd7, 0x15,
+    0x80, 0x80, 0x80, 0xb1, 0xac, 0x8b, 0xaf, 0xc7, 0xd7, 0x15,
+    0x80, 0x80, 0x80, 0xb1, 0xac, 0x8b, 0xaf, 0xc7, 0xd7, 0x15,
+    0x80, 0x80, 0x80, 0xb1, 0xac, 0x8b, 0xaf, 0xc7, 0xd7, 0x15,
+    0x80, 0x80, 0x80, 0xb1, 0xac, 0x8b, 0xaf, 0xc7, 0xd7, 0x15,
+    0x80, 0x80, 0x80, 0xb1, 0xac, 0x8b, 0xaf, 0xc7, 0xd7, 0x15,
+    0x80, 0x80, 0x80, 0xb1, 0xac, 0x8b, 0xaf, 0xc7, 0xd7, 0x15,
+    0x80, 0x80, 0x80, 0xb1, 0xac, 0x8b, 0xaf, 0xc7, 0xd7, 0x15,
+    0x80, 0x80, 0x80, 0xb1, 0xac, 0x8b, 0xaf, 0xc7, 0xd7, 0x15,
+    0x80, 0x80, 0x80, 0xb1, 0xac, 0x8b, 0xaf, 0xc7, 0xd7, 0x15,
+    0x80, 0x80, 0x80, 0xb1, 0xac, 0x8b, 0xaf, 0xc7, 0xd7, 0x15,
+    0x80, 0x80, 0x80, 0xb1, 0xac, 0x8b, 0xaf, 0xc7, 0xd7, 0x15,
+    0x80, 0x80, 0x80, 0xb1, 0xac, 0x8b, 0xaf, 0xc7, 0xd7, 0x15,
+    0x80, 0x80, 0x80, 0xb1, 0xac, 0x8b, 0xaf, 0xc7, 0xd7, 0x15};
+  EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_DATA))
+    .WillRepeatedly(testing::Return(new SeekableArrayInputStream(numBuffer,
+                                                                 210)));
+  unsigned char scaleBuffer[] = { 0x12, 0x01, 0x00};
+  EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_SECONDARY))
+    .WillRepeatedly(testing::Return(new SeekableArrayInputStream(scaleBuffer,
+                                                                 3)));
+
+  // create the row type
+  std::unique_ptr<Type> rowType =
+    createStructType( { createDecimalType(0, 0) }, { "col0" });
+  rowType->assignIds(0);
+
+  std::unique_ptr<ColumnReader> reader = buildReader(*rowType, streams);
+
+  StructVectorBatch batch(64);
+  Decimal128VectorBatch *decimals = new Decimal128VectorBatch(64);
+  batch.fields.push_back(decimals);
+  reader->next(batch, 21, 0);
+  EXPECT_EQ(false, batch.hasNulls);
+  EXPECT_EQ(21, batch.numElements);
+  EXPECT_EQ(false, decimals->hasNulls);
+  EXPECT_EQ(21, decimals->numElements);
+  EXPECT_EQ(0, decimals->scale);
+  Int128 *values = decimals->values.data();
+  Int128 expected = Int128(0x5, 0x6bc75e2d63100000);
+  Int128 remainder;
+  for(int i = 0; i < 21; ++i) {
+    EXPECT_EQ(expected.toString(), values[i].toString());
+    expected = expected.divide(10, remainder);
+  }
+}
+
+TEST(DecimalColumnReader, testDecimalHive11OverflowException) {
+  MockStripeStreams streams;
+
+  // set getReaderOptions()
+  ReaderOptions readerOptions;
+  EXPECT_CALL(streams, getReaderOptions())
+      .WillRepeatedly(testing::ReturnRef(readerOptions));
+
+  // set getSelectedColumns()
+  std::vector<bool> selectedColumns = { true, true};
+  EXPECT_CALL(streams, getSelectedColumns())
+      .WillRepeatedly(testing::Return(selectedColumns));
+
+  // set getEncoding
+  proto::ColumnEncoding directEncoding;
+  directEncoding.set_kind(proto::ColumnEncoding_Kind_DIRECT);
+  EXPECT_CALL(streams, getEncoding(testing::_))
+      .WillRepeatedly(testing::Return(directEncoding));
+
+  // set getStream
+  EXPECT_CALL(streams, getStreamProxy(testing::_, proto::Stream_Kind_PRESENT))
+      .WillRepeatedly(testing::Return(nullptr));
+
+  // [0x80]
+  unsigned char presentBuffer[] = {0xff, 0x80};
+  EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_PRESENT))
+      .WillRepeatedly(testing::Return(new SeekableArrayInputStream
+                                      (presentBuffer, sizeof(presentBuffer))));
+
+  // [10000000000000000000]
+  unsigned char numBuffer[] = {0x80, 0x80, 0x80, 0x80, 0x80, 0x90, 0x91, 0x8a,
+                               0x93, 0xe8, 0xa3, 0xec, 0xd0, 0x96, 0xd4, 0xcc,
+                               0xf6, 0xac, 0x02};
+  EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_DATA))
+    .WillRepeatedly(testing::Return(new SeekableArrayInputStream(numBuffer,
+                                                                 19)));
+  unsigned char scaleBuffer[] = { 0xff, 0x0c};
+  EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_SECONDARY))
+    .WillRepeatedly(testing::Return(new SeekableArrayInputStream(scaleBuffer,
+                                                                 2)));
+
+  // create the row type
+  std::unique_ptr<Type> rowType =
+    createStructType( { createDecimalType(0, 0) }, { "col0" });
+  rowType->assignIds(0);
+
+  std::unique_ptr<ColumnReader> reader = buildReader(*rowType, streams);
+
+  StructVectorBatch batch(64);
+  Decimal128VectorBatch *decimals = new Decimal128VectorBatch(64);
+  batch.fields.push_back(decimals);
+  EXPECT_THROW(reader->next(batch, 1, 0), ParseError);
+}
+
+TEST(DecimalColumnReader, testDecimalHive11OverflowExceptionNull) {
+  MockStripeStreams streams;
+
+  // set getReaderOptions()
+  ReaderOptions readerOptions;
+  EXPECT_CALL(streams, getReaderOptions())
+      .WillRepeatedly(testing::ReturnRef(readerOptions));
+
+  // set getSelectedColumns()
+  std::vector<bool> selectedColumns = { true, true};
+  EXPECT_CALL(streams, getSelectedColumns())
+      .WillRepeatedly(testing::Return(selectedColumns));
+
+  // set getEncoding
+  proto::ColumnEncoding directEncoding;
+  directEncoding.set_kind(proto::ColumnEncoding_Kind_DIRECT);
+  EXPECT_CALL(streams, getEncoding(testing::_))
+      .WillRepeatedly(testing::Return(directEncoding));
+
+  // set getStream
+  EXPECT_CALL(streams, getStreamProxy(testing::_, proto::Stream_Kind_PRESENT))
+      .WillRepeatedly(testing::Return(nullptr));
+
+  // [0x40]
+  unsigned char presentBuffer[] = {0xff, 0x40};
+  EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_PRESENT))
+      .WillRepeatedly(testing::Return(new SeekableArrayInputStream
+                                      (presentBuffer, sizeof(presentBuffer))));
+
+  // [10000000000000000000]
+  unsigned char numBuffer[] = {0x80, 0x80, 0x80, 0x80, 0x80, 0x90, 0x91, 0x8a,
+                               0x93, 0xe8, 0xa3, 0xec, 0xd0, 0x96, 0xd4, 0xcc,
+                               0xf6, 0xac, 0x02};
+  EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_DATA))
+    .WillRepeatedly(testing::Return(new SeekableArrayInputStream(numBuffer,
+                                                                 19)));
+  unsigned char scaleBuffer[] = { 0xff, 0x0c};
+  EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_SECONDARY))
+    .WillRepeatedly(testing::Return(new SeekableArrayInputStream(scaleBuffer,
+                                                                 2)));
+
+  // create the row type
+  std::unique_ptr<Type> rowType =
+    createStructType( { createDecimalType(0, 0) }, { "col0" });
+  rowType->assignIds(0);
+
+  std::unique_ptr<ColumnReader> reader = buildReader(*rowType, streams);
+
+  StructVectorBatch batch(64);
+  Decimal128VectorBatch *decimals = new Decimal128VectorBatch(64);
+  batch.fields.push_back(decimals);
+  EXPECT_THROW(reader->next(batch, 2, 0), ParseError);
+}
+
+TEST(DecimalColumnReader, testDecimalHive11OverflowNull) {
+  MockStripeStreams streams;
+
+  // set getReaderOptions()
+  ReaderOptions readerOptions;
+  std::stringstream errStream;
+  readerOptions.throwOnHive11DecimalOverflow(false)
+    .setErrorStream(errStream);
+  EXPECT_CALL(streams, getReaderOptions())
+      .WillRepeatedly(testing::ReturnRef(readerOptions));
+
+  // set getSelectedColumns()
+  std::vector<bool> selectedColumns = { true, true};
+  EXPECT_CALL(streams, getSelectedColumns())
+      .WillRepeatedly(testing::Return(selectedColumns));
+
+  // set getEncoding
+  proto::ColumnEncoding directEncoding;
+  directEncoding.set_kind(proto::ColumnEncoding_Kind_DIRECT);
+  EXPECT_CALL(streams, getEncoding(testing::_))
+      .WillRepeatedly(testing::Return(directEncoding));
+
+  // set getStream
+  EXPECT_CALL(streams, getStreamProxy(testing::_, proto::Stream_Kind_PRESENT))
+      .WillRepeatedly(testing::Return(nullptr));
+
+  // [0x78]
+  unsigned char presentBuffer[] = {0xff, 0x78};
+  EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_PRESENT))
+      .WillRepeatedly(testing::Return(new SeekableArrayInputStream
+                                      (presentBuffer, sizeof(presentBuffer))));
+
+  // [1000000000000000000000000000000000000000, 1,
+  //  -10000000000000000000000000000000000000, 1]
+  unsigned char numBuffer[] = { 0x80, 0x80, 0x80, 0x80, 0x80, 0xc0, 0xb0, 0xf5,
+                                0xf3, 0xae, 0xfd, 0xcb, 0x94, 0xd7, 0xe1, 0xf1,
+                                0xd3, 0x8c, 0xeb, 0x01,
+                                0x02,
+                                0xff, 0xff, 0xff, 0xff, 0xff, 0x8f, 0x91, 0x8a,
+                                0x93, 0xe8, 0xa3, 0xec, 0xd0, 0x96, 0xd4, 0xcc,
+                                0xf6, 0xac, 0x02,
+                                0x02};
+  EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_DATA))
+    .WillRepeatedly(testing::Return(new SeekableArrayInputStream(numBuffer,
+                                                                 41)));
+  unsigned char scaleBuffer[] = { 0x01, 0x00, 0x0c};
+  EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_SECONDARY))
+    .WillRepeatedly(testing::Return(new SeekableArrayInputStream(scaleBuffer,
+                                                                 3)));
+
+  // create the row type
+  std::unique_ptr<Type> rowType =
+    createStructType( { createDecimalType(0, 0) }, { "col0" });
+  rowType->assignIds(0);
+
+  std::unique_ptr<ColumnReader> reader = buildReader(*rowType, streams);
+
+  StructVectorBatch batch(64);
+  Decimal128VectorBatch *decimals = new Decimal128VectorBatch(64);
+  batch.fields.push_back(decimals);
+
+  reader->next(batch, 3, 0);
+  EXPECT_EQ(false, batch.hasNulls);
+  EXPECT_EQ(3, batch.numElements);
+  EXPECT_EQ(true, decimals->hasNulls);
+  EXPECT_EQ(3, decimals->numElements);
+  EXPECT_EQ(6, decimals->scale);
+  EXPECT_EQ(false, decimals->notNull[0]);
+  EXPECT_EQ(false, decimals->notNull[1]);
+  EXPECT_EQ(true, decimals->notNull[2]);
+  EXPECT_EQ(1, decimals->values[2].toLong());
+
+  reader->next(batch, 2, 0);
+  EXPECT_EQ(false, batch.hasNulls);
+  EXPECT_EQ(2, batch.numElements);
+  EXPECT_EQ(true, decimals->hasNulls);
+  EXPECT_EQ(2, decimals->numElements);
+  EXPECT_EQ(6, decimals->scale);
+  EXPECT_EQ(false, decimals->notNull[0]);
+  EXPECT_EQ(true, decimals->notNull[1]);
+  EXPECT_EQ(1, decimals->values[1].toLong());
+
+  EXPECT_EQ("Warning: Hive 0.11 decimal with more than 38 digits"
+            " replaced by NULL.\n"
+            "Warning: Hive 0.11 decimal with more than 38 digits"
+            " replaced by NULL.\n", errStream.str());
+}
+
+TEST(DecimalColumnReader, testDecimalHive11BigBatches) {
+  MockStripeStreams streams;
+
+  // set getReaderOptions()
+  ReaderOptions readerOptions;
+  EXPECT_CALL(streams, getReaderOptions())
+      .WillRepeatedly(testing::ReturnRef(readerOptions));
+
+  // set getSelectedColumns()
+  std::vector<bool> selectedColumns = { true, true};
+  EXPECT_CALL(streams, getSelectedColumns())
+      .WillRepeatedly(testing::Return(selectedColumns));
+
+  // set getEncoding
+  proto::ColumnEncoding directEncoding;
+  directEncoding.set_kind(proto::ColumnEncoding_Kind_DIRECT);
+  EXPECT_CALL(streams, getEncoding(testing::_))
+      .WillRepeatedly(testing::Return(directEncoding));
+
+  // set getStream
+  EXPECT_CALL(streams, getStreamProxy(testing::_, proto::Stream_Kind_PRESENT))
+      .WillRepeatedly(testing::Return(nullptr));
+
+  // range(64) * 32
+  unsigned char numBuffer[2048];
+  for(size_t i=0; i < 2048; ++i) {
+    numBuffer[i] = (i % 64) * 2;
+  }
+  EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_DATA))
+    .WillRepeatedly(testing::Return(new SeekableArrayInputStream(numBuffer,
+                                                                 2048)));
+
+  // [5] * 1024 + [4] * 1024
+  unsigned char scaleBuffer[48];
+  for(size_t i=0; i < 48; i += 3) {
+    scaleBuffer[i] = 0x7d;
+    scaleBuffer[i + 1] = 0x00;
+    scaleBuffer[i + 2] = (i < 24) ? 0x0a : 0x08;
+  }
+  EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_SECONDARY))
+    .WillRepeatedly(testing::Return(new SeekableArrayInputStream(scaleBuffer,
+                                                                 48)));
+
+  // create the row type
+  std::unique_ptr<Type> rowType =
+    createStructType( { createDecimalType(0, 0) }, { "col0" });
+  rowType->assignIds(0);
+
+  std::unique_ptr<ColumnReader> reader = buildReader(*rowType, streams);
+
+  StructVectorBatch batch(2048);
+  Decimal128VectorBatch *decimals = new Decimal128VectorBatch(2048);
+  batch.fields.push_back(decimals);
+
+  reader->next(batch, 2048, 0);
+  EXPECT_EQ(false, batch.hasNulls);
+  EXPECT_EQ(2048, batch.numElements);
+  EXPECT_EQ(false, decimals->hasNulls);
+  EXPECT_EQ(2048, decimals->numElements);
+  EXPECT_EQ(6, decimals->scale);
+  for(size_t i=0; i < decimals->numElements; ++i) {
+    EXPECT_EQ((i % 64) * (i < 1024 ? 10 : 100),
+              decimals->values[i].toLong()) << "Wrong value at " << i;
+  }
+}
+
 TEST(TestColumnReader, testUnimplementedTypes) {
   MockStripeStreams streams;
 
@@ -2550,9 +3445,6 @@ TEST(TestColumnReader, testUnimplementedTypes) {
   rowType->assignIds(0);
   EXPECT_THROW(buildReader(*rowType, streams), NotImplementedYet);
 
-  rowType = createStructType( { createPrimitiveType(DECIMAL) }, { "col0" });
-  rowType->assignIds(0);
-  EXPECT_THROW(buildReader(*rowType, streams), NotImplementedYet);
 }
 
 }  // namespace orc
