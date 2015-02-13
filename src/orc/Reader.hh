@@ -61,7 +61,7 @@ public:
      * of rows because of NULL values and repeated values.
      * @return the number of values
      */
-    long getNumberOfValues() const;
+    virtual long getNumberOfValues() const;
   };
 
   /**
