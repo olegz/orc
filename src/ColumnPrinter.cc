@@ -76,6 +76,41 @@ namespace orc {
     void reset(const ColumnVectorBatch& batch) override;
   };
 
+  class ListColumnPrinter: public ColumnPrinter {
+  private:
+    const int64_t* offsets;
+    std::unique_ptr<ColumnPrinter> elementPrinter;
+
+  public:
+    ListColumnPrinter(const ColumnVectorBatch& batch);
+    virtual ~ListColumnPrinter();
+    void printRow(unsigned long rowId) override;
+    void reset(const ColumnVectorBatch& batch) override;
+  };
+
+  class MapColumnPrinter: public ColumnPrinter {
+  private:
+    const int64_t* offsets;
+    std::unique_ptr<ColumnPrinter> keyPrinter;
+    std::unique_ptr<ColumnPrinter> elementPrinter;
+
+  public:
+    MapColumnPrinter(const ColumnVectorBatch& batch);
+    virtual ~MapColumnPrinter();
+    void printRow(unsigned long rowId) override;
+    void reset(const ColumnVectorBatch& batch) override;
+  };
+
+  class StructColumnPrinter: public ColumnPrinter {
+  private:
+    std::vector<ColumnPrinter*> fields;
+  public:
+    StructColumnPrinter(const ColumnVectorBatch& batch);
+    virtual ~StructColumnPrinter();
+    void printRow(unsigned long rowId) override;
+    void reset(const ColumnVectorBatch& batch) override;
+  };
+
   ColumnPrinter::~ColumnPrinter() {
     // PASS
   }
@@ -89,8 +124,33 @@ namespace orc {
     }
   }
 
-  LongColumnPrinter::LongColumnPrinter(const  ColumnVectorBatch& batch) {
-    reset(batch);
+  std::unique_ptr<ColumnPrinter> createColumnPrinter
+                                             (const ColumnVectorBatch& batch) {
+    ColumnPrinter *result;
+    if (typeid(batch) == typeid(LongVectorBatch)) {
+      result = new LongColumnPrinter(batch);
+    } else if (typeid(batch) == typeid(DoubleVectorBatch)) {
+      result = new DoubleColumnPrinter(batch);
+    } else if (typeid(batch) == typeid(StringVectorBatch)) {
+      result = new StringColumnPrinter(batch);
+    } else if (typeid(batch) == typeid(Decimal128VectorBatch)) {
+      result = new Decimal128ColumnPrinter(batch);
+    } else if (typeid(batch) == typeid(Decimal64VectorBatch)) {
+      result = new Decimal64ColumnPrinter(batch);
+    } else if (typeid(batch) == typeid(StructVectorBatch)) {
+      result = new StructColumnPrinter(batch);
+    } else if (typeid(batch) == typeid(ListVectorBatch)) {
+      result = new ListColumnPrinter(batch);
+    } else if (typeid(batch) == typeid(MapVectorBatch)) {
+      result = new MapColumnPrinter(batch);
+    } else {
+      throw std::logic_error("unknown batch type");
+    }
+    return std::unique_ptr<ColumnPrinter>(result);
+  }
+
+  LongColumnPrinter::LongColumnPrinter(const  ColumnVectorBatch&) {
+    // pass
   }
 
   void LongColumnPrinter::reset(const  ColumnVectorBatch& batch) {
@@ -106,8 +166,8 @@ namespace orc {
     }
   }
 
-  DoubleColumnPrinter::DoubleColumnPrinter(const  ColumnVectorBatch& batch) {
-    reset(batch);
+  DoubleColumnPrinter::DoubleColumnPrinter(const  ColumnVectorBatch&) {
+    // PASS
   }
 
   void DoubleColumnPrinter::reset(const  ColumnVectorBatch& batch) {
@@ -123,15 +183,14 @@ namespace orc {
     }
   }
 
-  Decimal64ColumnPrinter::Decimal64ColumnPrinter(const  ColumnVectorBatch& bch
-                                                 ) {
-    reset(bch);
+  Decimal64ColumnPrinter::Decimal64ColumnPrinter(const  ColumnVectorBatch&) {
+    // PASS
   }
 
   void Decimal64ColumnPrinter::reset(const  ColumnVectorBatch& batch) {
     ColumnPrinter::reset(batch);
     data = dynamic_cast<const Decimal64VectorBatch&>(batch).values.data();
-    scale =dynamic_cast<const Decimal64VectorBatch&>(batch).scale;
+    scale = dynamic_cast<const Decimal64VectorBatch&>(batch).scale;
   }
 
   std::string toDecimalString(int64_t value, int32_t scale) {
@@ -171,8 +230,8 @@ namespace orc {
     }
   }
 
-  Decimal128ColumnPrinter::Decimal128ColumnPrinter(const  ColumnVectorBatch& batch) {
-     reset(batch);
+  Decimal128ColumnPrinter::Decimal128ColumnPrinter(const  ColumnVectorBatch&) {
+     // PASS
    }
 
    void Decimal128ColumnPrinter::reset(const  ColumnVectorBatch& batch) {
@@ -189,8 +248,8 @@ namespace orc {
      }
    }
 
-  StringColumnPrinter::StringColumnPrinter(const ColumnVectorBatch& batch) {
-    reset(batch);
+  StringColumnPrinter::StringColumnPrinter(const ColumnVectorBatch&) {
+    // PASS
   }
 
   void StringColumnPrinter::reset(const ColumnVectorBatch& batch) {
@@ -207,26 +266,73 @@ namespace orc {
     }
   }
 
+  ListColumnPrinter::ListColumnPrinter(const  ColumnVectorBatch& batch) {
+    elementPrinter = createColumnPrinter
+      (*dynamic_cast<const ListVectorBatch&>(batch).elements);
+  }
+
+  ListColumnPrinter::~ListColumnPrinter() {
+    // PASS
+  }
+
+  void ListColumnPrinter::reset(const  ColumnVectorBatch& batch) {
+    ColumnPrinter::reset(batch);
+    offsets = dynamic_cast<const ListVectorBatch&>(batch).offsets.data();
+    elementPrinter->reset(*dynamic_cast<const ListVectorBatch&>(batch).
+                          elements);
+  }
+
+  void ListColumnPrinter::printRow(unsigned long rowId) {
+    if (hasNulls && !notNull[rowId]) {
+      std::cout << "NULL";
+    } else {
+      std::cout << "[";
+      for(int64_t i=offsets[rowId]; i < offsets[rowId+1]; ++i) {
+        elementPrinter->printRow(static_cast<unsigned long>(i));
+      }
+      std::cout << "]";
+    }
+  }
+
+  MapColumnPrinter::MapColumnPrinter(const  ColumnVectorBatch& batch) {
+    const MapVectorBatch& myBatch = dynamic_cast<const MapVectorBatch&>(batch);
+    keyPrinter = createColumnPrinter(*myBatch.keys);
+    elementPrinter = createColumnPrinter(*myBatch.elements);
+  }
+
+  MapColumnPrinter::~MapColumnPrinter() {
+    // PASS
+  }
+
+  void MapColumnPrinter::reset(const  ColumnVectorBatch& batch) {
+    ColumnPrinter::reset(batch);
+    const MapVectorBatch& myBatch = dynamic_cast<const MapVectorBatch&>(batch);
+    offsets = myBatch.offsets.data();
+    keyPrinter->reset(*myBatch.keys);
+    elementPrinter->reset(*myBatch.elements);
+  }
+
+  void MapColumnPrinter::printRow(unsigned long rowId) {
+    if (hasNulls && !notNull[rowId]) {
+      std::cout << "NULL";
+    } else {
+      std::cout << "{";
+      for(int64_t i=offsets[rowId]; i < offsets[rowId+1]; ++i) {
+        keyPrinter->printRow(static_cast<unsigned long>(i));
+        std::cout << "->";
+        elementPrinter->printRow(static_cast<unsigned long>(i));
+      }
+      std::cout << "}";
+    }
+  }
+
   StructColumnPrinter::StructColumnPrinter(const ColumnVectorBatch& batch) {
     const StructVectorBatch& structBatch =
       dynamic_cast<const StructVectorBatch&>(batch);
-    for(std::vector<ColumnVectorBatch*>::const_iterator ptr=structBatch.fields.begin();
+    for(std::vector<ColumnVectorBatch*>::const_iterator ptr=
+          structBatch.fields.begin();
         ptr != structBatch.fields.end(); ++ptr) {
-      if (typeid(**ptr) == typeid(LongVectorBatch)) {
-        fields.push_back(new LongColumnPrinter(**ptr));
-      } else if (typeid(**ptr) == typeid(DoubleVectorBatch)) {
-        fields.push_back(new DoubleColumnPrinter(**ptr));
-      } else if (typeid(**ptr) == typeid(StringVectorBatch)) {
-        fields.push_back(new StringColumnPrinter(**ptr));
-      } else if (typeid(**ptr) == typeid(Decimal128VectorBatch)) {
-        fields.push_back(new Decimal128ColumnPrinter(**ptr));
-      } else if (typeid(**ptr) == typeid(Decimal64VectorBatch)) {
-        fields.push_back(new Decimal64ColumnPrinter(**ptr));
-      } else if (typeid(**ptr) == typeid(StructVectorBatch)) {
-        fields.push_back(new StructColumnPrinter(**ptr));
-      } else {
-        throw std::logic_error("unknown batch type");
-      }
+      fields.push_back(createColumnPrinter(**ptr).release());
     }
   }
 
@@ -247,7 +353,8 @@ namespace orc {
 
   void StructColumnPrinter::printRow(unsigned long rowId) {
     if (fields.size() > 0) {
-      for (std::vector<ColumnPrinter*>::iterator ptr = fields.begin(); ptr != fields.end(); ++ptr) {
+      for (std::vector<ColumnPrinter*>::iterator ptr =
+             fields.begin(); ptr != fields.end(); ++ptr) {
         (*ptr)->printRow(rowId);
         std::cout << "\t";
       }

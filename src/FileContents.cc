@@ -46,12 +46,12 @@ int main(int argc, char* argv[]) {
   }
 
   std::unique_ptr<orc::ColumnVectorBatch> batch = reader->createRowBatch(1000);
-  orc::StructColumnPrinter printer(*batch);
+  std::unique_ptr<orc::ColumnPrinter> printer = createColumnPrinter(*batch);
 
   while (reader->next(*batch)) {
-    printer.reset(*batch);
+    printer->reset(*batch);
     for(unsigned long i=0; i < batch->numElements; ++i) {
-      printer.printRow(i);
+      printer->printRow(i);
     }
   }
   return 0;
