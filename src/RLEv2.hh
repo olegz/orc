@@ -71,6 +71,16 @@ private:
     actualGap += curGap;
   }
 
+  void resetReadLongs() {
+    bitsLeft = 0;
+    curByte = 0;
+  }
+
+  void resetRun() {
+    resetReadLongs();
+    bitSize = 0;
+  }
+
   unsigned char readByte();
   long readLongBE(uint32_t bsz);
   int64_t readVslong();
