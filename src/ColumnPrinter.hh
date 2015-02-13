@@ -31,25 +31,21 @@ namespace orc {
 
   class ColumnPrinter {
   protected:
+    std::ostream& stream;
+    const Type& type;
     bool hasNulls ;
     const char* notNull;
+
   public:
+    ColumnPrinter(std::ostream&, const Type&);
     virtual ~ColumnPrinter();
     virtual void printRow(unsigned long rowId) = 0;
     // should be called once at the start of each batch of rows
     virtual void reset(const ColumnVectorBatch& batch);
   };
 
-
-  class StructColumnPrinter: public ColumnPrinter {
-  private:
-    std::vector<ColumnPrinter*> fields;
-  public:
-    StructColumnPrinter(const ColumnVectorBatch& batch);
-    virtual ~StructColumnPrinter();
-    void printRow(unsigned long rowId) override;
-    void reset(const ColumnVectorBatch& batch) override;
-  };
+  std::unique_ptr<ColumnPrinter> createColumnPrinter(std::ostream& stream,
+                                                     const Type& type);
 }
 #endif
 
