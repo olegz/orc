@@ -249,4 +249,25 @@ namespace orc {
     }
   }
 
+  Decimal::Decimal(const Int128& _value, 
+                   int32_t _scale): value(_value), scale(_scale) {
+    // PASS
+  }
+
+  Decimal::Decimal(const std::string& str) {
+    std::size_t foundPoint = str.find(".");
+    // no decimal point, it is int
+    if(foundPoint == std::string::npos){
+      value = Int128(str);
+      scale = 0;
+    }else{
+      std::string copy(str);
+      scale = static_cast<int32_t>(str.length() - foundPoint);
+      value = Int128(copy.replace(foundPoint, 1, ""));
+    }
+  }
+
+  std::string Decimal::toString() const {
+    return value.toDecimalString(scale);
+  }
 }

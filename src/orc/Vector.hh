@@ -200,8 +200,12 @@ namespace orc {
   };
 
   struct Decimal {
+    Decimal(const Int128& value, int32_t scale);
+    explicit Decimal(const std::string& value);
+
+    std::string toString() const;
     Int128 value;
-    uint32_t scale;
+    int32_t scale;
   };
 
   struct Decimal64VectorBatch: public ColumnVectorBatch {

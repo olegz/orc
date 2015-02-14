@@ -63,7 +63,7 @@ namespace orc {
 
   ReaderOptions::ReaderOptions():
     privateBits(std::unique_ptr<ReaderOptionsPrivate>
-                  (new ReaderOptionsPrivate())) {
+                (new ReaderOptionsPrivate())) {
     // PASS
   }
 
@@ -75,9 +75,9 @@ namespace orc {
 
   ReaderOptions::ReaderOptions(ReaderOptions& rhs) {
     // swap privateBits with rhs
-   ReaderOptionsPrivate* l = privateBits.release();
-   privateBits.reset(rhs.privateBits.release());
-   rhs.privateBits.reset(l);
+    ReaderOptionsPrivate* l = privateBits.release();
+    privateBits.reset(rhs.privateBits.release());
+    rhs.privateBits.reset(l);
   }
 
   ReaderOptions& ReaderOptions::operator=(const ReaderOptions& rhs) {
@@ -161,6 +161,222 @@ namespace orc {
 
   }
 
+  class ColumnStatisticsImpl: public ColumnStatistics {
+  private:
+    uint64_t valueCount;
+
+  public:
+    ColumnStatisticsImpl(const proto::ColumnStatistics& stats);
+    virtual ~ColumnStatisticsImpl();
+
+    uint64_t getNumberOfValues() const override {
+      return valueCount;
+    }
+  };
+
+  class BinaryColumnStatisticsImpl: public BinaryColumnStatistics {
+  private:
+    uint64_t valueCount;
+    uint64_t totalLength;
+
+  public:
+    BinaryColumnStatisticsImpl(const proto::ColumnStatistics& stats);
+    virtual ~BinaryColumnStatisticsImpl();
+
+    uint64_t getNumberOfValues() const override {
+      return valueCount;
+    }
+
+    uint64_t getTotalLength() const override {
+      return totalLength;
+    }
+  };
+
+  class BooleanColumnStatisticsImpl: public BooleanColumnStatistics {
+  private:
+    uint64_t valueCount;
+    uint64_t trueCount;
+
+  public:
+    BooleanColumnStatisticsImpl(const proto::ColumnStatistics& stats);
+    virtual ~BooleanColumnStatisticsImpl();
+
+    uint64_t getNumberOfValues() const override {
+      return valueCount;
+    }
+
+    uint64_t getFalseCount() const override {
+      return valueCount - trueCount;
+    }
+
+    uint64_t getTrueCount() const override {
+      return trueCount;
+    }
+  };
+
+  class DateColumnStatisticsImpl: public DateColumnStatistics {
+  private:
+    uint64_t valueCount;
+    int32_t minimum;
+    int32_t maximum;
+
+  public:
+    DateColumnStatisticsImpl(const proto::ColumnStatistics& stats);
+    virtual ~DateColumnStatisticsImpl();
+
+    uint64_t getNumberOfValues() const override {
+      return valueCount;
+    }
+
+    int32_t getMinimum() const override {
+      return minimum;
+    }
+
+    int32_t getMaximum() const override {
+      return maximum;
+    }
+  };
+
+  class DecimalColumnStatisticsImpl: public DecimalColumnStatistics {
+  private:
+    uint64_t valueCount;
+    std::string minimum;
+    std::string maximum;
+    std::string sum;
+
+  public:
+    DecimalColumnStatisticsImpl(const proto::ColumnStatistics& stats);
+    virtual ~DecimalColumnStatisticsImpl();
+
+    uint64_t getNumberOfValues() const override {
+      return valueCount;
+    }
+
+    Decimal getMinimum() const override {
+      return Decimal(minimum);
+    }
+
+    Decimal getMaximum() const override {
+      return Decimal(maximum);
+    }
+
+    Decimal getSum() const override {
+      return Decimal(sum);
+    }
+  };
+
+  class DoubleColumnStatisticsImpl: public DoubleColumnStatistics {
+  private:
+    uint64_t valueCount;
+    double minimum;
+    double maximum;
+    double sum;
+
+  public:
+    DoubleColumnStatisticsImpl(const proto::ColumnStatistics& stats);
+    virtual ~DoubleColumnStatisticsImpl();
+
+    uint64_t getNumberOfValues() const override {
+      return valueCount;
+    }
+
+    double getMinimum() const override {
+      return minimum;
+    }
+
+    double getMaximum() const override {
+      return maximum;
+    }
+
+    double getSum() const override {
+      return sum;
+    }
+  };
+
+  class IntegerColumnStatisticsImpl: public IntegerColumnStatistics {
+  private:
+    uint64_t valueCount;
+    int64_t minimum;
+    int64_t maximum;
+    int64_t sum;
+    bool hasSum;
+
+  public:
+    IntegerColumnStatisticsImpl(const proto::ColumnStatistics& stats);
+    virtual ~IntegerColumnStatisticsImpl();
+
+    uint64_t getNumberOfValues() const override {
+      return valueCount;
+    }
+
+    int64_t getMinimum() const override {
+      return minimum;
+    }
+
+    int64_t getMaximum() const override {
+      return maximum;
+    }
+
+    bool isSumDefined() const override {
+      return hasSum;
+    }
+
+    int64_t getSum() const override {
+      return sum;
+    }
+  };
+
+  class StringColumnStatisticsImpl: public StringColumnStatistics {
+  private:
+    uint64_t valueCount;
+    std::string minimum;
+    std::string maximum;
+    uint64_t totalLength;
+
+  public:
+    StringColumnStatisticsImpl(const proto::ColumnStatistics& stats);
+    virtual ~StringColumnStatisticsImpl();
+
+    uint64_t getNumberOfValues() const override {
+      return valueCount;
+    }
+
+    std::string getMinimum() const override {
+      return minimum;
+    }
+
+    std::string getMaximum() const override {
+      return maximum;
+    }
+
+    uint64_t getTotalLength() const override {
+      return totalLength;
+    }
+  };
+
+  class TimestampColumnStatisticsImpl: public TimestampColumnStatistics {
+  private:
+    uint64_t valueCount;
+    int64_t minimum;
+    int64_t maximum;
+
+  public:
+    TimestampColumnStatisticsImpl(const proto::ColumnStatistics& stats);
+    virtual ~TimestampColumnStatisticsImpl();
+
+    uint64_t getNumberOfValues() const override {
+      return valueCount;
+    }
+
+    int64_t getMinimum() const override {
+      return minimum;
+    }
+
+    int64_t getMaximum() const override {
+      return maximum;
+    }
+  };
+
   class StripeInformationImpl : public StripeInformation {
     unsigned long offset;
     unsigned long indexLength;
@@ -202,117 +418,88 @@ namespace orc {
     unsigned long getFooterLength() const override {
       return footerLength;
     }
-    
+
     unsigned long getNumberOfRows() const override {
       return numRows;
     }
-};
+  };
 
-ColumnStatistics* convertColumnStatistics(const proto::ColumnStatistics&columnStats, orc::TypeKind colType)
-{
-    orc::ColumnStatisticsPrivate* colPrivateTmp = 
-                new ColumnStatisticsPrivate(columnStats);
-    switch(colType){
-      case orc::BYTE:
-      case orc::SHORT:
-      case orc::INT:
-      case orc::LONG:
-      {
-          IntegerColumnStatistics *col = new IntegerColumnStatistics(
-              std::unique_ptr<ColumnStatisticsPrivate> (colPrivateTmp));
-          return col;
-      }
-      case orc::STRING:
-      case orc::CHAR:
-      case orc::VARCHAR:
-      {
-          StringColumnStatistics *col = new StringColumnStatistics(
-              std::unique_ptr<ColumnStatisticsPrivate> (colPrivateTmp));
-          return col;
-          
-      }
-      case orc::FLOAT:
-      case orc::DOUBLE:
-      {
-          DoubleColumnStatistics *col = new DoubleColumnStatistics(
-              std::unique_ptr<ColumnStatisticsPrivate> (colPrivateTmp));
-          return col;
-      }
-      case orc::DATE:
-      {
-        DateColumnStatistics *col = new DateColumnStatistics(
-            std::unique_ptr<ColumnStatisticsPrivate> (colPrivateTmp));
-        return col;
-      }
-      case orc::TIMESTAMP:
-      {
-          TimestampColumnStatistics *col = new TimestampColumnStatistics(
-              std::unique_ptr<ColumnStatisticsPrivate> (colPrivateTmp));
-          return col;
-      }
-      case orc::BINARY:
-      {
-          BinaryColumnStatistics *col = new BinaryColumnStatistics(
-              std::unique_ptr<ColumnStatisticsPrivate> (colPrivateTmp));
-          return col;
-      }
-      case orc::DECIMAL:
-      {
-          DecimalColumnStatistics *col = new DecimalColumnStatistics(
-              std::unique_ptr<ColumnStatisticsPrivate> (colPrivateTmp));
-          return col;
-      }
-      case orc::BOOLEAN:
-      {
-          BooleanColumnStatistics *col = new BooleanColumnStatistics(
-              std::unique_ptr<ColumnStatisticsPrivate> (colPrivateTmp));
-          return col;
-      }
-      case STRUCT:
-      case LIST:
-      case MAP:
-      case UNION:
-      default:
-        throw NotImplementedYet("not supported yet");
+  ColumnStatistics* convertColumnStatistics(const Type& type,
+                                            const proto::ColumnStatistics& s) {
+    switch(static_cast<int>(type.getKind())) {
+    case BYTE:
+    case SHORT:
+    case INT:
+    case LONG:
+      return new IntegerColumnStatisticsImpl(s);
+    case STRING:
+    case CHAR:
+    case VARCHAR:
+      return new StringColumnStatisticsImpl(s);
+    case FLOAT:
+    case DOUBLE:
+      return new DoubleColumnStatisticsImpl(s);
+    case DATE:
+      return new DateColumnStatisticsImpl(s);
+    case TIMESTAMP:
+      return new TimestampColumnStatisticsImpl(s);
+    case BINARY:
+      return new BinaryColumnStatisticsImpl(s);
+    case DECIMAL:
+      return new DecimalColumnStatisticsImpl(s);
+    case BOOLEAN:
+      return new BooleanColumnStatisticsImpl(s);
+    case STRUCT:
+    case LIST:
+    case MAP:
+    case UNION:
+      return new ColumnStatisticsImpl(s);
+    default:
+      throw NotImplementedYet("not supported yet");
     }
-}
+  }
 
+  StripeStatistics::~StripeStatistics() {
+    // PASS
+  }
 
-class StripeStatisticsImpl: public StripeStatistics {
-private:
+  class StripeStatisticsImpl: public StripeStatistics {
+  private:
     unsigned long numberOfColStats;
     std::list<ColumnStatistics*> colStats;
-public:
-    StripeStatisticsImpl(proto::StripeStatistics stripeStats, const Type & schema)
-    {
-        for(int i = 0; i < stripeStats.colstats_size()-1; i++){
-            colStats.push_back(orc::convertColumnStatistics(stripeStats.colstats(i+1),
-                                                            schema.getSubtype(i).getKind()));
-        }
-
-        numberOfColStats = colStats.size();
+  public:
+    virtual ~StripeStatisticsImpl();
+    StripeStatisticsImpl(proto::StripeStatistics stripeStats,
+                         const Type & schema) {
+      for(int i = 0; i < stripeStats.colstats_size()-1; i++) {
+        colStats.push_back(convertColumnStatistics
+                           (schema.getSubtype(static_cast<unsigned int>(i)),
+                            stripeStats.colstats(i+1)));
+      }
+      numberOfColStats = colStats.size();
     }
-    std::unique_ptr<ColumnStatistics> getColumnStatisticsInStripe(unsigned long colIndex) const override
-    {
-        if(colIndex >= numberOfColStats){
-            throw std::logic_error("column index out of range");
-        }
 
-        std::list<ColumnStatistics*>::const_iterator it = colStats.begin();
-        std::advance(it, colIndex);
-        return std::unique_ptr<ColumnStatistics> (*it);
+    std::unique_ptr<ColumnStatistics>
+    getColumnStatisticsInStripe(unsigned long colIndex) const override {
+      if(colIndex >= numberOfColStats){
+        throw std::logic_error("column index out of range");
+      }
+
+      std::list<ColumnStatistics*>::const_iterator it = colStats.begin();
+      std::advance(it, static_cast<long>(colIndex));
+      return std::unique_ptr<ColumnStatistics> (*it);
     }
 
     std::list<ColumnStatistics*> getStatisticsInStripe() const override
     {
-        return colStats;
+      return colStats;
     }
 
-    unsigned long getNumberOfColumnStatistics() const override 
+    unsigned long getNumberOfColumnStatistics() const override
     {
-        return numberOfColStats;
+      return numberOfColStats;
     }
-};
+  };
 
 
   Reader::~Reader() {
@@ -364,7 +551,7 @@ public:
                     unsigned long fileLength);
     proto::StripeFooter getStripeFooter(const proto::StripeInformation& info);
     void readMetadata(char *buffer, unsigned long length,
-                    unsigned long fileLength);
+                      unsigned long fileLength);
     void startNextStripe();
     void ensureOrcFooter(char* buffer, unsigned long length);
     void checkOrcVersion();
@@ -405,13 +592,14 @@ public:
     std::unique_ptr<StripeInformation> getStripe(unsigned long
                                                  ) const override;
 
-    std::unique_ptr<StripeStatistics> getStripeStatistics(unsigned long stripeIndex) const override;
-      
+    std::unique_ptr<StripeStatistics>
+    getStripeStatistics(unsigned long stripeIndex) const override;
+
 
     unsigned long getContentLength() const override;
 
     std::list<ColumnStatistics*> getStatistics() const override;
-    
+
     std::unique_ptr<ColumnStatistics> getColumnStatistics(unsigned long index) const override;
 
     const Type& getType() const override;
@@ -440,7 +628,7 @@ public:
     // figure out the size of the file using the option or filesystem
     unsigned long size = std::min(options.getTailLocation(),
                                   static_cast<unsigned long>
-                                     (stream->getLength()));
+                                  (stream->getLength()));
 
     //read last bytes into buffer to get PostScript
     unsigned long readSize = std::min(size, DIRECTORY_SIZE_GUESS);
@@ -453,7 +641,7 @@ public:
     stream->read(buffer.data(), size - readSize, readSize);
     readPostscript(buffer.data(), readSize);
     readFooter(buffer.data(), readSize, size);
-    
+
     // read metadata
     unsigned long position = size - 1 - postscript.footerlength() - postscriptLength - postscript.metadatalength();
     buffer.resize(postscript.metadatalength());
@@ -633,33 +821,39 @@ public:
   }
 
   std::list<ColumnStatistics*> ReaderImpl::getStatistics() const {
-      std::list<ColumnStatistics*> result;
-      for(uint colIdx=0; colIdx < schema->getSubtypeCount(); ++colIdx) {
-          orc::TypeKind colType = schema->getSubtype(colIdx).getKind();
-          proto::ColumnStatistics col = footer.statistics(colIdx+1);
-          result.push_back(convertColumnStatistics(col, colType));
-      }
-      return result;
+    std::list<ColumnStatistics*> result;
+    for(uint colIdx=0; colIdx < schema->getSubtypeCount(); ++colIdx) {
+      const Type& colType = schema->getSubtype(colIdx);
+      proto::ColumnStatistics col =
+        footer.statistics(static_cast<int>(colIdx+1));
+      result.push_back(convertColumnStatistics(colType, col));
+    }
+    return result;
   }
 
-// index start from 0
-std::unique_ptr<ColumnStatistics> ReaderImpl::getColumnStatistics(unsigned long index) const {
-    if(index >= (unsigned int)footer.statistics_size()){
-        throw std::logic_error("column index out of range");
+  // index start from 0
+  std::unique_ptr<ColumnStatistics>
+  ReaderImpl::getColumnStatistics(unsigned long index) const {
+    if (index >= static_cast<unsigned int>(footer.statistics_size())) {
+      throw std::logic_error("column index out of range");
     }
-    orc::TypeKind colType = schema->getSubtype(index).getKind();
-    proto::ColumnStatistics col = footer.statistics(index+1);
-    return std::unique_ptr<ColumnStatistics> (convertColumnStatistics(col, colType));
-}
+    const Type& colType = schema->getSubtype(static_cast<uint>(index));
+    proto::ColumnStatistics col = footer.statistics(static_cast<int>(index+1));
+    return std::unique_ptr<ColumnStatistics> (convertColumnStatistics
+                                              (colType, col));
+  }
 
-// stripeIndex start from 0
-std::unique_ptr<StripeStatistics> ReaderImpl::getStripeStatistics(unsigned long stripeIndex) const {
-    if(stripeIndex > (unsigned int)metadata.stripestats_size()){
-        throw std::logic_error("stripe index out of range");
+  // stripeIndex start from 0
+  std::unique_ptr<StripeStatistics>
+  ReaderImpl::getStripeStatistics(unsigned long stripeIndex) const {
+    if(stripeIndex > static_cast<unsigned int>(metadata.stripestats_size())) {
+      throw std::logic_error("stripe index out of range");
     }
-    return std::unique_ptr<StripeStatistics> 
-      (new StripeStatisticsImpl(metadata.stripestats(stripeIndex+1), getType()));
-}
+    return std::unique_ptr<StripeStatistics>
+      (new StripeStatisticsImpl(metadata.stripestats
+                                (static_cast<int>(stripeIndex+1)),
+                                getType()));
+  }
 
 
   void ReaderImpl::seekToRow(unsigned long) {
@@ -697,13 +891,13 @@ std::unique_ptr<StripeStatistics> ReaderImpl::getStripeStatistics(unsigned long 
     }
     std::unique_ptr<SeekableInputStream> pbStream =
       createDecompressor(compression,
-                          std::unique_ptr<SeekableInputStream>
-                          (new SeekableArrayInputStream(buffer +
-                                                        (readSize - tailSize),
-                                                        footerSize)),
-                          blockSize);
+                         std::unique_ptr<SeekableInputStream>
+                         (new SeekableArrayInputStream(buffer +
+                                                       (readSize - tailSize),
+                                                       footerSize)),
+                         blockSize);
     // TODO: do not SeekableArrayInputStream, rather use an array
-//    if (!footer.ParseFromArray(buffer+readSize-tailSize, footerSize)) {
+    //    if (!footer.ParseFromArray(buffer+readSize-tailSize, footerSize)) {
     if (!footer.ParseFromZeroCopyStream(pbStream.get())) {
       throw ParseError("Failed to parse the footer");
     }
@@ -711,7 +905,7 @@ std::unique_ptr<StripeStatistics> ReaderImpl::getStripeStatistics(unsigned long 
   }
 
   proto::StripeFooter ReaderImpl::getStripeFooter
-                        (const proto::StripeInformation& info) {
+  (const proto::StripeInformation& info) {
     unsigned long footerStart = info.offset() + info.indexlength() +
       info.datalength();
     unsigned long footerLength = info.footerlength();
@@ -733,10 +927,10 @@ std::unique_ptr<StripeStatistics> ReaderImpl::getStripeStatistics(unsigned long 
     return result;
   }
 
-void ReaderImpl::readMetadata(char* buffer, unsigned long readSize, unsigned long)
-{
+  void ReaderImpl::readMetadata(char* buffer, unsigned long readSize, unsigned long)
+  {
     unsigned long metadataSize = postscript.metadatalength();
-    
+
     //check if extra bytes need to be read
     unsigned long tailSize = metadataSize;
     if (tailSize > readSize) {
@@ -744,16 +938,16 @@ void ReaderImpl::readMetadata(char* buffer, unsigned long readSize, unsigned lon
     }
     std::unique_ptr<SeekableInputStream> pbStream =
       createDecompressor(compression,
-                          std::unique_ptr<SeekableInputStream>
+                         std::unique_ptr<SeekableInputStream>
                          (new SeekableArrayInputStream(buffer+(readSize - tailSize),
-                                                        metadataSize)),
+                                                       metadataSize)),
                          blockSize);
-    
+
     if (!metadata.ParseFromZeroCopyStream(pbStream.get())) {
       throw ParseError("bad metadata parse");
     }
-}
-  
+  }
+
 
   class StripeStreamsImpl: public StripeStreams {
   private:
@@ -777,8 +971,8 @@ void ReaderImpl::readMetadata(char* buffer, unsigned long readSize, unsigned lon
     virtual proto::ColumnEncoding getEncoding(int columnId) const override;
 
     virtual std::unique_ptr<SeekableInputStream>
-                    getStream(int columnId,
-                              proto::Stream_Kind kind) const override;
+    getStream(int columnId,
+              proto::Stream_Kind kind) const override;
   };
 
   StripeStreamsImpl::StripeStreamsImpl(const ReaderImpl& _reader,
@@ -809,8 +1003,8 @@ void ReaderImpl::readMetadata(char* buffer, unsigned long readSize, unsigned lon
   }
 
   std::unique_ptr<SeekableInputStream>
-        StripeStreamsImpl::getStream(int columnId,
-                                     proto::Stream_Kind kind) const {
+  StripeStreamsImpl::getStream(int columnId,
+                               proto::Stream_Kind kind) const {
     unsigned long offset = stripeStart;
     for(int i = 0; i < footer.streams_size(); ++i) {
       const proto::Stream& stream = footer.streams(i);
@@ -869,7 +1063,7 @@ void ReaderImpl::readMetadata(char* buffer, unsigned long readSize, unsigned lon
   }
 
   std::unique_ptr<ColumnVectorBatch> ReaderImpl::createRowBatch
-       (const Type& type, uint64_t capacity) const {
+  (const Type& type, uint64_t capacity) const {
     ColumnVectorBatch* result = nullptr;
     const Type* subtype;
     switch (static_cast<int>(type.getKind())) {
@@ -938,7 +1132,7 @@ void ReaderImpl::readMetadata(char* buffer, unsigned long readSize, unsigned lon
   }
 
   std::unique_ptr<ColumnVectorBatch> ReaderImpl::createRowBatch
-       (unsigned long capacity) const {
+                                              (unsigned long capacity) const {
     return createRowBatch(*(schema.get()), capacity);
   }
 
@@ -947,192 +1141,172 @@ void ReaderImpl::readMetadata(char* buffer, unsigned long readSize, unsigned lon
     return std::unique_ptr<Reader>(new ReaderImpl(std::move(stream), options));
   }
 
+  ColumnStatistics::~ColumnStatistics() {
+    // PASS
+  }
 
-/**
- * start column statistics: min, max, length, numofvalues
- **/
-ColumnStatistics::ColumnStatistics(std::unique_ptr<ColumnStatisticsPrivate> data) :
-    privateBits(std::unique_ptr<ColumnStatisticsPrivate> 
-                (new ColumnStatisticsPrivate(data->columnStatistics))) 
-{
-}
+  BinaryColumnStatistics::~BinaryColumnStatistics() {
+    // PASS
+  }
 
-ColumnStatistics::~ColumnStatistics() {
+  BooleanColumnStatistics::~BooleanColumnStatistics() {
+    // PASS
+  }
 
-}
+  DateColumnStatistics::~DateColumnStatistics() {
+    // PASS
+  }
 
-long ColumnStatistics::getNumberOfValues() const
-{
-    return privateBits->columnStatistics.numberofvalues();
-}
+  DecimalColumnStatistics::~DecimalColumnStatistics() {
+    // PASS
+  }
 
-// int
-IntegerColumnStatistics::IntegerColumnStatistics(std::unique_ptr<ColumnStatisticsPrivate> data) : 
-    ColumnStatistics(std::move(data))
-{
+  DoubleColumnStatistics::~DoubleColumnStatistics() {
+    // PASS
+  }
 
-}
-long IntegerColumnStatistics::getMinimum() const
-{
-    if(getNumberOfValues()){
-        return privateBits->columnStatistics.intstatistics().minimum();
+  IntegerColumnStatistics::~IntegerColumnStatistics() {
+    // PASS
+  }
+
+  StringColumnStatistics::~StringColumnStatistics() {
+    // PASS
+  }
+
+  TimestampColumnStatistics::~TimestampColumnStatistics() {
+    // PASS
+  }
+
+  ColumnStatisticsImpl::~ColumnStatisticsImpl() {
+    // PASS
+  }
+
+  BinaryColumnStatisticsImpl::~BinaryColumnStatisticsImpl() {
+    // PASS
+  }
+
+  BooleanColumnStatisticsImpl::~BooleanColumnStatisticsImpl() {
+    // PASS
+  }
+
+  DateColumnStatisticsImpl::~DateColumnStatisticsImpl() {
+    // PASS
+  }
+
+  DecimalColumnStatisticsImpl::~DecimalColumnStatisticsImpl() {
+    // PASS
+  }
+
+  DoubleColumnStatisticsImpl::~DoubleColumnStatisticsImpl() {
+    // PASS
+  }
+
+  IntegerColumnStatisticsImpl::~IntegerColumnStatisticsImpl() {
+    // PASS
+  }
+
+  StringColumnStatisticsImpl::~StringColumnStatisticsImpl() {
+    // PASS
+  }
+
+  TimestampColumnStatisticsImpl::~TimestampColumnStatisticsImpl() {
+    // PASS
+  }
+
+  ColumnStatisticsImpl::ColumnStatisticsImpl
+  (const proto::ColumnStatistics& pb) {
+    valueCount = pb.numberofvalues();
+  }
+
+  BinaryColumnStatisticsImpl::BinaryColumnStatisticsImpl
+  (const proto::ColumnStatistics& pb){
+    if (!pb.has_binarystatistics()) {
+      throw ParseError("Missing BinaryStatistics in protobuf");
     }
-    throw std::logic_error("Cannot get minimum value: No value in column");
-}
-long IntegerColumnStatistics::getMaximum() const
-{
-    if(getNumberOfValues()){
-        return privateBits->columnStatistics.intstatistics().maximum();
+    valueCount = pb.numberofvalues();
+    totalLength = static_cast<uint64_t>(pb.binarystatistics().sum());
+  }
+
+  BooleanColumnStatisticsImpl::BooleanColumnStatisticsImpl
+  (const proto::ColumnStatistics& pb){
+    if (!pb.has_bucketstatistics()) {
+      throw ParseError("Missing BucketStatistics in protobuf");
     }
-    throw std::logic_error("Cannot get maximum value: No value in column");
-}
-bool IntegerColumnStatistics::isSumDefined() const
-{
-    return privateBits->columnStatistics.intstatistics().has_sum();
-}
-long IntegerColumnStatistics::getSum() const
-{
-  return privateBits->columnStatistics.intstatistics().sum();
-}
+    valueCount = pb.numberofvalues();
+    trueCount = pb.bucketstatistics().count(0);
+  }
 
-// double
-DoubleColumnStatistics::DoubleColumnStatistics(std::unique_ptr<ColumnStatisticsPrivate> data) : 
-    ColumnStatistics(std::move(data))
-{
-}
-double DoubleColumnStatistics::getMinimum() const
-{
-    if(getNumberOfValues()){
-        return privateBits->columnStatistics.doublestatistics().minimum();
+  DateColumnStatisticsImpl::DateColumnStatisticsImpl
+  (const proto::ColumnStatistics& pb){
+    if (!pb.has_datestatistics()) {
+      throw ParseError("Missing DateStatistics in protobuf");
     }
-    throw std::logic_error("Cannot get minimum value: No value in column");
-}
+    valueCount = pb.numberofvalues();
+    minimum = pb.datestatistics().minimum();
+    maximum = pb.datestatistics().maximum();
+  }
 
-double DoubleColumnStatistics::getMaximum() const
-{
-    if(getNumberOfValues()){
-        return privateBits->columnStatistics.doublestatistics().maximum();
+  DecimalColumnStatisticsImpl::DecimalColumnStatisticsImpl
+  (const proto::ColumnStatistics& pb){
+    if (!pb.has_decimalstatistics()) {
+      throw ParseError("Missing DecimalStatistics in protobuf");
     }
-    throw std::logic_error("Cannot get minimum value: No value in column");
-}
-double DoubleColumnStatistics::getSum() const
-{
-    if(privateBits->columnStatistics.doublestatistics().has_sum()){
-        return privateBits->columnStatistics.doublestatistics().sum();
+    const proto::DecimalStatistics& stats = pb.decimalstatistics();
+    valueCount = pb.numberofvalues();
+    minimum = stats.minimum();
+    maximum = stats.maximum();
+    sum = stats.sum();
+  }
+
+  DoubleColumnStatisticsImpl::DoubleColumnStatisticsImpl
+  (const proto::ColumnStatistics& pb){
+    if (!pb.has_doublestatistics()) {
+      throw ParseError("Missing DoubleStatistics in protobuf");
     }
-    throw std::logic_error("sum is not defined");
-}
+    const proto::DoubleStatistics& stats = pb.doublestatistics();
+    valueCount = pb.numberofvalues();
+    minimum = stats.minimum();
+    maximum = stats.maximum();
+    sum = stats.sum();
+  }
 
-// string
-StringColumnStatistics::StringColumnStatistics(std::unique_ptr<ColumnStatisticsPrivate> data) : 
-    ColumnStatistics(std::move(data))
-{
-}
-std::string StringColumnStatistics::getMinimum() const
-{
-    return privateBits->columnStatistics.stringstatistics().minimum();
-}
-
-std::string StringColumnStatistics::getMaximum() const
-{
-    return privateBits->columnStatistics.stringstatistics().maximum();
-}
-long StringColumnStatistics::getTotalLength() const
-{
-    return privateBits->columnStatistics.stringstatistics().sum();
-}
-
-// boolean
-BooleanColumnStatistics::BooleanColumnStatistics(std::unique_ptr<ColumnStatisticsPrivate> data) : 
-    ColumnStatistics(std::move(data))
-{
-}
-long BooleanColumnStatistics::getFalseCount() const
-{
-    return privateBits->columnStatistics.numberofvalues() - 
-      privateBits->columnStatistics.bucketstatistics().count_size();
-}
-
-long BooleanColumnStatistics::getTrueCount() const
-{
-    return privateBits->columnStatistics.bucketstatistics().count_size();
-}
-// date
-DateColumnStatistics::DateColumnStatistics(std::unique_ptr<ColumnStatisticsPrivate> data) : 
-    ColumnStatistics(std::move(data))
-{
-}
-long DateColumnStatistics::getMinimum() const
-{
-    return privateBits->columnStatistics.datestatistics().minimum();
-}
-
-long DateColumnStatistics::getMaximum() const
-{
-    return privateBits->columnStatistics.datestatistics().maximum();
-}
-
-
-// decimal
-Decimal stringToDecimal(std::string dec)
-{
-    Decimal result;
-    std::size_t foundPoint = dec.find(".");
-    // no decimal point, it is int
-    if(foundPoint == std::string::npos){
-        result.value = orc::Int128(dec.c_str());
-        result.scale = 0;
-    }else{
-        result.scale = dec.substr(foundPoint+1).length();
-        result.value = orc::Int128(dec.replace(foundPoint, 1, ""));
+  IntegerColumnStatisticsImpl::IntegerColumnStatisticsImpl
+  (const proto::ColumnStatistics& pb){
+    if (!pb.has_intstatistics()) {
+      throw ParseError("Missing IntegerStatistics in protobuf");
     }
-    return result;
-}
+    const proto::IntegerStatistics& stats = pb.intstatistics();
+    valueCount = pb.numberofvalues();
+    minimum = stats.minimum();
+    maximum = stats.maximum();
+    hasSum = stats.has_sum();
+    sum = stats.sum();
+  }
 
-DecimalColumnStatistics::DecimalColumnStatistics(std::unique_ptr<ColumnStatisticsPrivate> data) : 
-    ColumnStatistics(std::move(data))
-{
-}
-Decimal DecimalColumnStatistics::getMinimum() const
-{
-    return stringToDecimal(privateBits->columnStatistics.decimalstatistics().minimum());
-}
-
-Decimal DecimalColumnStatistics::getMaximum() const
-{
-    return stringToDecimal(privateBits->columnStatistics.decimalstatistics().maximum());
-}
-Decimal DecimalColumnStatistics::getSum() const
-{
-    if(privateBits->columnStatistics.decimalstatistics().has_sum())
-    {
-        return stringToDecimal(privateBits->columnStatistics.decimalstatistics().sum());
+  StringColumnStatisticsImpl::StringColumnStatisticsImpl
+  (const proto::ColumnStatistics& pb){
+    if (!pb.has_stringstatistics()) {
+      throw ParseError("Missing StringStatistics in protobuf");
     }
-    throw std::logic_error("sum is not defined");
-}
+    const proto::StringStatistics& stats = pb.stringstatistics();
+    valueCount = pb.numberofvalues();
+    minimum = stats.minimum();
+    maximum = stats.maximum();
+    totalLength = static_cast<uint64_t>(stats.sum());
+  }
 
-// timestamp
-TimestampColumnStatistics::TimestampColumnStatistics(std::unique_ptr<ColumnStatisticsPrivate> data) : 
-    ColumnStatistics(std::move(data))
-{
-}
-long TimestampColumnStatistics::getMinimum() const
-{
-    return privateBits->columnStatistics.timestampstatistics().minimum();
-}
-long TimestampColumnStatistics::getMaximum() const
-{
-    return privateBits->columnStatistics.timestampstatistics().maximum();
-}
+  TimestampColumnStatisticsImpl::TimestampColumnStatisticsImpl
+  (const proto::ColumnStatistics& pb){
+    if (!pb.has_timestampstatistics()) {
+      throw ParseError("Missing TimestampStatistics in protobuf");
+    }
+    const proto::TimestampStatistics& stats = pb.timestampstatistics();
+    valueCount = pb.numberofvalues();
+    minimum = stats.minimum();
+    maximum = stats.maximum();
+  }
 
-// binary
-BinaryColumnStatistics::BinaryColumnStatistics(std::unique_ptr<ColumnStatisticsPrivate> data) : 
-    ColumnStatistics(std::move(data))
-{
-}
-long BinaryColumnStatistics::getTotalLength() const
-{
-    return privateBits->columnStatistics.binarystatistics().sum();
-}
-
+  StripeStatisticsImpl::~StripeStatisticsImpl() {
+    // PASS
+  }
 }// namespace
