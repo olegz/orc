@@ -20,7 +20,6 @@
 #define ORC_READER_HH
 
 #include "Vector.hh"
-#include "../wrap/orc-proto-wrapper.hh"
 
 #include <memory>
 #include <string>
