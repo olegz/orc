@@ -893,7 +893,7 @@ namespace orc {
       // Read the rest of the footer
       unsigned long extra = tailSize - readSize;
 
-      char* extraBuffer = new char[footerSize];
+      extraBuffer = new char[footerSize];
       stream->read(extraBuffer, fileLength - tailSize, extra);
       memcpy(extraBuffer+extra,buffer,readSize-1-postscriptLength);
       pBuffer = extraBuffer;
@@ -903,16 +903,14 @@ namespace orc {
                          std::unique_ptr<SeekableInputStream>
                          (new SeekableArrayInputStream(pBuffer, footerSize)),
                          blockSize);
-    if(extraBuffer) {
-      delete[] extraBuffer ;
-    }
-
     // TODO: do not SeekableArrayInputStream, rather use an array
     //    if (!footer.ParseFromArray(buffer+readSize-tailSize, footerSize)) {
     if (!footer.ParseFromZeroCopyStream(pbStream.get())) {
       throw ParseError("Failed to parse the footer");
     }
-
+    if(extraBuffer) {
+      delete[] extraBuffer ;
+    }
 
     numberOfStripes = static_cast<unsigned long>(footer.stripes_size());
   }
