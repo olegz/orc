@@ -547,7 +547,7 @@ namespace orc {
 
     // internal methods
     void readPostscript(char * buffer, unsigned long length);
-    void readFooter(char *buffer, unsigned long length,
+    void readFooter(char *buffer, unsigned long readSize,
                     unsigned long fileLength);
     proto::StripeFooter getStripeFooter(const proto::StripeInformation& info);
     void readMetadata(char *buffer, unsigned long length,
@@ -882,25 +882,38 @@ namespace orc {
   }
 
   void ReaderImpl::readFooter(char* buffer, unsigned long readSize,
-                              unsigned long) {
+                              unsigned long fileLength) {
     unsigned long footerSize = postscript.footerlength();
-    //check if extra bytes need to be read
     unsigned long tailSize = 1 + postscriptLength + footerSize;
+
+    char* pBuffer = buffer + (readSize - tailSize);
+    char* extraBuffer = nullptr;
+
     if (tailSize > readSize) {
-      throw NotImplementedYet("Failed to read the entire footer");
+      // Read the rest of the footer
+      unsigned long extra = tailSize - readSize;
+
+      char* extraBuffer = new char[footerSize];
+      stream->read(extraBuffer, fileLength - tailSize, extra);
+      memcpy(extraBuffer+extra,buffer,readSize-1-postscriptLength);
+      pBuffer = extraBuffer;
     }
     std::unique_ptr<SeekableInputStream> pbStream =
       createDecompressor(compression,
                          std::unique_ptr<SeekableInputStream>
-                         (new SeekableArrayInputStream(buffer +
-                                                       (readSize - tailSize),
-                                                       footerSize)),
+                         (new SeekableArrayInputStream(pBuffer, footerSize)),
                          blockSize);
+    if(extraBuffer) {
+      delete[] extraBuffer ;
+    }
+
     // TODO: do not SeekableArrayInputStream, rather use an array
     //    if (!footer.ParseFromArray(buffer+readSize-tailSize, footerSize)) {
     if (!footer.ParseFromZeroCopyStream(pbStream.get())) {
       throw ParseError("Failed to parse the footer");
     }
+
+
     numberOfStripes = static_cast<unsigned long>(footer.stripes_size());
   }
 
