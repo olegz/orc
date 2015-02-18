@@ -46,9 +46,8 @@ int main(int argc, char* argv[]) {
  // print out all selected columns statistics.
  std::list<orc::ColumnStatistics*> colStats = reader->getStatistics();
  std::cout << "File has " << colStats.size() << " col statistics\n" << "{" << std::endl;
- int i = 0;
  for(std::list<orc::ColumnStatistics*>::const_iterator iter = colStats.begin();
-     iter != colStats.end(); iter++, i++) {
+     iter != colStats.end(); iter++) {
      std::cout << (*iter)->toString() << std::endl;
      std::cout << std::endl;
  }
@@ -58,7 +57,7 @@ int main(int argc, char* argv[]) {
  // e.g. print the forth column(col = 3)
  int col = 3;
  std::cout << "Get statistics of column " << col+1 << std::endl;
- std::cout << reader->getColumnStatistics(col)->toString() << std::endl;
+ std::cout << reader->getColumnStatistics(static_cast<unsigned int>(col))->toString() << std::endl;
 
  // test stripe statistics
  std::cout << std::endl << "File has "
@@ -72,9 +71,7 @@ int main(int argc, char* argv[]) {
              << stripeStats->getNumberOfColumnStatistics() << "columns \n" << "{" << std::endl;
 
    for(uint i = 0; i < stripeStats->getNumberOfColumnStatistics(); ++i){
-     std::unique_ptr<orc::ColumnStatistics> colStats =
-         stripeStats->getColumnStatisticsInStripe(i);
-     std::cout << colStats->toString() << std::endl;
+     std::cout << stripeStats->getColumnStatisticsInStripe(i)->toString() << std::endl;
      std::cout << std::endl;
    }
    std::cout << "}" << std::endl;
