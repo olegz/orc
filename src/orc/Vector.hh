@@ -214,6 +214,8 @@ namespace orc {
     std::string toString() const;
     void resize(uint64_t capacity);
 
+    // total number of digits
+    int32_t precision;
     // the number of places after the decimal
     int32_t scale;
 
@@ -235,6 +237,8 @@ namespace orc {
     std::string toString() const;
     void resize(uint64_t capacity);
 
+    // total number of digits
+    int32_t precision;
     // the number of places after the decimal
     int32_t scale;
 

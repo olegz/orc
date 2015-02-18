@@ -998,6 +998,7 @@ namespace orc {
 
   protected:
     std::unique_ptr<SeekableInputStream> valueStream;
+    int32_t precision;
     int32_t scale;
     const char* buffer;
     const char* bufferEnd;
@@ -1076,6 +1077,7 @@ namespace orc {
                                                StripeStreams& stripe
                                                ): ColumnReader(type, stripe) {
     scale = static_cast<int32_t>(type.getScale());
+    precision = static_cast<int32_t>(type.getPrecision());
     valueStream = stripe.getStream(columnId, proto::Stream_Kind_DATA);
     buffer = nullptr;
     bufferEnd = nullptr;
@@ -1114,6 +1116,7 @@ namespace orc {
     // read the next group of scales
     int64_t* scaleBuffer = batch.readScales.data();
     scaleDecoder->next(scaleBuffer, numValues, notNull);
+    batch.precision = precision;
     batch.scale = scale;
     if (notNull) {
       for(size_t i=0; i < numValues; ++i) {
@@ -1200,6 +1203,7 @@ namespace orc {
     // read the next group of scales
     int64_t* scaleBuffer = batch.readScales.data();
     scaleDecoder->next(scaleBuffer, numValues, notNull);
+    batch.precision = precision;
     batch.scale = scale;
     if (notNull) {
       for(size_t i=0; i < numValues; ++i) {
@@ -1289,6 +1293,7 @@ namespace orc {
     // read the next group of scales
     int64_t* scaleBuffer = batch.readScales.data();
     scaleDecoder->next(scaleBuffer, numValues, notNull);
+    batch.precision = precision;
     batch.scale = scale;
     if (notNull) {
       for(size_t i=0; i < numValues; ++i) {
