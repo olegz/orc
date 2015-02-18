@@ -50,6 +50,11 @@ namespace orc {
      * @return the number of values
      */
     virtual uint64_t getNumberOfValues() const = 0;
+
+    /**
+     * print out statistics of column if any
+     */
+    virtual std::string toString() const = 0;
   };
 
   /**
@@ -90,7 +95,7 @@ namespace orc {
      * Get the maximum value for the column.
      * @return maximum value
      */
-     virtual int32_t getMaximum() const = 0;
+    virtual int32_t getMaximum() const = 0;
   };
 
   /**

@@ -172,6 +172,12 @@ namespace orc {
     uint64_t getNumberOfValues() const override {
       return valueCount;
     }
+
+    std::string toString() const override {
+      std::ostringstream buffer;
+      buffer << "Column has " << valueCount << " values" << std::endl;
+      return buffer.str();
+    }
   };
 
   class BinaryColumnStatisticsImpl: public BinaryColumnStatistics {
@@ -189,6 +195,14 @@ namespace orc {
 
     uint64_t getTotalLength() const override {
       return totalLength;
+    }
+
+    std::string toString() const override {
+      std::ostringstream buffer;
+      buffer << "Data type: Binary" << std::endl 
+             << "Column has " << valueCount << " values" << std::endl
+             << "Total length is " << totalLength << std::endl;
+      return buffer.str();
     }
   };
 
@@ -212,6 +226,14 @@ namespace orc {
     uint64_t getTrueCount() const override {
       return trueCount;
     }
+
+    std::string toString() const override {
+      std::ostringstream buffer;
+      buffer << "Data type: Boolean" << std::endl 
+             << "Column has " << valueCount << " values" << std::endl
+             << "Has " << trueCount << " True and " << valueCount - trueCount << " False" << std::endl;
+      return buffer.str();
+    }
   };
 
   class DateColumnStatisticsImpl: public DateColumnStatistics {
@@ -234,6 +256,15 @@ namespace orc {
 
     int32_t getMaximum() const override {
       return maximum;
+    }
+
+    std::string toString() const override {
+      std::ostringstream buffer;
+      buffer << "Data type: Date" << std::endl
+             << "Column has " << valueCount << " values" << std::endl
+             << "Minimum is " << minimum << std::endl
+             << "Maximum is " << maximum << std::endl;
+      return buffer.str();
     }
   };
 
@@ -263,6 +294,16 @@ namespace orc {
     Decimal getSum() const override {
       return Decimal(sum);
     }
+
+    std::string toString() const override {
+      std::ostringstream buffer;
+      buffer << "Data type: Decimal" << std::endl
+             << "Column has " << valueCount << " values" << std::endl
+             << "Minimum is " << minimum << std::endl
+             << "Maximum is " << maximum << std::endl
+             << "Sum is " << sum << std::endl;
+      return buffer.str();
+    }
   };
 
   class DoubleColumnStatisticsImpl: public DoubleColumnStatistics {
@@ -290,6 +331,16 @@ namespace orc {
 
     double getSum() const override {
       return sum;
+    }
+
+    std::string toString() const override {
+      std::ostringstream buffer;
+      buffer << "Data type: Double" << std::endl
+             << "Column has " << valueCount << " values" << std::endl
+             << "Minimum is " << minimum << std::endl
+             << "Maximum is " << maximum << std::endl
+             << "Sum is " << sum << std::endl;
+      return buffer.str();
     }
   };
 
@@ -324,6 +375,18 @@ namespace orc {
     int64_t getSum() const override {
       return sum;
     }
+
+    std::string toString() const override {
+      std::ostringstream buffer;
+      buffer << "Data type: Integer" << std::endl
+             << "Column has " << valueCount << " values" << std::endl
+             << "Minimum is " << minimum << std::endl
+             << "Maximum is " << maximum << std::endl;
+      if(hasSum){
+        buffer << "Sum is " << sum << std::endl;
+      }
+      return buffer.str();
+    }
   };
 
   class StringColumnStatisticsImpl: public StringColumnStatistics {
@@ -352,6 +415,16 @@ namespace orc {
     uint64_t getTotalLength() const override {
       return totalLength;
     }
+
+    std::string toString() const override {
+      std::ostringstream buffer;
+      buffer << "Data type: String" << std::endl
+             << "Column has " << valueCount << " values" << std::endl
+             << "Minimum is " << minimum << std::endl
+             << "Maximum is " << maximum << std::endl
+             << "Total length is " << totalLength << std::endl;
+      return buffer.str();
+    }
   };
 
   class TimestampColumnStatisticsImpl: public TimestampColumnStatistics {
@@ -374,6 +447,15 @@ namespace orc {
 
     int64_t getMaximum() const override {
       return maximum;
+    }
+
+    std::string toString() const override {
+      std::ostringstream buffer;
+      buffer << "Data type: Timestamp" << std::endl
+             << "Column has " << valueCount << " values" << std::endl
+             << "Minimum is " << minimum << std::endl
+             << "Maximum is " << maximum << std::endl;
+      return buffer.str();
     }
   };
 
