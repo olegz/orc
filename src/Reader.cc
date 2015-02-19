@@ -1170,7 +1170,7 @@ namespace orc {
   // stripeIndex start from 0
   std::unique_ptr<StripeStatistics>
   ReaderImpl::getStripeStatistics(unsigned long stripeIndex) const {
-    if(stripeIndex > static_cast<unsigned int>(metadata.stripestats_size())) {
+    if(stripeIndex >= static_cast<unsigned int>(metadata.stripestats_size())) {
       throw std::logic_error("stripe index out of range");
     }
     return std::unique_ptr<StripeStatistics>
