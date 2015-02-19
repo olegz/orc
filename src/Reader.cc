@@ -182,32 +182,43 @@ namespace orc {
 
   class BinaryColumnStatisticsImpl: public BinaryColumnStatistics {
   private:
+    bool _hasTotalLength;
     uint64_t valueCount;
     uint64_t totalLength;
 
   public:
     BinaryColumnStatisticsImpl(const proto::ColumnStatistics& stats);
     virtual ~BinaryColumnStatisticsImpl();
-
+      
+    bool hasTotalLength() const override {
+      return _hasTotalLength;
+    }
     uint64_t getNumberOfValues() const override {
       return valueCount;
     }
 
     uint64_t getTotalLength() const override {
-      return totalLength;
+      if(_hasTotalLength){
+        return totalLength;
+      }else{
+        throw ParseError("Total length is not defined.");
+      }
     }
 
     std::string toString() const override {
       std::ostringstream buffer;
       buffer << "Data type: Binary" << std::endl 
-             << "Column has " << valueCount << " values" << std::endl
-             << "Total length is " << totalLength << std::endl;
+             << "Column has " << valueCount << " values" << std::endl;
+      if(_hasTotalLength){
+        buffer << "Total length is " << totalLength << std::endl;
+      }
       return buffer.str();
     }
   };
 
   class BooleanColumnStatisticsImpl: public BooleanColumnStatistics {
   private:
+    bool _hasCount;
     uint64_t valueCount;
     uint64_t trueCount;
 
@@ -215,29 +226,45 @@ namespace orc {
     BooleanColumnStatisticsImpl(const proto::ColumnStatistics& stats);
     virtual ~BooleanColumnStatisticsImpl();
 
+    bool hasCount() const override {
+      return _hasCount;
+    }
+
     uint64_t getNumberOfValues() const override {
       return valueCount;
     }
 
     uint64_t getFalseCount() const override {
-      return valueCount - trueCount;
+      if(_hasCount){
+        return valueCount - trueCount;
+      }else{
+        throw ParseError("False count is not defined.");
+      }
     }
 
     uint64_t getTrueCount() const override {
-      return trueCount;
+      if(_hasCount){
+        return trueCount;
+      }else{
+        throw ParseError("True count is not defined.");
+      }
     }
 
     std::string toString() const override {
       std::ostringstream buffer;
       buffer << "Data type: Boolean" << std::endl 
-             << "Column has " << valueCount << " values" << std::endl
-             << "Has " << trueCount << " True and " << valueCount - trueCount << " False" << std::endl;
+             << "Column has " << valueCount << " values" << std::endl;
+      if(_hasCount){
+        buffer << "Has " << trueCount << " True and " << valueCount - trueCount << " False" << std::endl;
+      }
       return buffer.str();
     }
   };
 
   class DateColumnStatisticsImpl: public DateColumnStatistics {
   private:
+    bool _hasMinimum;
+    bool _hasMaximum;
     uint64_t valueCount;
     int32_t minimum;
     int32_t maximum;
@@ -246,30 +273,53 @@ namespace orc {
     DateColumnStatisticsImpl(const proto::ColumnStatistics& stats);
     virtual ~DateColumnStatisticsImpl();
 
+    bool hasMinimum() const override {
+      return _hasMinimum;
+    }
+
+    bool hasMaximum() const override {
+      return _hasMaximum;
+    }
+
     uint64_t getNumberOfValues() const override {
       return valueCount;
     }
 
     int32_t getMinimum() const override {
-      return minimum;
+      if(_hasMinimum){
+        return minimum;
+      }else{
+        throw ParseError("Minimum is not defined.");
+      }
     }
 
     int32_t getMaximum() const override {
-      return maximum;
+      if(_hasMaximum){
+        return maximum;
+      }else{
+        throw ParseError("Maximum is not defined.");
+      }
     }
 
     std::string toString() const override {
       std::ostringstream buffer;
       buffer << "Data type: Date" << std::endl
-             << "Column has " << valueCount << " values" << std::endl
-             << "Minimum is " << minimum << std::endl
-             << "Maximum is " << maximum << std::endl;
+             << "Column has " << valueCount << " values" << std::endl;
+      if(_hasMinimum){
+        buffer << "Minimum is " << minimum << std::endl;
+      }
+      if(_hasMaximum){
+        buffer << "Maximum is " << maximum << std::endl;
+      }
       return buffer.str();
     }
   };
 
   class DecimalColumnStatisticsImpl: public DecimalColumnStatistics {
   private:
+    bool _hasMinimum;
+    bool _hasMaximum;
+    bool _hasSum;
     uint64_t valueCount;
     std::string minimum;
     std::string maximum;
@@ -279,35 +329,68 @@ namespace orc {
     DecimalColumnStatisticsImpl(const proto::ColumnStatistics& stats);
     virtual ~DecimalColumnStatisticsImpl();
 
+    bool hasMinimum() const override {
+      return _hasMinimum;
+    }
+
+    bool hasMaximum() const override {
+      return _hasMaximum;
+    }
+
+    bool hasSum() const override {
+      return _hasSum;
+    }
+
     uint64_t getNumberOfValues() const override {
       return valueCount;
     }
 
     Decimal getMinimum() const override {
-      return Decimal(minimum);
+      if(_hasMinimum){
+        return Decimal(minimum);
+      }else{
+        throw ParseError("Minimum is not defined.");
+      }
     }
 
     Decimal getMaximum() const override {
-      return Decimal(maximum);
+      if(_hasMaximum){
+        return Decimal(maximum);
+      }else{
+        throw ParseError("Maximum is not defined.");
+      }
     }
 
     Decimal getSum() const override {
-      return Decimal(sum);
+      if(_hasSum){
+        return Decimal(sum);
+      }else{
+        throw ParseError("Sum is not defined.");
+      }
     }
 
     std::string toString() const override {
       std::ostringstream buffer;
       buffer << "Data type: Decimal" << std::endl
-             << "Column has " << valueCount << " values" << std::endl
-             << "Minimum is " << minimum << std::endl
-             << "Maximum is " << maximum << std::endl
-             << "Sum is " << sum << std::endl;
+             << "Column has " << valueCount << " values" << std::endl;
+      if(_hasMinimum){
+        buffer << "Minimum is " << minimum << std::endl;
+      }
+      if(_hasMaximum){
+        buffer << "Maximum is " << maximum << std::endl;
+      }
+      if(_hasSum){
+        buffer << "Sum is " << sum << std::endl;
+      }
       return buffer.str();
     }
   };
 
   class DoubleColumnStatisticsImpl: public DoubleColumnStatistics {
   private:
+    bool _hasMinimum;
+    bool _hasMaximum;
+    bool _hasSum;
     uint64_t valueCount;
     double minimum;
     double maximum;
@@ -317,72 +400,128 @@ namespace orc {
     DoubleColumnStatisticsImpl(const proto::ColumnStatistics& stats);
     virtual ~DoubleColumnStatisticsImpl();
 
+    bool hasMinimum() const override {
+      return _hasMinimum;
+    }
+
+    bool hasMaximum() const override {
+      return _hasMaximum;
+    }
+
+    bool hasSum() const override {
+      return _hasSum;
+    }
+
     uint64_t getNumberOfValues() const override {
       return valueCount;
     }
 
     double getMinimum() const override {
-      return minimum;
+      if(_hasMinimum){
+        return minimum;
+      }else{
+        throw ParseError("Minimum is not defined.");
+      }
     }
 
     double getMaximum() const override {
-      return maximum;
+      if(_hasMaximum){
+        return maximum;
+      }else{
+        throw ParseError("Maximum is not defined.");
+      }
     }
 
     double getSum() const override {
-      return sum;
+      if(_hasSum){
+        return sum;
+      }else{
+        throw ParseError("Sum is not defined.");
+      }
     }
 
     std::string toString() const override {
       std::ostringstream buffer;
       buffer << "Data type: Double" << std::endl
-             << "Column has " << valueCount << " values" << std::endl
-             << "Minimum is " << minimum << std::endl
-             << "Maximum is " << maximum << std::endl
-             << "Sum is " << sum << std::endl;
+             << "Column has " << valueCount << " values" << std::endl;
+      if(_hasMinimum){
+        buffer << "Minimum is " << minimum << std::endl;
+      }
+      if(_hasMaximum){
+        buffer << "Maximum is " << maximum << std::endl;
+      }
+      if(_hasSum){
+        buffer << "Sum is " << sum << std::endl;
+      }
       return buffer.str();
     }
   };
 
   class IntegerColumnStatisticsImpl: public IntegerColumnStatistics {
   private:
+    bool _hasMinimum;
+    bool _hasMaximum;
+    bool _hasSum;
     uint64_t valueCount;
     int64_t minimum;
     int64_t maximum;
     int64_t sum;
-    bool hasSum;
 
   public:
     IntegerColumnStatisticsImpl(const proto::ColumnStatistics& stats);
     virtual ~IntegerColumnStatisticsImpl();
+
+    bool hasMinimum() const override {
+      return _hasMinimum;
+    }
+
+    bool hasMaximum() const override {
+      return _hasMaximum;
+    }
+
+    bool hasSum() const override {
+      return _hasSum;
+    }
 
     uint64_t getNumberOfValues() const override {
       return valueCount;
     }
 
     int64_t getMinimum() const override {
-      return minimum;
+      if(_hasMinimum){
+        return minimum;
+      }else{
+        throw ParseError("Minimum is not defined.");
+      }
     }
 
     int64_t getMaximum() const override {
-      return maximum;
-    }
-
-    bool isSumDefined() const override {
-      return hasSum;
+      if(_hasMaximum){
+        return maximum;
+      }else{
+        throw ParseError("Maximum is not defined.");
+      }
     }
 
     int64_t getSum() const override {
-      return sum;
+      if(_hasSum){
+        return sum;
+      }else{
+        throw ParseError("Sum is not defined.");
+      }
     }
 
     std::string toString() const override {
       std::ostringstream buffer;
       buffer << "Data type: Integer" << std::endl
-             << "Column has " << valueCount << " values" << std::endl
-             << "Minimum is " << minimum << std::endl
-             << "Maximum is " << maximum << std::endl;
-      if(hasSum){
+             << "Column has " << valueCount << " values" << std::endl;
+      if(_hasMinimum){
+        buffer << "Minimum is " << minimum << std::endl;
+      }
+      if(_hasMaximum){
+        buffer << "Maximum is " << maximum << std::endl;
+      }
+      if(_hasSum){
         buffer << "Sum is " << sum << std::endl;
       }
       return buffer.str();
@@ -391,6 +530,9 @@ namespace orc {
 
   class StringColumnStatisticsImpl: public StringColumnStatistics {
   private:
+    bool _hasMinimum;
+    bool _hasMaximum;
+    bool _hasTotalLength;
     uint64_t valueCount;
     std::string minimum;
     std::string maximum;
@@ -400,35 +542,67 @@ namespace orc {
     StringColumnStatisticsImpl(const proto::ColumnStatistics& stats);
     virtual ~StringColumnStatisticsImpl();
 
+    bool hasMinimum() const override {
+      return _hasMinimum;
+    }
+
+    bool hasMaximum() const override {
+      return _hasMaximum;
+    }
+
+    bool hasTotalLength() const override {
+      return _hasTotalLength;
+    }
+
     uint64_t getNumberOfValues() const override {
       return valueCount;
     }
 
     std::string getMinimum() const override {
-      return minimum;
+      if(_hasMinimum){
+        return minimum;
+      }else{
+        throw ParseError("Minimum is not defined.");
+      }
     }
 
     std::string getMaximum() const override {
-      return maximum;
+      if(_hasMaximum){
+        return maximum;
+      }else{
+        throw ParseError("Maximum is not defined.");
+      }
     }
 
     uint64_t getTotalLength() const override {
-      return totalLength;
+      if(_hasTotalLength){
+        return totalLength;
+      }else{
+        throw ParseError("Total length is not defined.");
+      }
     }
 
     std::string toString() const override {
       std::ostringstream buffer;
       buffer << "Data type: String" << std::endl
-             << "Column has " << valueCount << " values" << std::endl
-             << "Minimum is " << minimum << std::endl
-             << "Maximum is " << maximum << std::endl
-             << "Total length is " << totalLength << std::endl;
+             << "Column has " << valueCount << " values" << std::endl;
+      if(_hasMinimum){
+        buffer << "Minimum is " << minimum << std::endl;
+      }
+      if(_hasMaximum){
+        buffer << "Maximum is " << maximum << std::endl;
+      }
+      if(_hasTotalLength){
+        buffer << "Total length is " << totalLength << std::endl;
+      }
       return buffer.str();
     }
   };
 
   class TimestampColumnStatisticsImpl: public TimestampColumnStatistics {
   private:
+    bool _hasMinimum;
+    bool _hasMaximum;
     uint64_t valueCount;
     int64_t minimum;
     int64_t maximum;
@@ -437,24 +611,44 @@ namespace orc {
     TimestampColumnStatisticsImpl(const proto::ColumnStatistics& stats);
     virtual ~TimestampColumnStatisticsImpl();
 
+    bool hasMinimum() const override {
+      return _hasMinimum;
+    }
+
+    bool hasMaximum() const override {
+      return _hasMaximum;
+    }
+
     uint64_t getNumberOfValues() const override {
       return valueCount;
     }
 
     int64_t getMinimum() const override {
-      return minimum;
+      if(_hasMinimum){
+        return minimum;
+      }else{
+        throw ParseError("Minimum is not defined.");
+      }
     }
 
     int64_t getMaximum() const override {
-      return maximum;
+      if(_hasMaximum){
+        return maximum;
+      }else{
+        throw ParseError("Maximum is not defined.");
+      }
     }
 
     std::string toString() const override {
       std::ostringstream buffer;
       buffer << "Data type: Timestamp" << std::endl
-             << "Column has " << valueCount << " values" << std::endl
-             << "Minimum is " << minimum << std::endl
-             << "Maximum is " << maximum << std::endl;
+             << "Column has " << valueCount << " values" << std::endl;
+      if(_hasMinimum){
+        buffer << "Minimum is " << minimum << std::endl;
+      }
+      if(_hasMaximum){
+        buffer << "Maximum is " << maximum << std::endl;
+      }
       return buffer.str();
     }
   };
@@ -1313,90 +1507,130 @@ namespace orc {
 
   BinaryColumnStatisticsImpl::BinaryColumnStatisticsImpl
   (const proto::ColumnStatistics& pb){
-    if (!pb.has_binarystatistics()) {
-      throw ParseError("Missing BinaryStatistics in protobuf");
-    }
     valueCount = pb.numberofvalues();
-    totalLength = static_cast<uint64_t>(pb.binarystatistics().sum());
+    if (!pb.has_binarystatistics()) {
+      _hasTotalLength = false;
+    }else{
+      _hasTotalLength = pb.binarystatistics().has_sum();  
+      totalLength = static_cast<uint64_t>(pb.binarystatistics().sum());
+    }
   }
 
   BooleanColumnStatisticsImpl::BooleanColumnStatisticsImpl
   (const proto::ColumnStatistics& pb){
-    if (!pb.has_bucketstatistics()) {
-      throw ParseError("Missing BucketStatistics in protobuf");
-    }
     valueCount = pb.numberofvalues();
-    trueCount = pb.bucketstatistics().count(0);
+    if (!pb.has_bucketstatistics()) {
+      _hasCount = false;
+    }else{
+      _hasCount = true;
+      trueCount = pb.bucketstatistics().count(0);
+    }
   }
 
   DateColumnStatisticsImpl::DateColumnStatisticsImpl
   (const proto::ColumnStatistics& pb){
-    if (!pb.has_datestatistics()) {
-      throw ParseError("Missing DateStatistics in protobuf");
-    }
     valueCount = pb.numberofvalues();
-    minimum = pb.datestatistics().minimum();
-    maximum = pb.datestatistics().maximum();
+    if (!pb.has_datestatistics()) {
+      _hasMinimum = false;
+      _hasMaximum = false;
+    }else{
+        _hasMinimum = pb.datestatistics().has_minimum();
+        _hasMaximum = pb.datestatistics().has_maximum();
+        minimum = pb.datestatistics().minimum();
+        maximum = pb.datestatistics().maximum();
+    }
   }
 
   DecimalColumnStatisticsImpl::DecimalColumnStatisticsImpl
   (const proto::ColumnStatistics& pb){
-    if (!pb.has_decimalstatistics()) {
-      throw ParseError("Missing DecimalStatistics in protobuf");
-    }
-    const proto::DecimalStatistics& stats = pb.decimalstatistics();
     valueCount = pb.numberofvalues();
-    minimum = stats.minimum();
-    maximum = stats.maximum();
-    sum = stats.sum();
+    if (!pb.has_decimalstatistics()) {
+      _hasMinimum = false;
+      _hasMaximum = false;
+      _hasSum = false;
+    }else{
+      const proto::DecimalStatistics& stats = pb.decimalstatistics();
+      _hasMinimum = stats.has_minimum();
+      _hasMaximum = stats.has_maximum();
+      _hasSum = stats.has_sum();
+
+      minimum = stats.minimum();
+      maximum = stats.maximum();
+      sum = stats.sum();
+    }
   }
 
   DoubleColumnStatisticsImpl::DoubleColumnStatisticsImpl
   (const proto::ColumnStatistics& pb){
-    if (!pb.has_doublestatistics()) {
-      throw ParseError("Missing DoubleStatistics in protobuf");
-    }
-    const proto::DoubleStatistics& stats = pb.doublestatistics();
     valueCount = pb.numberofvalues();
-    minimum = stats.minimum();
-    maximum = stats.maximum();
-    sum = stats.sum();
+    if (!pb.has_doublestatistics()) {
+      _hasMinimum = false;
+      _hasMaximum = false;
+      _hasSum = false;
+    }else{
+      const proto::DoubleStatistics& stats = pb.doublestatistics();
+      _hasMinimum = stats.has_minimum();
+      _hasMaximum = stats.has_maximum();
+      _hasSum = stats.has_sum();
+
+      minimum = stats.minimum();
+      maximum = stats.maximum();
+      sum = stats.sum();
+    }
   }
 
   IntegerColumnStatisticsImpl::IntegerColumnStatisticsImpl
   (const proto::ColumnStatistics& pb){
-    if (!pb.has_intstatistics()) {
-      throw ParseError("Missing IntegerStatistics in protobuf");
-    }
-    const proto::IntegerStatistics& stats = pb.intstatistics();
     valueCount = pb.numberofvalues();
-    minimum = stats.minimum();
-    maximum = stats.maximum();
-    hasSum = stats.has_sum();
-    sum = stats.sum();
+    if (!pb.has_intstatistics()) {
+      _hasMinimum = false;
+      _hasMaximum = false;
+      _hasSum = false;
+    }else{
+      const proto::IntegerStatistics& stats = pb.intstatistics();
+      _hasMinimum = stats.has_minimum();
+      _hasMaximum = stats.has_maximum();
+      _hasSum = stats.has_sum();
+
+      minimum = stats.minimum();
+      maximum = stats.maximum();
+      sum = stats.sum();
+    }
   }
 
   StringColumnStatisticsImpl::StringColumnStatisticsImpl
   (const proto::ColumnStatistics& pb){
-    if (!pb.has_stringstatistics()) {
-      throw ParseError("Missing StringStatistics in protobuf");
-    }
-    const proto::StringStatistics& stats = pb.stringstatistics();
     valueCount = pb.numberofvalues();
-    minimum = stats.minimum();
-    maximum = stats.maximum();
-    totalLength = static_cast<uint64_t>(stats.sum());
+    if (!pb.has_stringstatistics()) {
+      _hasMinimum = false;
+      _hasMaximum = false;
+      _hasTotalLength = false;
+    }else{
+      const proto::StringStatistics& stats = pb.stringstatistics();
+      _hasMinimum = stats.has_minimum();
+      _hasMaximum = stats.has_maximum();
+      _hasTotalLength = stats.has_sum();
+
+      minimum = stats.minimum();
+      maximum = stats.maximum();
+      totalLength = static_cast<uint64_t>(stats.sum());
+    }
   }
 
   TimestampColumnStatisticsImpl::TimestampColumnStatisticsImpl
   (const proto::ColumnStatistics& pb){
-    if (!pb.has_timestampstatistics()) {
-      throw ParseError("Missing TimestampStatistics in protobuf");
-    }
-    const proto::TimestampStatistics& stats = pb.timestampstatistics();
     valueCount = pb.numberofvalues();
-    minimum = stats.minimum();
-    maximum = stats.maximum();
+    if (!pb.has_timestampstatistics()) {
+      _hasMinimum = false;
+      _hasMaximum = false;
+    }else{
+      const proto::TimestampStatistics& stats = pb.timestampstatistics();
+      _hasMinimum = stats.has_minimum();
+      _hasMaximum = stats.has_maximum();
+
+      minimum = stats.minimum();
+      maximum = stats.maximum();
+    }
   }
 
   StripeStatisticsImpl::~StripeStatisticsImpl() {

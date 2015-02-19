@@ -64,6 +64,12 @@ namespace orc {
   public:
     virtual ~BinaryColumnStatistics();
 
+    /**
+     * check whether column has total length
+     * @return true if has total length
+     */
+    virtual bool hasTotalLength() const = 0;
+    
     virtual uint64_t getTotalLength() const = 0;
   };
 
@@ -73,6 +79,12 @@ namespace orc {
   class BooleanColumnStatistics: public ColumnStatistics {
   public:
     virtual ~BooleanColumnStatistics();
+
+    /**
+     * check whether column has true/false count
+     * @return true if has true/false count
+     */
+    virtual bool hasCount() const = 0;
 
     virtual uint64_t getFalseCount() const = 0;
     virtual uint64_t getTrueCount() const = 0;
@@ -84,6 +96,18 @@ namespace orc {
   class DateColumnStatistics: public ColumnStatistics {
   public:
     virtual ~DateColumnStatistics();
+
+    /**
+     * check whether column has minimum
+     * @return true if has minimum
+     */
+    virtual bool hasMinimum() const = 0;
+      
+    /**
+     * check whether column has maximum
+     * @return true if has maximum
+     */
+    virtual bool hasMaximum() const = 0;
 
     /**
      * Get the minimum value for the column.
@@ -104,6 +128,24 @@ namespace orc {
   class DecimalColumnStatistics: public ColumnStatistics {
   public:
     virtual ~DecimalColumnStatistics();
+
+    /**
+     * check whether column has minimum
+     * @return true if has minimum
+     */
+    virtual bool hasMinimum() const = 0;
+      
+    /**
+     * check whether column has maximum
+     * @return true if has maximum
+     */
+    virtual bool hasMaximum() const = 0;
+
+    /**
+     * check whether column has sum
+     * @return true if has sum
+     */
+    virtual bool hasSum() const = 0;
 
     /**
      * Get the minimum value for the column.
@@ -130,6 +172,24 @@ namespace orc {
   class DoubleColumnStatistics: public ColumnStatistics {
   public:
     virtual ~DoubleColumnStatistics();
+
+    /**
+     * check whether column has minimum
+     * @return true if has minimum
+     */
+    virtual bool hasMinimum() const = 0;
+      
+    /**
+     * check whether column has maximum
+     * @return true if has maximum
+     */
+    virtual bool hasMaximum() const = 0;
+
+    /**
+     * check whether column has sum
+     * @return true if has sum
+     */
+    virtual bool hasSum() const = 0;
 
     /**
      * Get the smallest value in the column. Only defined if getNumberOfValues
@@ -161,6 +221,24 @@ namespace orc {
     virtual ~IntegerColumnStatistics();
 
     /**
+     * check whether column has minimum
+     * @return true if has minimum
+     */
+    virtual bool hasMinimum() const = 0;
+      
+    /**
+     * check whether column has maximum
+     * @return true if has maximum
+     */
+    virtual bool hasMaximum() const = 0;
+
+    /**
+     * check whether column has sum
+     * @return true if has sum
+     */
+    virtual bool hasSum() const = 0;
+
+    /**
      * Get the smallest value in the column. Only defined if getNumberOfValues
      * is non-zero.
      * @return the minimum
@@ -175,13 +253,6 @@ namespace orc {
     virtual int64_t getMaximum() const = 0;
 
     /**
-     * Is the sum defined? If the sum overflowed the counter this will be
-     * false.
-     * @return is the sum available
-     */
-    virtual bool isSumDefined() const = 0;
-
-    /**
      * Get the sum of the column. Only valid if isSumDefined returns true.
      * @return the sum of the column
      */
@@ -194,6 +265,24 @@ namespace orc {
   class StringColumnStatistics: public ColumnStatistics {
   public:
     virtual ~StringColumnStatistics();
+
+    /**
+     * check whether column has minimum
+     * @return true if has minimum
+     */
+    virtual bool hasMinimum() const = 0;
+      
+    /**
+     * check whether column has maximum
+     * @return true if has maximum
+     */
+    virtual bool hasMaximum() const = 0;
+
+    /**
+     * check whether column 
+     * @return true if has maximum
+     */
+    virtual bool hasTotalLength() const = 0;
 
     /**
      * Get the minimum value for the column.
@@ -220,6 +309,18 @@ namespace orc {
   class TimestampColumnStatistics: public ColumnStatistics {
   public:
     virtual ~TimestampColumnStatistics();
+
+    /**
+     * check whether column minimum
+     * @return true if has minimum
+     */
+    virtual bool hasMinimum() const = 0;
+      
+    /**
+     * check whether column maximum
+     * @return true if has maximum
+     */
+    virtual bool hasMaximum() const = 0;
 
     /**
      * Get the minimum value for the column.
