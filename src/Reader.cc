@@ -208,11 +208,11 @@ namespace orc {
     std::string toString() const override {
       std::ostringstream buffer;
       buffer << "Data type: Binary" << std::endl 
-             << "Column has " << valueCount << " values" << std::endl;
+             << "Values: " << valueCount << std::endl;
       if(_hasTotalLength){
-        buffer << "Total length is " << totalLength << std::endl;
+        buffer << "Total length: " << totalLength << std::endl;
       }else{
-        buffer << "Total length is not defined" << std::endl;
+        buffer << "Total length: not defined" << std::endl;
       }
       return buffer.str();
     }
@@ -255,10 +255,11 @@ namespace orc {
     std::string toString() const override {
       std::ostringstream buffer;
       buffer << "Data type: Boolean" << std::endl 
-             << "Column has " << valueCount << " values" << std::endl;
+             << "Values: " << valueCount << std::endl;
       if(_hasCount){
-        buffer << "Has " << trueCount << " True and " << valueCount - trueCount << " False" << std::endl;
-      }else{
+        buffer << "(true: " << trueCount << "; false: " << valueCount - trueCount << ")" << std::endl;
+      } else {
+        buffer << "(true: not defined; false: not defined)" << std::endl;
         buffer << "True and false count are not defined" << std::endl;
       }
       return buffer.str();
@@ -308,16 +309,17 @@ namespace orc {
     std::string toString() const override {
       std::ostringstream buffer;
       buffer << "Data type: Date" << std::endl
-             << "Column has " << valueCount << " values" << std::endl;
+             << "Values: " << valueCount << std::endl;
       if(_hasMinimum){
-        buffer << "Minimum is " << minimum << std::endl;
+        buffer << "Minimum: " << minimum << std::endl;
       }else{
-        buffer << "Minimum is not defined" << std::endl;
+        buffer << "Minimum: not defined" << std::endl;
       }
+
       if(_hasMaximum){
-        buffer << "Maximum is " << maximum << std::endl;
+        buffer << "Maximum: " << maximum << std::endl;
       }else{
-        buffer << "Maximum is not defined" << std::endl;
+        buffer << "Maximum: not defined" << std::endl;
       }
       return buffer.str();
     }
@@ -380,23 +382,23 @@ namespace orc {
     std::string toString() const override {
       std::ostringstream buffer;
       buffer << "Data type: Decimal" << std::endl
-             << "Column has " << valueCount << " values" << std::endl;
+          << "Values: " << valueCount << std::endl;
       if(_hasMinimum){
-        buffer << "Minimum is " << minimum << std::endl;
+        buffer << "Minimum: " << minimum << std::endl;
       }else{
-        buffer << "Minimum is not defined" << std::endl;
+        buffer << "Minimum: not defined" << std::endl;
       }
 
       if(_hasMaximum){
-        buffer << "Maximum is " << maximum << std::endl;
+        buffer << "Maximum: " << maximum << std::endl;
       }else{
-        buffer << "Maximum is not defined" << std::endl;
+        buffer << "Maximum: not defined" << std::endl;
       }
 
       if(_hasSum){
-        buffer << "Sum is " << sum << std::endl;
+        buffer << "Sum: " << sum << std::endl;
       }else{
-        buffer << "Sum is not defined" << std::endl;
+        buffer << "Sum: not defined" << std::endl;
       }
 
       return buffer.str();
@@ -460,23 +462,23 @@ namespace orc {
     std::string toString() const override {
       std::ostringstream buffer;
       buffer << "Data type: Double" << std::endl
-             << "Column has " << valueCount << " values" << std::endl;
+          << "Values: " << valueCount << std::endl;
       if(_hasMinimum){
-        buffer << "Minimum is " << minimum << std::endl;
+        buffer << "Minimum: " << minimum << std::endl;
       }else{
-        buffer << "Minimum is not defined" << std::endl;
+        buffer << "Minimum: not defined" << std::endl;
       }
 
       if(_hasMaximum){
-        buffer << "Maximum is " << maximum << std::endl;
+        buffer << "Maximum: " << maximum << std::endl;
       }else{
-        buffer << "Maximum is not defined" << std::endl;
+        buffer << "Maximum: not defined" << std::endl;
       }
 
       if(_hasSum){
-        buffer << "Sum is " << sum << std::endl;
+        buffer << "Sum: " << sum << std::endl;
       }else{
-        buffer << "Sum is not defined" << std::endl;
+        buffer << "Sum: not defined" << std::endl;
       }
       return buffer.str();
     }
@@ -539,23 +541,23 @@ namespace orc {
     std::string toString() const override {
       std::ostringstream buffer;
       buffer << "Data type: Integer" << std::endl
-             << "Column has " << valueCount << " values" << std::endl;
+          << "Values: " << valueCount << std::endl;
       if(_hasMinimum){
-        buffer << "Minimum is " << minimum << std::endl;
+        buffer << "Minimum: " << minimum << std::endl;
       }else{
-        buffer << "Minimum is not defined" << std::endl;
+        buffer << "Minimum: not defined" << std::endl;
       }
 
       if(_hasMaximum){
-        buffer << "Maximum is " << maximum << std::endl;
+        buffer << "Maximum: " << maximum << std::endl;
       }else{
-        buffer << "Maximum is not defined" << std::endl;
+        buffer << "Maximum: not defined" << std::endl;
       }
 
       if(_hasSum){
-        buffer << "Sum is " << sum << std::endl;
+        buffer << "Sum: " << sum << std::endl;
       }else{
-        buffer << "Sum is not defined" << std::endl;
+        buffer << "Sum: not defined" << std::endl;
       }
       return buffer.str();
     }
@@ -618,21 +620,21 @@ namespace orc {
     std::string toString() const override {
       std::ostringstream buffer;
       buffer << "Data type: String" << std::endl
-             << "Column has " << valueCount << " values" << std::endl;
+          << "Values: " << valueCount << std::endl;
       if(_hasMinimum){
-        buffer << "Minimum is " << minimum << std::endl;
+        buffer << "Minimum: " << minimum << std::endl;
       }else{
         buffer << "Minimum is not defined" << std::endl;
       }
 
       if(_hasMaximum){
-        buffer << "Maximum is " << maximum << std::endl;
+        buffer << "Maximum: " << maximum << std::endl;
       }else{
         buffer << "Maximum is not defined" << std::endl;
       }
 
       if(_hasTotalLength){
-        buffer << "Total length is " << totalLength << std::endl;
+        buffer << "Total length: " << totalLength << std::endl;
       }else{
         buffer << "Total length is not defined" << std::endl;
       }
@@ -683,15 +685,15 @@ namespace orc {
     std::string toString() const override {
       std::ostringstream buffer;
       buffer << "Data type: Timestamp" << std::endl
-             << "Column has " << valueCount << " values" << std::endl;
+          << "Values: " << valueCount << std::endl;
       if(_hasMinimum){
-        buffer << "Minimum is " << minimum << std::endl;
+        buffer << "Minimum: " << minimum << std::endl;
       }else{
         buffer << "Minimum is not defined" << std::endl;
       }
 
       if(_hasMaximum){
-        buffer << "Maximum is " << maximum << std::endl;
+        buffer << "Maximum: " << maximum << std::endl;
       }else{
         buffer << "Maximum is not defined" << std::endl;
       }

@@ -81,3 +81,12 @@ target_link_libraries (file-metadata
   orc
   ${PROTOBUF_LIBRARIES}
   )
+  
+ add_executable (file-statistics
+  FileStatistics.cc
+  )
+
+target_link_libraries (file-statistics
+  orc
+  ${PROTOBUF_LIBRARIES}
+  ) 

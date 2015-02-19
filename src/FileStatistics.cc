@@ -26,7 +26,7 @@
 
 int main(int argc, char* argv[]) {
   if (argc < 2) {
-    std::cout << "Usage: file-scan <filename>\n";
+    std::cout << "Usage: file-metadata <filename>\n";
   }
 
   orc::ReaderOptions opts;
@@ -43,14 +43,27 @@ int main(int argc, char* argv[]) {
     return -1;
   }
 
-  std::unique_ptr<orc::ColumnVectorBatch> batch = reader->createRowBatch(1000);
-  unsigned long rows = 0;
-  unsigned long batches = 0;
-  while (reader->next(*batch)) {
-    batches += 1;
-    rows += batch->numElements;
-  }
-  std::cout << "Rows: " << rows << std::endl;
-  std::cout << "Batches: " << batches << std::endl;
+ // print out all selected columns statistics.
+ std::list<orc::ColumnStatistics*> colStats = reader->getStatistics();
+ std::cout << "File " << argv[1] << " has " << colStats.size() << " columns"  << std::endl;
+ int i = 0;
+ for(std::list<orc::ColumnStatistics*>::const_iterator iter = colStats.begin();
+     iter != colStats.end(); iter++,i++) {
+   std::cout << "Column " << i << ": " << std::endl;
+   std::cout << (*iter)->toString() << std::endl;
+ }
+
+ // test stripe statistics
+ std::unique_ptr<orc::StripeStatistics> stripeStats;
+ std::cout << "File " << argv[1] << " has " << reader->getNumberOfStripes() << " stripes"  << std::endl;
+ for (unsigned int i = 0; i < reader->getNumberOfStripes(); i++) {
+   stripeStats = reader->getStripeStatistics(i);
+   std::cout << "Stripe " << i << ": " << std::endl ;
+
+   for(unsigned int i = 0; i < stripeStats->getNumberOfColumnStatistics(); ++i){
+     std::cout << stripeStats->getColumnStatisticsInStripe(i)->toString() << std::endl;
+   }
+ }
+
   return 0;
 }
