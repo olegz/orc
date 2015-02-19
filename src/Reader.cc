@@ -1175,7 +1175,7 @@ namespace orc {
     }
     return std::unique_ptr<StripeStatistics>
       (new StripeStatisticsImpl(metadata.stripestats
-                                (static_cast<int>(stripeIndex+1)),
+                                (static_cast<int>(stripeIndex)),
                                 getType()));
   }
 
