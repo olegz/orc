@@ -211,6 +211,8 @@ namespace orc {
              << "Column has " << valueCount << " values" << std::endl;
       if(_hasTotalLength){
         buffer << "Total length is " << totalLength << std::endl;
+      }else{
+        buffer << "Total length is not defined" << std::endl;
       }
       return buffer.str();
     }
@@ -256,6 +258,8 @@ namespace orc {
              << "Column has " << valueCount << " values" << std::endl;
       if(_hasCount){
         buffer << "Has " << trueCount << " True and " << valueCount - trueCount << " False" << std::endl;
+      }else{
+        buffer << "True and false count are not defined" << std::endl;
       }
       return buffer.str();
     }
@@ -307,9 +311,13 @@ namespace orc {
              << "Column has " << valueCount << " values" << std::endl;
       if(_hasMinimum){
         buffer << "Minimum is " << minimum << std::endl;
+      }else{
+        buffer << "Minimum is not defined" << std::endl;
       }
       if(_hasMaximum){
         buffer << "Maximum is " << maximum << std::endl;
+      }else{
+        buffer << "Maximum is not defined" << std::endl;
       }
       return buffer.str();
     }
@@ -375,13 +383,22 @@ namespace orc {
              << "Column has " << valueCount << " values" << std::endl;
       if(_hasMinimum){
         buffer << "Minimum is " << minimum << std::endl;
+      }else{
+        buffer << "Minimum is not defined" << std::endl;
       }
+
       if(_hasMaximum){
         buffer << "Maximum is " << maximum << std::endl;
+      }else{
+        buffer << "Maximum is not defined" << std::endl;
       }
+
       if(_hasSum){
         buffer << "Sum is " << sum << std::endl;
+      }else{
+        buffer << "Sum is not defined" << std::endl;
       }
+
       return buffer.str();
     }
   };
@@ -446,12 +463,20 @@ namespace orc {
              << "Column has " << valueCount << " values" << std::endl;
       if(_hasMinimum){
         buffer << "Minimum is " << minimum << std::endl;
+      }else{
+        buffer << "Minimum is not defined" << std::endl;
       }
+
       if(_hasMaximum){
         buffer << "Maximum is " << maximum << std::endl;
+      }else{
+        buffer << "Maximum is not defined" << std::endl;
       }
+
       if(_hasSum){
         buffer << "Sum is " << sum << std::endl;
+      }else{
+        buffer << "Sum is not defined" << std::endl;
       }
       return buffer.str();
     }
@@ -517,12 +542,20 @@ namespace orc {
              << "Column has " << valueCount << " values" << std::endl;
       if(_hasMinimum){
         buffer << "Minimum is " << minimum << std::endl;
+      }else{
+        buffer << "Minimum is not defined" << std::endl;
       }
+
       if(_hasMaximum){
         buffer << "Maximum is " << maximum << std::endl;
+      }else{
+        buffer << "Maximum is not defined" << std::endl;
       }
+
       if(_hasSum){
         buffer << "Sum is " << sum << std::endl;
+      }else{
+        buffer << "Sum is not defined" << std::endl;
       }
       return buffer.str();
     }
@@ -588,12 +621,20 @@ namespace orc {
              << "Column has " << valueCount << " values" << std::endl;
       if(_hasMinimum){
         buffer << "Minimum is " << minimum << std::endl;
+      }else{
+        buffer << "Minimum is not defined" << std::endl;
       }
+
       if(_hasMaximum){
         buffer << "Maximum is " << maximum << std::endl;
+      }else{
+        buffer << "Maximum is not defined" << std::endl;
       }
+
       if(_hasTotalLength){
         buffer << "Total length is " << totalLength << std::endl;
+      }else{
+        buffer << "Total length is not defined" << std::endl;
       }
       return buffer.str();
     }
@@ -645,9 +686,14 @@ namespace orc {
              << "Column has " << valueCount << " values" << std::endl;
       if(_hasMinimum){
         buffer << "Minimum is " << minimum << std::endl;
+      }else{
+        buffer << "Minimum is not defined" << std::endl;
       }
+
       if(_hasMaximum){
         buffer << "Maximum is " << maximum << std::endl;
+      }else{
+        buffer << "Maximum is not defined" << std::endl;
       }
       return buffer.str();
     }
