@@ -27,7 +27,10 @@
 #include <sstream>
 
 #include "zlib.h"
+// Temporary disable snappy for windows.
+#ifndef _WIN32
 #include "snappy.h"
+#endif
 
 namespace orc {
 
