@@ -148,10 +148,11 @@ TEST(RLEv2, basicDelta4) {
 };
 
   TEST(RLEv2, delta0Width) {
+    unsigned char list[] = {0x4e, 0x2, 0x0, 0x1, 0x2, 0xc0, 0x2, 0x42, 0x0};
     std::unique_ptr<RleDecoder> decoder =
       createRleDecoder(std::unique_ptr<SeekableInputStream>
                        (new SeekableArrayInputStream
-                        ({0x4e, 0x2, 0x0, 0x1, 0x2, 0xc0, 0x2, 0x42, 0x0})),
+                        (list, sizeof(list) / sizeof(unsigned char))),
                        false, RleVersion_2);
     int64_t values[6];
     decoder->next(values, 6, 0);
@@ -236,11 +237,12 @@ TEST(RLEv2, multiByteShortRepeats) {
 };
 
 TEST(RLEv2, 0to2Repeat1Direct) {
+  unsigned char list[] = {0x46, 0x02, 0x02, 0x40};
   std::unique_ptr<RleDecoder> rle =
       createRleDecoder(
           std::unique_ptr<SeekableInputStream>(
               new SeekableArrayInputStream(
-                  {0x46, 0x02, 0x02, 0x40})),
+                  list, sizeof(list) / sizeof(unsigned char))),
           true, RleVersion_2);
   std::vector<int64_t> data(3);
   rle->next(data.data(), 3, nullptr);
@@ -311,14 +313,16 @@ TEST(RLEv2, multipleRunsDirect) {
 };
 
 TEST(RLEv2, largeNegativesDirect) {
+  unsigned char list[] = {
+      0x7e,0x04,0xcf,0xca,0xcc,0x91,0xba,0x38,0x93,0xab,0x00,0x00,
+      0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+      0x00,0x02,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x02,0x99,0xa5,
+      0xcc,0x28,0x03,0xf7,0xe0,0xff};
   std::unique_ptr<RleDecoder> rle =
       createRleDecoder(
           std::unique_ptr<SeekableInputStream>(
              new SeekableArrayInputStream(
-                 {0x7e,0x04,0xcf,0xca,0xcc,0x91,0xba,0x38,0x93,0xab,0x00,0x00,
-                  0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
-                  0x00,0x02,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x02,0x99,0xa5,
-                  0xcc,0x28,0x03,0xf7,0xe0,0xff})),
+                 list, sizeof(list) / sizeof(unsigned char))),
           true, RleVersion_2);
   std::vector<int64_t> data(5);
   rle->next(data.data(), 5, nullptr);
@@ -454,11 +458,12 @@ TEST(RLEv2, basicDirectSeek) {
 
 
 TEST(RLEv1, simpleTest) {
+  unsigned char list[] = {0x61, 0xff, 0x64, 0xfb, 0x02, 0x03, 0x5, 0x7, 0xb};
   std::unique_ptr<RleDecoder> rle =
       createRleDecoder(
           std::unique_ptr<SeekableInputStream>(
               new SeekableArrayInputStream(
-                  {0x61, 0xff, 0x64, 0xfb, 0x02, 0x03, 0x5, 0x7, 0xb})),
+                  list, sizeof(list) / sizeof(unsigned char))),
           false, RleVersion_1);
   std::vector<int64_t> data(105);
   rle->next(data.data(), 105, nullptr);
@@ -474,11 +479,12 @@ TEST(RLEv1, simpleTest) {
 };
 
 TEST(RLEv1, signedNullLiteralTest) {
+  unsigned char list[] = {0xf8, 0x0, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7};
   std::unique_ptr<RleDecoder> rle =
       createRleDecoder(
           std::unique_ptr<SeekableInputStream>(
               new SeekableArrayInputStream(
-                  {0xf8, 0x0, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7})),
+                  list, sizeof(list) / sizeof(unsigned char))),
           true, RleVersion_1);
   std::vector<int64_t> data(8);
   std::vector<char> notNull(8, 1);

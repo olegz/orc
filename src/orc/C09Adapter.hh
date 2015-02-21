@@ -30,6 +30,7 @@
   #define unique_ptr auto_ptr
   #define nullptr NULL
   #define override
+  #define isnan _isnan  
 
   #ifndef _WIN32
   // VS10 has already had this Adapter.
