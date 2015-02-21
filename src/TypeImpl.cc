@@ -253,10 +253,10 @@ namespace orc {
       std::string name ;
       switch(static_cast<int>(t)) {
         case BOOLEAN: { name = "BOOLEAN"; break; }
-        case BYTE: { name = "BYTE"; break; }
-        case SHORT: { name = "SHORT"; break; }
+        case BYTE: { name = "TINYINT"; break; }
+        case SHORT: { name = "SMALLINT"; break; }
         case INT: { name = "INT"; break; }
-        case LONG: { name = "LONG"; break; }
+        case LONG: { name = "BIGINT"; break; }
         case FLOAT: { name = "FLOAT"; break; }
         case DOUBLE: { name = "DOUBLE"; break; }
         case STRING: { name = "STRING"; break; }
