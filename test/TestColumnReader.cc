@@ -70,7 +70,7 @@ TEST(TestColumnReader, testBooleanWithNulls) {
   // set getStream
   EXPECT_CALL(streams, getStreamProxy(0, proto::Stream_Kind_PRESENT))
       .WillRepeatedly
-          (testing::Return(static_cast<SeekableArrayInputStream*>(nullptr)));
+          (testing::ReturnNull());
   // alternate 4 non-null and 4 null via [0xf0 for x in range(512 / 8)]
   EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_PRESENT))
       .WillRepeatedly(testing::Return(new SeekableArrayInputStream
@@ -83,8 +83,7 @@ TEST(TestColumnReader, testBooleanWithNulls) {
       (list2, sizeof(list2) / sizeof(unsigned char))));
 
   // create the row type
-  std::vector<Type*> vtypes;
-  vtypes.push_back(createPrimitiveType(BOOLEAN).get());
+  std::vector<Type*> vtypes(1, createPrimitiveType(BOOLEAN).release());
   std::vector<std::string> vfields (1, "col0");
   std::unique_ptr<Type> rowType = createStructType(vtypes, vfields);
   rowType->assignIds(0);
@@ -142,7 +141,7 @@ TEST(TestColumnReader, testBooleanSkipsWithNulls) {
 
   // create the row type
   std::vector<Type*> vtypes;
-  vtypes.push_back(createPrimitiveType(BOOLEAN).get());
+  vtypes.push_back(createPrimitiveType(BOOLEAN).release());
   std::vector<std::string> vfields (1, "col0");
   std::unique_ptr<Type> rowType = createStructType(vtypes, vfields);
   rowType->assignIds(0);
@@ -210,7 +209,7 @@ TEST(TestColumnReader, testByteWithNulls) {
 
   // create the row type
   std::vector<Type*> vtypes;
-  vtypes.push_back(createPrimitiveType(BYTE).get());
+  vtypes.push_back(createPrimitiveType(BYTE).release());
   std::vector<std::string> vfields (1, "col0");
   std::unique_ptr<Type> rowType = createStructType(vtypes, vfields);
   rowType->assignIds(0);
@@ -280,7 +279,7 @@ TEST(TestColumnReader, testByteSkipsWithNulls) {
 
   // create the row type
   std::vector<Type*> vtypes;
-  vtypes.push_back(createPrimitiveType(BYTE).get());
+  vtypes.push_back(createPrimitiveType(BYTE).release());
   std::vector<std::string> vfields (1, "col0");
   std::unique_ptr<Type> rowType = createStructType(vtypes, vfields);
   rowType->assignIds(0);
@@ -338,7 +337,7 @@ TEST(TestColumnReader, testIntegerWithNulls) {
 
   // create the row type
   std::vector<Type*> vtypes;
-  vtypes.push_back(createPrimitiveType(INT).get());
+  vtypes.push_back(createPrimitiveType(INT).release());
   std::vector<std::string> vfields (1, "myInt");
   std::unique_ptr<Type> rowType = createStructType(vtypes, vfields);
   rowType->assignIds(0);
@@ -406,7 +405,7 @@ TEST(TestColumnReader, testDictionaryWithNulls) {
 
   // create the row type
   std::vector<Type*> vtypes;
-  vtypes.push_back(createPrimitiveType(STRING).get());
+  vtypes.push_back(createPrimitiveType(STRING).release());
   std::vector<std::string> vfields (1, "myString");
   std::unique_ptr<Type> rowType = createStructType(vtypes, vfields);
   rowType->assignIds(0);
@@ -488,7 +487,7 @@ TEST(TestColumnReader, testVarcharDictionaryWithNulls) {
   EXPECT_CALL(streams, getStreamProxy(2, proto::Stream_Kind_PRESENT))
       .WillRepeatedly(testing::Return(new SeekableArrayInputStream
       (list5, sizeof(list5) / sizeof(unsigned char))));
-  unsigned char* null_list;
+  unsigned char* null_list = NULL;
   EXPECT_CALL(streams, getStreamProxy(2, proto::Stream_Kind_DATA))
       .WillRepeatedly(testing::Return(new SeekableArrayInputStream
       (null_list, 0)));
@@ -505,7 +504,7 @@ TEST(TestColumnReader, testVarcharDictionaryWithNulls) {
   std::vector<Type*> vtypes;
   std::vector<std::string> vfields;
   for (int i = 0; i < 3; i++) {
-    vtypes.push_back(createPrimitiveType(typekinds[i]).get());
+    vtypes.push_back(createPrimitiveType(typekinds[i]).release());
     vfields.push_back(cols[i]);
   }
   std::unique_ptr<Type> rowType = createStructType(vtypes, vfields);
@@ -581,9 +580,9 @@ TEST(TestColumnReader, testSubstructsWithNulls) {
   std::vector<std::string> vfields0 (1, "col0");
   std::vector<std::string> vfields1 (1, "col1");
   std::vector<std::string> vfields2 (1, "col2");
-  std::vector<Type*> vtypes2 (1, createPrimitiveType(LONG).get());
-  std::vector<Type*> vtypes1 (1, createStructType(vtypes2, vfields2).get());
-  std::vector<Type*> vtypes0 (1, createStructType(vtypes1, vfields1).get());
+  std::vector<Type*> vtypes2 (1, createPrimitiveType(LONG).release());
+  std::vector<Type*> vtypes1 (1, createStructType(vtypes2, vfields2).release());
+  std::vector<Type*> vtypes0 (1, createStructType(vtypes1, vfields1).release());
   std::unique_ptr<Type> rowType = createStructType(vtypes0, vfields0);
   rowType->assignIds(0);
 
@@ -693,8 +692,8 @@ TEST(TestColumnReader, testSkipWithNulls) {
 
   // create the row type
   std::vector<Type*> vtypes;
-  vtypes.push_back(createPrimitiveType(INT).get());
-  vtypes.push_back(createPrimitiveType(STRING).get());
+  vtypes.push_back(createPrimitiveType(INT).release());
+  vtypes.push_back(createPrimitiveType(STRING).release());
   std::vector<std::string> vfields;
   vfields.push_back("myInt");
   vfields.push_back("myString");
@@ -779,7 +778,7 @@ TEST(TestColumnReader, testBinaryDirect) {
       (list, sizeof(list) / sizeof(unsigned char))));
 
   // create the row type
-  std::vector<Type*> vtypes(1, createPrimitiveType(BINARY).get());
+  std::vector<Type*> vtypes(1, createPrimitiveType(BINARY).release());
   std::vector<std::string> vfields (1, "col0");
   std::unique_ptr<Type> rowType =
       createStructType(vtypes, vfields);
@@ -845,7 +844,7 @@ TEST(TestColumnReader, testBinaryDirectWithNulls) {
       (list2, sizeof(list2) / sizeof(unsigned char))));
 
   // create the row type
-  std::vector<Type*> vtypes(1, createPrimitiveType(BINARY).get());
+  std::vector<Type*> vtypes(1, createPrimitiveType(BINARY).release());
   std::vector<std::string> vfields(1, "col0");
   std::unique_ptr<Type> rowType = createStructType(vtypes, vfields);
   rowType->assignIds(0);
@@ -908,7 +907,7 @@ TEST(TestColumnReader, testShortBlobError) {
       (list, sizeof(list) / sizeof(unsigned char))));
 
   // create the row type
-  std::vector<Type*> vtypes(1, createPrimitiveType(STRING).get());
+  std::vector<Type*> vtypes(1, createPrimitiveType(STRING).release());
   std::vector<std::string> vfields(1, "col0");
   std::unique_ptr<Type> rowType = createStructType(vtypes, vfields);
   rowType->assignIds(0);
@@ -961,7 +960,7 @@ TEST(TestColumnReader, testStringDirectShortBuffer) {
       (list, sizeof(list) / sizeof(unsigned char))));
 
   // create the row type
-  std::vector<Type*> vtypes(1, createPrimitiveType(STRING).get());
+  std::vector<Type*> vtypes(1, createPrimitiveType(STRING).release());
   std::vector<std::string> vfields(1, "col0");
   std::unique_ptr<Type> rowType = createStructType(vtypes, vfields);
   rowType->assignIds(0);
@@ -1026,7 +1025,7 @@ TEST(TestColumnReader, testStringDirectShortBufferWithNulls) {
       (list2, sizeof(list2) / sizeof(unsigned char))));
 
   // create the row type
-  std::vector<Type*> vtypes(1, createPrimitiveType(STRING).get());
+  std::vector<Type*> vtypes(1, createPrimitiveType(STRING).release());
   std::vector<std::string> vfields(1, "col0");
   std::unique_ptr<Type> rowType = createStructType(vtypes, vfields);
   rowType->assignIds(0);
@@ -1108,7 +1107,7 @@ TEST(TestColumnReader, testStringDirectSkip) {
       (list, sizeof(list) / sizeof(unsigned char))));
 
   // create the row type
-  std::vector<Type*> vtypes(1, createPrimitiveType(STRING).get());
+  std::vector<Type*> vtypes(1, createPrimitiveType(STRING).release());
   std::vector<std::string> vfields(1, "col0");
   std::unique_ptr<Type> rowType = createStructType(vtypes, vfields);
   rowType->assignIds(0);
@@ -1212,7 +1211,7 @@ TEST(TestColumnReader, testStringDirectSkipWithNulls) {
       (list2, sizeof(list2) / sizeof(unsigned char))));
 
   // create the row type
-  std::vector<Type*> vtypes(1, createPrimitiveType(STRING).get());
+  std::vector<Type*> vtypes(1, createPrimitiveType(STRING).release());
   std::vector<std::string> vfields(1, "col0");
   std::unique_ptr<Type> rowType = createStructType(vtypes, vfields);
   rowType->assignIds(0);
@@ -1305,7 +1304,7 @@ TEST(TestColumnReader, testList) {
 
   // create the row type
   std::vector<Type*> vtypes(1,
-                            createListType(createPrimitiveType(LONG)).get());
+                            createListType(createPrimitiveType(LONG)).release());
   std::vector<std::string> vfields(1, "col0");
   std::unique_ptr<Type> rowType = createStructType(vtypes, vfields);
   rowType->assignIds(0);
@@ -1404,7 +1403,7 @@ TEST(TestColumnReader, testListWithNulls) {
 
   // create the row type
   std::vector<Type*> vtypes(1,
-                            createListType(createPrimitiveType(LONG)).get());
+                            createListType(createPrimitiveType(LONG)).release());
   std::vector<std::string> vfields(1, "col0");
   std::unique_ptr<Type> rowType = createStructType(vtypes, vfields);
   rowType->assignIds(0);
@@ -1573,7 +1572,7 @@ TEST(TestColumnReader, testListSkipWithNulls) {
 
   // create the row type
   std::vector<Type*> vtypes(1,
-                            createListType(createPrimitiveType(LONG)).get());
+                            createListType(createPrimitiveType(LONG)).release());
   std::vector<std::string> vfields(1, "col0");
   std::unique_ptr<Type> rowType = createStructType(vtypes, vfields);
   rowType->assignIds(0);
@@ -1680,7 +1679,7 @@ TEST(TestColumnReader, testListSkipWithNullsNoData) {
 
   // create the row type
   std::vector<Type*> vtypes(1,
-                            createListType(createPrimitiveType(LONG)).get());
+                            createListType(createPrimitiveType(LONG)).release());
   std::vector<std::string> vfields(1, "col0");
   std::unique_ptr<Type> rowType = createStructType(vtypes, vfields);
   rowType->assignIds(0);
@@ -1785,7 +1784,7 @@ TEST(TestColumnReader, testMap) {
   // create the row type
   std::vector<Type*> vtypes(1, 
                             createMapType(createPrimitiveType(LONG),
-                                          createPrimitiveType(LONG)).get());
+                                          createPrimitiveType(LONG)).release());
   std::vector<std::string> vfields(1, "col0");
   vfields.push_back("col1");
   std::unique_ptr<Type> rowType = createStructType(vtypes, vfields);
@@ -1911,7 +1910,7 @@ TEST(TestColumnReader, testMapWithNulls) {
   // create the row type
   std::vector<Type*> vtypes(1, 
                             createMapType(createPrimitiveType(LONG),
-                                          createPrimitiveType(LONG)).get());
+                                          createPrimitiveType(LONG)).release());
   std::vector<std::string> vfields(1, "col0");
   vfields.push_back("col1");
   std::unique_ptr<Type> rowType = createStructType(vtypes, vfields);
@@ -2126,7 +2125,7 @@ TEST(TestColumnReader, testMapSkipWithNulls) {
   // create the row type
   std::vector<Type*> vtypes(1,
                             createMapType(createPrimitiveType(LONG),
-                                          createPrimitiveType(LONG)).get());
+                                          createPrimitiveType(LONG)).release());
   std::vector<std::string> vfields(1, "col0");
   vfields.push_back("col1");
   std::unique_ptr<Type> rowType = createStructType(vtypes, vfields);
@@ -2239,7 +2238,7 @@ TEST(TestColumnReader, testMapSkipWithNullsNoData) {
   // create the row type
   std::vector<Type*> vtypes(1,
                             createMapType(createPrimitiveType(LONG),
-                                          createPrimitiveType(LONG)).get());
+                                          createPrimitiveType(LONG)).release());
   std::vector<std::string> vfields(1, "col0");
   vfields.push_back("col1");
   std::unique_ptr<Type> rowType = createStructType(vtypes, vfields);
@@ -2309,7 +2308,7 @@ TEST(TestColumnReader, testFloatWithNulls) {
       std::numeric_limits<float>::infinity(),
       std::numeric_limits<float>::quiet_NaN(),
       -std::numeric_limits<float>::infinity(),
-      3.4E38f, -3.4E38f, 
+      3.4028234663852886E38f, -3.4028234663852886E38f, 
       1.4e-45f, -1.4e-45f };
   unsigned char list2[] = {
       0x00, 0x00, 0x80, 0x3f,
@@ -2329,7 +2328,7 @@ TEST(TestColumnReader, testFloatWithNulls) {
       .WillRepeatedly(testing::Return(new SeekableArrayInputStream
       (list2, sizeof(list2) / sizeof(unsigned char))));
   // create the row type
-  std::vector<Type*> vtypes(1, createPrimitiveType(FLOAT).get());
+  std::vector<Type*> vtypes(1, createPrimitiveType(FLOAT).release());
   std::vector<std::string> vfields(1, "myFloat");
   std::unique_ptr<Type> rowType = createStructType(vtypes, vfields);
   rowType->assignIds(0);
@@ -2394,7 +2393,7 @@ TEST(TestColumnReader, testFloatSkipWithNulls) {
       .WillRepeatedly(testing::Return(new SeekableArrayInputStream
       (list2, sizeof(list2) / sizeof(unsigned char))));
   // create the row type
-  std::vector<Type*> vtypes(1, createPrimitiveType(FLOAT).get());
+  std::vector<Type*> vtypes(1, createPrimitiveType(FLOAT).release());
   std::vector<std::string> vfields(1, "myFloat");
   std::unique_ptr<Type> rowType = createStructType(vtypes, vfields);
   rowType->assignIds(0);
@@ -2498,7 +2497,7 @@ TEST(TestColumnReader, testDoubleWithNulls) {
       (list2, sizeof(list2) / sizeof(unsigned char))));
 
   // create the row type
-  std::vector<Type*> vtypes(1, createPrimitiveType(DOUBLE).get());
+  std::vector<Type*> vtypes(1, createPrimitiveType(DOUBLE).release());
   std::vector<std::string> vfields(1, "myDouble");
   std::unique_ptr<Type> rowType = createStructType(vtypes, vfields);
   rowType->assignIds(0);
@@ -2565,7 +2564,7 @@ TEST(TestColumnReader, testDoubleSkipWithNulls) {
           (list2, sizeof(list2) / sizeof(unsigned char))));
 
   // create the row type
-  std::vector<Type*> vtypes(1, createPrimitiveType(DOUBLE).get());
+  std::vector<Type*> vtypes(1, createPrimitiveType(DOUBLE).release());
   std::vector<std::string> vfields(1, "myDouble");
   std::unique_ptr<Type> rowType = createStructType(vtypes, vfields);
   rowType->assignIds(0);
@@ -2652,7 +2651,7 @@ TEST(TestColumnReader, testTimestampSkipWithNulls) {
       (list3, sizeof(list3) / sizeof(unsigned char))));
 
   // create the row type
-  std::vector<Type*> vtypes(1, createPrimitiveType(TIMESTAMP).get());
+  std::vector<Type*> vtypes(1, createPrimitiveType(TIMESTAMP).release());
   std::vector<std::string> vfields(1, "myTimestamp");
   std::unique_ptr<Type> rowType = createStructType(vtypes, vfields);
   rowType->assignIds(0);
@@ -2729,14 +2728,14 @@ TEST(TestColumnReader, testUnimplementedTypes) {
   // create the row type
   std::unique_ptr<Type> rowType;
 
-  std::vector<Type*> vtypes(1, createPrimitiveType(UNION).get());
+  std::vector<Type*> vtypes(1, createPrimitiveType(UNION).release());
   std::vector<std::string> vfields(1, "col0");
   rowType = createStructType(vtypes, vfields);
   rowType->assignIds(0);
   EXPECT_THROW(buildReader(*rowType, streams), NotImplementedYet);
 
   vtypes.clear();
-  vtypes.push_back(createPrimitiveType(DECIMAL).get());
+  vtypes.push_back(createPrimitiveType(DECIMAL).release());
   rowType = createStructType(vtypes, vfields);
   rowType->assignIds(0);
   EXPECT_THROW(buildReader(*rowType, streams), NotImplementedYet);
