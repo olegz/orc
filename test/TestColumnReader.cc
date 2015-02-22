@@ -65,25 +65,22 @@ TEST(TestColumnReader, testBooleanWithNulls) {
   EXPECT_CALL(streams, getEncoding(testing::_))
       .WillRepeatedly(testing::Return(directEncoding));
 
-  unsigned char list[2] = {
-    static_cast<unsigned char>(0x3d),
-    static_cast<unsigned char>(0xf0)
-  };
+  unsigned char list1[2] = { 0x3d, 0xf0 };
 
   // set getStream
   EXPECT_CALL(streams, getStreamProxy(0, proto::Stream_Kind_PRESENT))
-      .WillRepeatedly(testing::Return(nullptr));
+      .WillRepeatedly
+          (testing::Return(static_cast<SeekableArrayInputStream*>(nullptr)));
   // alternate 4 non-null and 4 null via [0xf0 for x in range(512 / 8)]
   EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_PRESENT))
       .WillRepeatedly(testing::Return(new SeekableArrayInputStream
-      (list, sizeof(list) / sizeof(unsigned char))));
+      (list1, sizeof(list1) / sizeof(unsigned char))));
 
   // [0x0f for x in range(256 / 8)]
-  list[0] = static_cast<unsigned char>(0x1d);
-  list[1] = static_cast<unsigned char>(0x0f);
+  unsigned char list2[] = { 0x1d, 0x0f };
   EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_DATA))
       .WillRepeatedly(testing::Return(new SeekableArrayInputStream
-      (list, sizeof(list) / sizeof(unsigned char))));
+      (list2, sizeof(list2) / sizeof(unsigned char))));
 
   // create the row type
   std::vector<Type*> vtypes;
@@ -129,7 +126,8 @@ TEST(TestColumnReader, testBooleanSkipsWithNulls) {
 
   // set getStream
   EXPECT_CALL(streams, getStreamProxy(0, proto::Stream_Kind_PRESENT))
-      .WillRepeatedly(testing::Return(nullptr));
+      .WillRepeatedly
+          (testing::Return(static_cast<SeekableArrayInputStream*>(nullptr)));
   // alternate 4 non-null and 4 null via [0xf0 for x in range(512 / 8)]
   unsigned char list[2] = { 0x3d, 0xf0 };
   EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_PRESENT))
@@ -188,12 +186,10 @@ TEST(TestColumnReader, testByteWithNulls) {
 
   // set getStream
   EXPECT_CALL(streams, getStreamProxy(0, proto::Stream_Kind_PRESENT))
-      .WillRepeatedly(testing::Return(nullptr));
+      .WillRepeatedly(
+          testing::Return(static_cast<SeekableArrayInputStream*>(nullptr)));
   // alternate 4 non-null and 4 null via [0xf0 for x in range(512 / 8)]
-  unsigned char list[] = {
-    static_cast<unsigned char>(0x3d),
-    static_cast<unsigned char>(0xf0)
-  };
+  unsigned char list[] = { 0x3d, 0xf0 };
   EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_PRESENT))
       .WillRepeatedly(testing::Return(new SeekableArrayInputStream
       (list, sizeof(list) / sizeof(unsigned char))));
@@ -257,7 +253,8 @@ TEST(TestColumnReader, testByteSkipsWithNulls) {
 
   // set getStream
   EXPECT_CALL(streams, getStreamProxy(0, proto::Stream_Kind_PRESENT))
-      .WillRepeatedly(testing::Return(nullptr));
+      .WillRepeatedly(
+          testing::Return(static_cast<SeekableArrayInputStream*>(nullptr)));
   // alternate 4 non-null and 4 null via [0xf0 for x in range(512 / 8)]
   unsigned char list[] = {
     static_cast<unsigned char>(0x3d),
@@ -328,19 +325,13 @@ TEST(TestColumnReader, testIntegerWithNulls) {
 
   // set getStream
   EXPECT_CALL(streams, getStreamProxy(0, proto::Stream_Kind_PRESENT))
-      .WillRepeatedly(testing::Return(nullptr));
-  unsigned char list1[] = {
-    static_cast<unsigned char>(0x16),
-    static_cast<unsigned char>(0xf0)
-  };
+      .WillRepeatedly(
+          testing::Return(static_cast<SeekableArrayInputStream*>(nullptr)));
+  unsigned char list1[] = { 0x16, 0xf0 };
   EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_PRESENT))
       .WillRepeatedly(testing::Return(new SeekableArrayInputStream
       (list1, sizeof(list1) / sizeof(unsigned char))));
-  unsigned char list2[] = {
-    static_cast<unsigned char>(0x64),
-    static_cast<unsigned char>(0x01),
-    static_cast<unsigned char>(0x00)
-  };
+  unsigned char list2[] = { 0x64, 0x01, 0x00 };
   EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_DATA))
       .WillRepeatedly(testing::Return(new SeekableArrayInputStream
       (list2, sizeof(list2) / sizeof(unsigned char))));
@@ -394,7 +385,8 @@ TEST(TestColumnReader, testDictionaryWithNulls) {
 
   // set getStream
   EXPECT_CALL(streams, getStreamProxy(0, proto::Stream_Kind_PRESENT))
-      .WillRepeatedly(testing::Return(nullptr));
+      .WillRepeatedly(
+          testing::Return(static_cast<SeekableArrayInputStream*>(nullptr)));
   unsigned char list1[] = { 0x19, 0xf0 };
   EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_PRESENT))
       .WillRepeatedly(testing::Return(new SeekableArrayInputStream
@@ -474,7 +466,8 @@ TEST(TestColumnReader, testVarcharDictionaryWithNulls) {
 
   // set getStream
   EXPECT_CALL(streams, getStreamProxy(0, proto::Stream_Kind_PRESENT))
-      .WillRepeatedly(testing::Return(nullptr));
+      .WillRepeatedly(
+          testing::Return(static_cast<SeekableArrayInputStream*>(nullptr)));
   unsigned char list1[] = { 0x16, 0xff };
   EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_PRESENT))
       .WillRepeatedly(testing::Return(new SeekableArrayInputStream
@@ -561,7 +554,8 @@ TEST(TestColumnReader, testSubstructsWithNulls) {
 
   // set getStream
   EXPECT_CALL(streams, getStreamProxy(0, proto::Stream_Kind_PRESENT))
-      .WillRepeatedly(testing::Return(nullptr));
+      .WillRepeatedly(
+          testing::Return(static_cast<SeekableArrayInputStream*>(nullptr)));
 
   unsigned char list1[] = { 0x16, 0x0f };
   EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_PRESENT))
@@ -658,7 +652,8 @@ TEST(TestColumnReader, testSkipWithNulls) {
 
   // set getStream
   EXPECT_CALL(streams, getStreamProxy(0, proto::Stream_Kind_PRESENT))
-      .WillRepeatedly(testing::Return(nullptr));
+      .WillRepeatedly(
+          testing::Return(static_cast<SeekableArrayInputStream*>(nullptr)));
 
   unsigned char list1[] = 
     { 0x03, 0x00, 0xff, 0x3f, 0x08, 0xff,
@@ -760,10 +755,12 @@ TEST(TestColumnReader, testBinaryDirect) {
 
   // set getStream
   EXPECT_CALL(streams, getStreamProxy(0, proto::Stream_Kind_PRESENT))
-      .WillRepeatedly(testing::Return(nullptr));
+      .WillRepeatedly(
+          testing::Return(static_cast<SeekableArrayInputStream*>(nullptr)));
 
   EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_PRESENT))
-      .WillRepeatedly(testing::Return(nullptr));
+      .WillRepeatedly(
+          testing::Return(static_cast<SeekableArrayInputStream*>(nullptr)));
 
   char blob[200];
   for (size_t i = 0; i < 10; ++i) {
@@ -823,7 +820,8 @@ TEST(TestColumnReader, testBinaryDirectWithNulls) {
 
   // set getStream
   EXPECT_CALL(streams, getStreamProxy(0, proto::Stream_Kind_PRESENT))
-      .WillRepeatedly(testing::Return(nullptr));
+      .WillRepeatedly(
+          testing::Return(static_cast<SeekableArrayInputStream*>(nullptr)));
 
   unsigned char list1[] = { 0x1d, 0xf0 };
   EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_PRESENT))
@@ -892,10 +890,12 @@ TEST(TestColumnReader, testShortBlobError) {
 
   // set getStream
   EXPECT_CALL(streams, getStreamProxy(0, proto::Stream_Kind_PRESENT))
-      .WillRepeatedly(testing::Return(nullptr));
+      .WillRepeatedly(
+          testing::Return(static_cast<SeekableArrayInputStream*>(nullptr)));
 
   EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_PRESENT))
-      .WillRepeatedly(testing::Return(nullptr));
+      .WillRepeatedly(
+          testing::Return(static_cast<SeekableArrayInputStream*>(nullptr)));
 
   char blob[100];
   EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_DATA))
@@ -937,10 +937,12 @@ TEST(TestColumnReader, testStringDirectShortBuffer) {
 
   // set getStream
   EXPECT_CALL(streams, getStreamProxy(0, proto::Stream_Kind_PRESENT))
-      .WillRepeatedly(testing::Return(nullptr));
+      .WillRepeatedly(
+          testing::Return(static_cast<SeekableArrayInputStream*>(nullptr)));
 
   EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_PRESENT))
-      .WillRepeatedly(testing::Return(nullptr));
+      .WillRepeatedly(
+          testing::Return(static_cast<SeekableArrayInputStream*>(nullptr)));
 
   char blob[200];
   for (size_t i = 0; i < 10; ++i) {
@@ -999,7 +1001,8 @@ TEST(TestColumnReader, testStringDirectShortBufferWithNulls) {
 
   // set getStream
   EXPECT_CALL(streams, getStreamProxy(0, proto::Stream_Kind_PRESENT))
-      .WillRepeatedly(testing::Return(nullptr));
+      .WillRepeatedly(
+          testing::Return(static_cast<SeekableArrayInputStream*>(nullptr)));
 
   unsigned char list1[] = { 0x3d, 0xf0 };
   EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_PRESENT))
@@ -1068,10 +1071,12 @@ TEST(TestColumnReader, testStringDirectSkip) {
 
   // set getStream
   EXPECT_CALL(streams, getStreamProxy(0, proto::Stream_Kind_PRESENT))
-      .WillRepeatedly(testing::Return(nullptr));
+      .WillRepeatedly(
+          testing::Return(static_cast<SeekableArrayInputStream*>(nullptr)));
 
   EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_PRESENT))
-      .WillRepeatedly(testing::Return(nullptr));
+      .WillRepeatedly(
+          testing::Return(static_cast<SeekableArrayInputStream*>(nullptr)));
 
   // sum(0 to 1199)
   const size_t BLOB_SIZE = 719400;
@@ -1166,7 +1171,8 @@ TEST(TestColumnReader, testStringDirectSkipWithNulls) {
 
   // set getStream
   EXPECT_CALL(streams, getStreamProxy(0, proto::Stream_Kind_PRESENT))
-      .WillRepeatedly(testing::Return(nullptr));
+      .WillRepeatedly(
+          testing::Return(static_cast<SeekableArrayInputStream*>(nullptr)));
 
   // alternate 4 non-null and 4 null via [0xf0 for x in range(2400 / 8)]
   unsigned char list1[] = { 0x7f, 0xf0, 0x7f, 0xf0, 0x25, 0xf0 };
@@ -1267,7 +1273,8 @@ TEST(TestColumnReader, testList) {
   // set getStream
   EXPECT_CALL(streams, getStreamProxy(testing::_,
           proto::Stream_Kind_PRESENT))
-      .WillRepeatedly(testing::Return(nullptr));
+      .WillRepeatedly(
+          testing::Return(static_cast<SeekableArrayInputStream*>(nullptr)));
 
   // [2 for x in range(600)]
   unsigned char list1[] = { 
@@ -1341,7 +1348,8 @@ TEST(TestColumnReader, testListWithNulls) {
 
   // set getStream
   EXPECT_CALL(streams, getStreamProxy(0, proto::Stream_Kind_PRESENT))
-      .WillRepeatedly(testing::Return(nullptr));
+      .WillRepeatedly(
+          testing::Return(static_cast<SeekableArrayInputStream*>(nullptr)));
 
   // [0xaa for x in range(2048/8)]
   unsigned char list1[] = { 0x7f, 0xaa, 0x7b, 0xaa };
@@ -1350,7 +1358,8 @@ TEST(TestColumnReader, testListWithNulls) {
       (list1, sizeof(list1) / sizeof(unsigned char))));
 
   EXPECT_CALL(streams, getStreamProxy(2, proto::Stream_Kind_PRESENT))
-      .WillRepeatedly(testing::Return(nullptr));
+      .WillRepeatedly(
+          testing::Return(static_cast<SeekableArrayInputStream*>(nullptr)));
 
   // [1 for x in range(260)] +
   // [4 for x in range(260)] +
@@ -1508,7 +1517,8 @@ TEST(TestColumnReader, testListSkipWithNulls) {
 
   // set getStream
   EXPECT_CALL(streams, getStreamProxy(0, proto::Stream_Kind_PRESENT))
-      .WillRepeatedly(testing::Return(nullptr));
+      .WillRepeatedly(
+          testing::Return(static_cast<SeekableArrayInputStream*>(nullptr)));
 
   // [0xaa for x in range(2048/8)]
   unsigned char list1[] = { 0x7f, 0xaa, 0x7b, 0xaa };
@@ -1517,7 +1527,8 @@ TEST(TestColumnReader, testListSkipWithNulls) {
       (list1, sizeof(list1) / sizeof(unsigned char))));
 
   EXPECT_CALL(streams, getStreamProxy(2, proto::Stream_Kind_PRESENT))
-      .WillRepeatedly(testing::Return(nullptr));
+      .WillRepeatedly(
+          testing::Return(static_cast<SeekableArrayInputStream*>(nullptr)));
 
   // [1 for x in range(260)] +
   // [4 for x in range(260)] +
@@ -1631,7 +1642,8 @@ TEST(TestColumnReader, testListSkipWithNullsNoData) {
 
   // set getStream
   EXPECT_CALL(streams, getStreamProxy(0, proto::Stream_Kind_PRESENT))
-      .WillRepeatedly(testing::Return(nullptr));
+      .WillRepeatedly(
+          testing::Return(static_cast<SeekableArrayInputStream*>(nullptr)));
 
   // [0xaa for x in range(2048/8)]
   unsigned char list1[] = { 0x7f, 0xaa, 0x7b, 0xaa };
@@ -1640,7 +1652,8 @@ TEST(TestColumnReader, testListSkipWithNullsNoData) {
       (list1, sizeof(list1) / sizeof(unsigned char))));
 
   EXPECT_CALL(streams, getStreamProxy(2, proto::Stream_Kind_PRESENT))
-      .WillRepeatedly(testing::Return(nullptr));
+      .WillRepeatedly(
+          testing::Return(static_cast<SeekableArrayInputStream*>(nullptr)));
 
   // [1 for x in range(260)] +
   // [4 for x in range(260)] +
@@ -1662,7 +1675,8 @@ TEST(TestColumnReader, testListSkipWithNullsNoData) {
       (list2, sizeof(list2) / sizeof(unsigned char))));
 
   EXPECT_CALL(streams, getStreamProxy(2, proto::Stream_Kind_DATA))
-      .WillRepeatedly(testing::Return(nullptr));
+      .WillRepeatedly(
+          testing::Return(static_cast<SeekableArrayInputStream*>(nullptr)));
 
   // create the row type
   std::vector<Type*> vtypes(1,
@@ -1722,7 +1736,8 @@ TEST(TestColumnReader, testMap) {
   // set getStream
   EXPECT_CALL(streams, getStreamProxy(testing::_,
           proto::Stream_Kind_PRESENT))
-      .WillRepeatedly(testing::Return(nullptr));
+      .WillRepeatedly(
+          testing::Return(static_cast<SeekableArrayInputStream*>(nullptr)));
 
   // [2 for x in range(600)]
   unsigned char list1[] = { 
@@ -1819,7 +1834,8 @@ TEST(TestColumnReader, testMapWithNulls) {
 
   // set getStream
   EXPECT_CALL(streams, getStreamProxy(0, proto::Stream_Kind_PRESENT))
-      .WillRepeatedly(testing::Return(nullptr));
+      .WillRepeatedly(
+          testing::Return(static_cast<SeekableArrayInputStream*>(nullptr)));
 
   // [0xaa for x in range(2048/8)]
   unsigned char list1[] = { 0x7f, 0xaa, 0x7b, 0xaa };
@@ -1828,7 +1844,8 @@ TEST(TestColumnReader, testMapWithNulls) {
       (list1, sizeof(list1) / sizeof(unsigned char))));
 
   EXPECT_CALL(streams, getStreamProxy(2, proto::Stream_Kind_PRESENT))
-      .WillRepeatedly(testing::Return(nullptr));
+      .WillRepeatedly(
+          testing::Return(static_cast<SeekableArrayInputStream*>(nullptr)));
 
   // [0x55 for x in range(2048/8)]
   unsigned char list2[] = { 0x7f, 0x55, 0x7b, 0x55 };
@@ -2034,7 +2051,8 @@ TEST(TestColumnReader, testMapSkipWithNulls) {
 
   // set getStream
   EXPECT_CALL(streams, getStreamProxy(testing::_,proto::Stream_Kind_PRESENT))
-      .WillRepeatedly(testing::Return(nullptr));
+      .WillRepeatedly(
+          testing::Return(static_cast<SeekableArrayInputStream*>(nullptr)));
 
   // [0xaa for x in range(2048/8)]
   unsigned char list1[] = { 0x7f, 0xaa, 0x7b, 0xaa };
@@ -2190,7 +2208,8 @@ TEST(TestColumnReader, testMapSkipWithNullsNoData) {
 
   // set getStream
   EXPECT_CALL(streams, getStreamProxy(testing::_,proto::Stream_Kind_PRESENT))
-      .WillRepeatedly(testing::Return(nullptr));
+      .WillRepeatedly(
+          testing::Return(static_cast<SeekableArrayInputStream*>(nullptr)));
 
   // [0xaa for x in range(2048/8)]
   unsigned char list1[] = { 0x7f, 0xaa, 0x7b, 0xaa };
@@ -2276,7 +2295,8 @@ TEST(TestColumnReader, testFloatWithNulls) {
 
   // set getStream
   EXPECT_CALL(streams, getStreamProxy(0, proto::Stream_Kind_PRESENT))
-      .WillRepeatedly(testing::Return(nullptr));
+      .WillRepeatedly(
+          testing::Return(static_cast<SeekableArrayInputStream*>(nullptr)));
 
   // 13 non-nulls followed by 19 nulls
   unsigned char list1[] = { 0xfc, 0xff, 0xf8, 0x0, 0x0 };
@@ -2289,7 +2309,8 @@ TEST(TestColumnReader, testFloatWithNulls) {
       std::numeric_limits<float>::infinity(),
       std::numeric_limits<float>::quiet_NaN(),
       -std::numeric_limits<float>::infinity(),
-      3.4028235E38f, -3.4028235E38f, 1.4e-45f, -1.4e-45f };
+      3.4E38f, -3.4E38f, 
+      1.4e-45f, -1.4e-45f };
   unsigned char list2[] = {
       0x00, 0x00, 0x80, 0x3f,
       0x00, 0x00, 0x20, 0x40,
@@ -2354,7 +2375,8 @@ TEST(TestColumnReader, testFloatSkipWithNulls) {
 
   // set getStream
   EXPECT_CALL(streams, getStreamProxy(0, proto::Stream_Kind_PRESENT))
-      .WillRepeatedly(testing::Return(nullptr));
+      .WillRepeatedly(
+          testing::Return(static_cast<SeekableArrayInputStream*>(nullptr)));
 
   // 2 non-nulls, 2 nulls, 2 non-nulls, 2 nulls
   unsigned char list1[] = { 0xff, 0xcc };
@@ -2437,7 +2459,8 @@ TEST(TestColumnReader, testDoubleWithNulls) {
 
   // set getStream
   EXPECT_CALL(streams, getStreamProxy(0, proto::Stream_Kind_PRESENT))
-      .WillRepeatedly(testing::Return(nullptr));
+      .WillRepeatedly(
+          testing::Return(static_cast<SeekableArrayInputStream*>(nullptr)));
 
   // 13 non-nulls followed by 19 nulls
   unsigned char list1[] = { 0xfc, 0xff, 0xf8, 0x0, 0x0 };
@@ -2522,7 +2545,8 @@ TEST(TestColumnReader, testDoubleSkipWithNulls) {
 
   // set getStream
   EXPECT_CALL(streams, getStreamProxy(0, proto::Stream_Kind_PRESENT))
-      .WillRepeatedly(testing::Return(nullptr));
+      .WillRepeatedly(
+          testing::Return(static_cast<SeekableArrayInputStream*>(nullptr)));
 
   // 1 non-null, 5 nulls, 2 non-nulls
   unsigned char list1[] = { 0xff, 0x83 };
@@ -2606,7 +2630,8 @@ TEST(TestColumnReader, testTimestampSkipWithNulls) {
 
   // set getStream
   EXPECT_CALL(streams, getStreamProxy(0, proto::Stream_Kind_PRESENT))
-      .WillRepeatedly(testing::Return(nullptr));
+      .WillRepeatedly(
+          testing::Return(static_cast<SeekableArrayInputStream*>(nullptr)));
 
   // 2 non-nulls, 2 nulls, 2 non-nulls, 2 nulls
   unsigned char list1[] = { 0xff, 0xcc };
@@ -2698,7 +2723,8 @@ TEST(TestColumnReader, testUnimplementedTypes) {
 
   // set getStream
   EXPECT_CALL(streams, getStreamProxy(0, proto::Stream_Kind_PRESENT))
-      .WillRepeatedly(testing::Return(nullptr));
+      .WillRepeatedly(
+          testing::Return(static_cast<SeekableArrayInputStream*>(nullptr)));
 
   // create the row type
   std::unique_ptr<Type> rowType;

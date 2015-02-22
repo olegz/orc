@@ -458,7 +458,7 @@ TEST(RLEv2, basicDirectSeek) {
 
 
 TEST(RLEv1, simpleTest) {
-  unsigned char list[] = {0x61, 0xff, 0x64, 0xfb, 0x02, 0x03, 0x5, 0x7, 0xb};
+  unsigned char list[] = { 0x61, 0xff, 0x64, 0xfb, 0x02, 0x03, 0x5, 0x7, 0xb };
   std::unique_ptr<RleDecoder> rle =
       createRleDecoder(
           std::unique_ptr<SeekableInputStream>(
@@ -497,10 +497,13 @@ TEST(RLEv1, signedNullLiteralTest) {
 }
 
 TEST(RLEv1, splitHeader) {
+  unsigned char list[] = {0x0, 0x00, 0xdc, 0xba, 0x98, 0x76};
   std::unique_ptr<RleDecoder> rle =
       createRleDecoder(
           std::unique_ptr<SeekableInputStream>(
-              new SeekableArrayInputStream({0x0, 0x00, 0xdc, 0xba, 0x98, 0x76}, 4)),
+              new SeekableArrayInputStream(
+                  list,
+                  sizeof(list) / sizeof(unsigned char), 4)),
   false, RleVersion_1);
   std::vector<int64_t> data(200);
   rle->next(data.data(), 3, nullptr);
@@ -511,9 +514,11 @@ TEST(RLEv1, splitHeader) {
 }
 
 TEST(RLEv1, splitRuns) {
+  unsigned char list[] = {
+      0x7d, 0x01, 0xff, 0x01, 0xfb, 0x01,
+      0x02, 0x03, 0x04, 0x05};
   SeekableInputStream* const stream =
-      new SeekableArrayInputStream({0x7d, 0x01, 0xff, 0x01, 0xfb, 0x01,
-                                    0x02, 0x03, 0x04, 0x05});
+      new SeekableArrayInputStream(list, sizeof(list) / sizeof(unsigned char));
   std::unique_ptr<RleDecoder> rle =
       createRleDecoder(std::move(std::unique_ptr<SeekableInputStream>
                                       (stream)),
@@ -539,8 +544,9 @@ TEST(RLEv1, splitRuns) {
 }
 
 TEST(RLEv1, testSigned) {
+  unsigned char list[] = {0x7f, 0xff, 0x20};
   SeekableInputStream* const stream =
-      new SeekableArrayInputStream({0x7f, 0xff, 0x20});
+      new SeekableArrayInputStream(list, sizeof(list));
   std::unique_ptr<RleDecoder> rle =
       createRleDecoder(std::move(std::unique_ptr<SeekableInputStream>
                                      (stream)),
@@ -558,8 +564,9 @@ TEST(RLEv1, testSigned) {
 }
 
 TEST(RLEv1, testNull) {
+  unsigned char list[] = {0x75, 0x02, 0x00};
   SeekableInputStream* const stream =
-      new SeekableArrayInputStream({0x75, 0x02, 0x00});
+      new SeekableArrayInputStream(list, sizeof(list) / sizeof(unsigned char));
   std::unique_ptr<RleDecoder> rle =
       createRleDecoder(std::move(std::unique_ptr<SeekableInputStream>
                                      (stream)),
@@ -585,11 +592,13 @@ TEST(RLEv1, testNull) {
 }
 
 TEST(RLEv1, testAllNulls) {
+  unsigned char list[] = {
+      0xf0,
+      0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+      0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
+      0x3d, 0x00, 0x12};
   SeekableInputStream* const stream =
-      new SeekableArrayInputStream({0xf0,
-                                       0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
-                                       0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
-                                       0x3d, 0x00, 0x12});
+      new SeekableArrayInputStream(list, sizeof(list) / sizeof(unsigned char));
   std::unique_ptr<RleDecoder> rle =
       createRleDecoder(std::move(std::unique_ptr<SeekableInputStream>(stream)),
                        false, RleVersion_1);
@@ -626,8 +635,7 @@ TEST(RLEv1, skipTest) {
   //   out.write(i * 256);
   // This causes the first half to be delta encoded and the second half to
   // be literal encoded.
-  SeekableInputStream* const stream =
-      new SeekableArrayInputStream({
+  unsigned char list[] = {
 127,   1,   0, 127,   1, 132,   2, 127,   1, 136,   4, 127,   1, 140,   6, 127,
   1, 144,   8, 127,   1, 148,  10, 127,   1, 152,  12, 111,   1, 156,  14, 128,
 128, 128,  32, 128, 132,  32, 128, 136,  32, 128, 140,  32, 128, 144,  32, 128,
@@ -822,7 +830,9 @@ TEST(RLEv1, skipTest) {
  63, 128, 184,  63, 128, 188,  63, 128, 192,  63, 128, 196,  63, 128, 200,  63,
 128, 204,  63, 128, 208,  63, 128, 212,  63, 128, 216,  63, 128, 220,  63, 128,
 224,  63, 128, 228,  63, 128, 232,  63, 128, 236,  63, 128, 240,  63, 128, 244,
- 63, 128, 248,  63, 128, 252,  63});
+ 63, 128, 248,  63, 128, 252,  63};
+  SeekableInputStream* const stream =
+      new SeekableArrayInputStream(list, sizeof(list) / sizeof(unsigned char));
   std::unique_ptr<RleDecoder> rle =
       createRleDecoder(std::move(std::unique_ptr<SeekableInputStream>(stream)),
                        true, RleVersion_1);
@@ -852,8 +862,7 @@ TEST(RLEv1, seekTest) {
   //   out.write(junk[i]);
   // This causes the first half to be delta encoded and the second half to
   // be literal encoded.
-  SeekableInputStream* const stream =
-      new SeekableArrayInputStream({
+  unsigned char list[] = {
   1,   0,   0,   1,   0,   2,   1,   0,   4,   1,   0,   6,   1,   0,   8,   1,
   0,  10,   1,   0,  12,   1,   0,  14,   1,   0,  16,   1,   0,  18,   1,   0,
  20,   1,   0,  22,   1,   0,  24,   1,   0,  26,   1,   0,  28,   1,   0,  30,
@@ -1548,7 +1557,9 @@ TEST(RLEv1, seekTest) {
  12, 201, 130, 172, 253,   5, 180, 140, 169, 224,  15, 234, 243, 153, 151,  12,
 193, 190, 224, 143,   9, 129, 245, 133, 204,   8, 182, 209, 250, 178,   8, 148,
 139, 144, 193,  11, 230, 182, 245, 164,   7, 149, 204, 161, 226,  14, 175, 229,
-148, 166,  13, 148, 140, 189, 216,   3});
+148, 166,  13, 148, 140, 189, 216,   3};
+  SeekableInputStream* const stream =
+      new SeekableArrayInputStream(list, sizeof(list) / sizeof(unsigned char));
     const long junk[] = {
 -1192035722,  1672896916,  1491444859, -1244121273,  -791680696,  1681943525,
  -571055948, -1744759283,  -998345856,   240559198,  1110691737, -1078127818,

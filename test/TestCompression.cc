@@ -331,7 +331,7 @@ namespace orc {
   }
 
   TEST_F(TestCompression, testCreateLzo) {
-    unsigned char* list;
+    unsigned char *list = NULL;
     EXPECT_THROW(createDecompressor(CompressionKind_LZO,
                              std::unique_ptr<SeekableInputStream>
                                     (new SeekableArrayInputStream(list, 0)),
