@@ -65,6 +65,7 @@ namespace orc {
     virtual unsigned int getMaximumLength() const = 0;
     virtual unsigned int getPrecision() const = 0;
     virtual unsigned int getScale() const = 0;
+    virtual std::string toString() const = 0;
   };
 
   const int DEFAULT_DECIMAL_SCALE = 18;

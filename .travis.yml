@@ -15,4 +15,4 @@ before_script:
   - mkdir build
   - cd build
   - cmake ..
-script: make && make test-out
+script: make && env TZ=America/Denver make test-out
