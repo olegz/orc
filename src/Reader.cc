@@ -892,7 +892,9 @@ namespace orc {
      * @param options options for reading
      */
     ReaderImpl(std::unique_ptr<InputStream> stream,
-               const ReaderOptions& options);
+               const ReaderOptions& options,
+               void* (*customMalloc)(size_t) = &std::malloc,
+               void (*customFree)(void*) = &std::free);
 
     const ReaderOptions& getReaderOptions() const;
     CompressionKind getCompression() const override;
@@ -944,10 +946,15 @@ namespace orc {
     // PASS
   };
 
-
   ReaderImpl::ReaderImpl(std::unique_ptr<InputStream> input,
-                         const ReaderOptions& opts
-                         ): stream(std::move(input)), options(opts) {
+                           const ReaderOptions& opts,
+                           void* (*customMalloc)(size_t),
+                           void (*customFree)(void*)
+                           ): stream(std::move(input)), options(opts) {
+
+    orcMalloc = customMalloc;
+    orcFree = customFree;
+
     isMetadataLoaded = false;
     // figure out the size of the file using the option or filesystem
     unsigned long size = std::min(options.getTailLocation(),
@@ -961,7 +968,7 @@ namespace orc {
       throw ParseError("File size too small");
     }
 
-    std::vector<char> buffer(readSize);
+    DataBuffer<char> buffer(readSize, orcMalloc, orcFree);
     stream->read(buffer.data(), size - readSize, readSize);
     readPostscript(buffer.data(), readSize);
     readFooter(buffer.data(), readSize, size);

@@ -26,6 +26,7 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <stdexcept>
 
 namespace orc {
 
@@ -93,6 +94,75 @@ namespace orc {
   std::unique_ptr<Type>
     createUnionType(std::vector<Type*> types);
 
+  extern void* (*orcMalloc)(size_t) ;
+  extern void (*orcFree)(void*) ;
+
+  class DataBufferMem {
+  protected:
+      void* (*malloc)(size_t) ;
+      void (*free)(void*) ;
+
+  public:
+      DataBufferMem();
+      ~DataBufferMem();
+  };
+
+  template <class T>
+  class DataBuffer : public DataBufferMem {
+  private:
+    T* buf;
+    uint64_t length;    // current length
+    uint64_t capacity;  // maximal capacity (actuall allocated memory)
+
+  public:
+    T* data() { return buf; }
+    const T* data() const { return buf; }
+    uint64_t size() { return length; }
+
+    T& operator[](uint64_t i) {
+      if (i >= length) {
+        throw std::logic_error("Out of bounds in DataBuffer[]");
+      }
+      return buf[i];
+    }
+
+    void resize(uint64_t size){
+      if (size > capacity) {  // re-allocate memory only if required
+        if (buf) {
+          this->free(buf);
+        }
+        buf = (T*)this->malloc(sizeof(T)*size);
+        capacity = size;
+      }
+      length = size ;
+    }
+
+    DataBuffer(uint64_t size=0):
+      DataBufferMem(), buf(nullptr), length(0), capacity(0) {
+      if (size > 0) {
+        resize(size);
+      }
+    }
+
+    DataBuffer(uint64_t size,
+        void* (*customMalloc)(size_t),
+        void (*customFree)(void*)):
+              buf(nullptr), length(0), capacity(0) {
+      malloc = customMalloc;
+      free = customFree;
+      if (size > 0) {
+        resize(size);
+      }
+    }
+
+
+    virtual ~DataBuffer(){
+      if (buf) {
+        this->free(buf);
+      }
+    }
+  };
+
   /**
    * The base class for each of the column vectors. This class handles
    * the generic attributes such as number of elements, capacity, and
@@ -107,7 +177,8 @@ namespace orc {
     // the number of current occupied slots
     uint64_t numElements;
     // an array of capacity length marking non-null values
-    std::vector<char> notNull;
+//    std::vector<char> notNull;
+    DataBuffer<char> notNull;
     // whether there are any null values
     bool hasNulls;
 

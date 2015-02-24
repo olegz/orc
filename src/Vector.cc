@@ -21,8 +21,21 @@
 
 #include <iostream>
 #include <sstream>
+#include <cstdlib>
 
 namespace orc {
+
+  void* (*orcMalloc)(size_t) = &std::malloc ;
+  void (*orcFree)(void*) =  &std::free ;
+
+  DataBufferMem::DataBufferMem(){
+    malloc = orcMalloc ;
+    free = orcFree ;
+   }
+
+  DataBufferMem::~DataBufferMem(){
+     // PASS
+   }
 
   ColumnVectorBatch::ColumnVectorBatch(uint64_t cap
                                        ): notNull(cap) {

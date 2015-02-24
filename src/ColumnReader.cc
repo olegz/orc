@@ -290,8 +290,10 @@ namespace orc {
                                  char *notNull) {
     ColumnReader::next(rowBatch, numValues, notNull);
 
-    std::vector<int64_t> seconds(rowBatch.capacity);
-    std::vector<int64_t> nanoseconds(rowBatch.capacity);
+//    std::vector<int64_t> seconds(rowBatch.capacity);
+//    std::vector<int64_t> nanoseconds(rowBatch.capacity);
+    DataBuffer<int64_t> seconds(rowBatch.capacity);
+    DataBuffer<int64_t> nanoseconds(rowBatch.capacity);
 
     rle->next(seconds.data(),
               numValues, rowBatch.hasNulls ? rowBatch.notNull.data() : 0);
@@ -447,8 +449,10 @@ namespace orc {
 
   class StringDictionaryColumnReader: public ColumnReader {
   private:
-    std::vector<char> dictionaryBlob;
-    std::vector<int64_t> dictionaryOffset;
+//    std::vector<char> dictionaryBlob;
+//    std::vector<int64_t> dictionaryOffset;
+    DataBuffer<char> dictionaryBlob;
+    DataBuffer<int64_t> dictionaryOffset;
     std::unique_ptr<RleDecoder> rle;
     unsigned int dictionaryCount;
 
@@ -534,7 +538,8 @@ namespace orc {
 
   class StringDirectColumnReader: public ColumnReader {
   private:
-    std::vector<char> blobBuffer;
+//    std::vector<char> blobBuffer;
+    DataBuffer<char> blobBuffer;
     std::unique_ptr<RleDecoder> lengthRle;
     std::unique_ptr<SeekableInputStream> blobStream;
     const char *lastBuffer;
