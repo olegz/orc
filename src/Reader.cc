@@ -301,7 +301,7 @@ namespace orc {
     readPostscript(buffer.data(), readSize);
     readFooter(buffer.data(), readSize, size);
 
-    currentStripe = footer.stripes_size();
+    currentStripe = static_cast<uint64_t>(footer.stripes_size());
     lastStripe = 0;
     currentRowInStripe = 0;
     unsigned long rowTotal = 0;
