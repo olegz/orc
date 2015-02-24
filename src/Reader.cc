@@ -147,7 +147,7 @@ namespace orc {
       numRows(_numRows)
     {}
 
-    ~StripeInformationImpl() {}
+    ~StripeInformationImpl();
 
     unsigned long getOffset() const override {
       return offset;
@@ -174,6 +174,10 @@ namespace orc {
     }
 
   };
+
+  StripeInformationImpl::~StripeInformationImpl() {
+    // PASS
+  }
 
   Reader::~Reader() {
     // PASS
@@ -331,7 +335,7 @@ namespace orc {
     const std::list<int>& included = options.getInclude();
     for(std::list<int>::const_iterator columnId = included.begin();
         columnId != included.end(); ++columnId) {
-      if (*columnId <= (int)(schema->getSubtypeCount())) {
+      if (*columnId <= static_cast<int>(schema->getSubtypeCount())) {
         selectTypeParent(static_cast<size_t>(*columnId));
         selectTypeChildren(static_cast<size_t>(*columnId));
       }
