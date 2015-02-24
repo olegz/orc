@@ -24,7 +24,9 @@
 
 #include <sstream>
 
-#pragma GCC diagnostic ignored "-Wmissing-variable-declarations"
+#ifdef __clang__
+#pragma clang diagnostic ignored "-Wmissing-variable-declarations"
+#endif
 
 namespace orc {
 
