@@ -60,7 +60,8 @@ namespace orc {
    */
   class SeekableArrayInputStream: public SeekableInputStream {
   private:
-    std::vector<char> ownedData;
+//    std::vector<char> ownedData;
+    DataBuffer<char> ownedData;
     const char* data;
     unsigned long length;
     unsigned long position;
@@ -92,7 +93,8 @@ namespace orc {
   class SeekableFileInputStream: public SeekableInputStream {
   private:
     InputStream* input;
-    std::vector<char> buffer;
+//    std::vector<char> buffer;
+    DataBuffer<char> buffer;
     unsigned long offset;
     unsigned long length;
     unsigned long position;

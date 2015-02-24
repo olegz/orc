@@ -851,7 +851,8 @@ namespace orc {
 
     // footer
     proto::Footer footer;
-    std::vector<unsigned long> firstRowOfStripe;
+//    std::vector<unsigned long> firstRowOfStripe;
+    DataBuffer<unsigned long> firstRowOfStripe;
     unsigned long numberOfStripes;
     std::unique_ptr<Type> schema;
 
@@ -1131,7 +1132,7 @@ namespace orc {
     // Look for the magic string at the end of the postscript.
     if (memcmp(buffer+readSize-1-postscriptLength, MAGIC.c_str(), MAGIC.length()) != 0) {
       // if there is no magic string at the end, check the beginning of the file
-      std::vector<char> frontBuffer(MAGIC.length());
+      DataBuffer<char> frontBuffer(MAGIC.length());
       stream->read(frontBuffer.data(), 0, MAGIC.length());
       if (memcmp(frontBuffer.data(), MAGIC.c_str(), MAGIC.length()) != 0) {
         throw ParseError("Not an ORC file");

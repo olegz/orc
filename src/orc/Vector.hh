@@ -24,7 +24,7 @@
 
 #include <list>
 #include <memory>
-#include <string>
+#include <cstring>
 #include <vector>
 #include <stdexcept>
 
@@ -94,6 +94,8 @@ namespace orc {
   std::unique_ptr<Type>
     createUnionType(std::vector<Type*> types);
 
+
+  // Custom memory handling function
   extern void* (*orcMalloc)(size_t) ;
   extern void (*orcFree)(void*) ;
 
@@ -105,6 +107,9 @@ namespace orc {
   public:
       DataBufferMem();
       ~DataBufferMem();
+
+  private:
+      DataBufferMem(DataBufferMem& buffer);
   };
 
   template <class T>
@@ -112,33 +117,39 @@ namespace orc {
   private:
     T* buf;
     uint64_t length;    // current length
-    uint64_t capacity;  // maximal capacity (actuall allocated memory)
+    uint64_t maxLength;  // maximal capacity (actual allocated memory)
+    DataBuffer(DataBuffer& buffer);
 
   public:
     T* data() { return buf; }
     const T* data() const { return buf; }
     uint64_t size() { return length; }
+    uint64_t capacity() { return maxLength; }
+    T& operator[](uint64_t i) { return buf[i]; }
 
-    T& operator[](uint64_t i) {
-      if (i >= length) {
-        throw std::logic_error("Out of bounds in DataBuffer[]");
+    void reserve(uint64_t size){
+      if (size > maxLength) {  // re-allocate memory only if required
+        if (buf) {
+          T* buf_old = buf;
+          buf = (T*)this->malloc(sizeof(T)*size);
+          std::memcpy(buf, buf_old, sizeof(T)*length);
+          std::memset(buf+length, 0, sizeof(T)*(size-length));
+          this->free(buf_old);
+        } else {
+          buf = (T*)this->malloc(sizeof(T)*size);
+          std::memset(buf, 0, sizeof(T)*size);
+        }
+        maxLength = size;
       }
-      return buf[i];
     }
 
     void resize(uint64_t size){
-      if (size > capacity) {  // re-allocate memory only if required
-        if (buf) {
-          this->free(buf);
-        }
-        buf = (T*)this->malloc(sizeof(T)*size);
-        capacity = size;
-      }
+      reserve(size);
       length = size ;
     }
 
     DataBuffer(uint64_t size=0):
-      DataBufferMem(), buf(nullptr), length(0), capacity(0) {
+      DataBufferMem(), buf(nullptr), length(0), maxLength(0) {
       if (size > 0) {
         resize(size);
       }
@@ -147,14 +158,13 @@ namespace orc {
     DataBuffer(uint64_t size,
         void* (*customMalloc)(size_t),
         void (*customFree)(void*)):
-              buf(nullptr), length(0), capacity(0) {
+              buf(nullptr), length(0), maxLength(0) {
       malloc = customMalloc;
       free = customFree;
       if (size > 0) {
         resize(size);
       }
     }
-
 
     virtual ~DataBuffer(){
       if (buf) {
@@ -201,7 +211,8 @@ namespace orc {
   struct LongVectorBatch: public ColumnVectorBatch {
     LongVectorBatch(uint64_t capacity);
     virtual ~LongVectorBatch();
-    std::vector<int64_t> data;
+//    std::vector<int64_t> data;
+    DataBuffer<int64_t> data;
     std::string toString() const;
     void resize(uint64_t capacity);
   };
@@ -212,7 +223,8 @@ namespace orc {
     std::string toString() const;
     void resize(uint64_t capacity);
 
-    std::vector<double> data;
+//    std::vector<double> data;
+    DataBuffer<double> data;
   };
 
   struct StringVectorBatch: public ColumnVectorBatch {
@@ -222,9 +234,11 @@ namespace orc {
     void resize(uint64_t capacity);
 
     // pointers to the start of each string
-    std::vector<char*> data;
+//    std::vector<char*> data;
+    DataBuffer<char*> data;
     // the length of each string
-    std::vector<int64_t> length;
+//    std::vector<int64_t> length;
+    DataBuffer<int64_t> length;
   };
 
   struct StructVectorBatch: public ColumnVectorBatch {
@@ -246,7 +260,8 @@ namespace orc {
      * The offset of the first element of each list.
      * The length of list i is startOffset[i+1] - startOffset[i].
      */
-    std::vector<int64_t> offsets;
+//    std::vector<int64_t> offsets;
+    DataBuffer<int64_t> offsets;
 
     // the concatenated elements
     std::unique_ptr<ColumnVectorBatch> elements;
@@ -262,7 +277,8 @@ namespace orc {
      * The offset of the first element of each list.
      * The length of list i is startOffset[i+1] - startOffset[i].
      */
-    std::vector<int64_t> offsets;
+//    std::vector<int64_t> offsets;
+    DataBuffer<int64_t> offsets;
 
     // the concatenated keys
     std::unique_ptr<ColumnVectorBatch> keys;
@@ -291,14 +307,16 @@ namespace orc {
     int32_t scale;
 
     // the numeric values
-    std::vector<int64_t> values;
+//    std::vector<int64_t> values;
+    DataBuffer<int64_t> values;
 
   protected:
     /**
      * Contains the scales that were read from the file. Should NOT be
      * used.
      */
-    std::vector<int64_t> readScales;
+//    std::vector<int64_t> readScales;
+    DataBuffer<int64_t> readScales;
     friend class Decimal64ColumnReader;
   };
 
@@ -314,14 +332,16 @@ namespace orc {
     int32_t scale;
 
     // the numeric values
-    std::vector<Int128> values;
+//    std::vector<Int128> values;
+    DataBuffer<Int128> values;
 
   protected:
     /**
      * Contains the scales that were read from the file. Should NOT be
      * used.
      */
-    std::vector<int64_t> readScales;
+//    std::vector<int64_t> readScales;
+    DataBuffer<int64_t> readScales;
     friend class Decimal128ColumnReader;
     friend class DecimalHive11ColumnReader;
   };

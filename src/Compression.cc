@@ -308,7 +308,8 @@ namespace orc {
     const size_t blockSize;
     const std::unique_ptr<SeekableInputStream> input;
     z_stream zstream;
-    std::vector<char> buffer;
+//    std::vector<char> buffer;
+    DataBuffer<char> buffer;
 
     // the current state
     DecompressState state;
@@ -573,10 +574,12 @@ namespace orc {
 
     // may need to stitch together multiple input buffers;
     // to give snappy a contiguous block
-    std::vector<char> inputBuffer;
+//    std::vector<char> inputBuffer;
+    DataBuffer<char> inputBuffer;
 
     // uncompressed output
-    std::vector<char> outputBuffer;
+//    std::vector<char> outputBuffer;
+    DataBuffer<char> outputBuffer;
 
     // the current state
     DecompressState state;
