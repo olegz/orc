@@ -18,6 +18,7 @@
 
 #include "ColumnPrinter.hh"
 
+#include <limits>
 #include <sstream>
 #include <stdexcept>
 #include <time.h>

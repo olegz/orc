@@ -378,7 +378,7 @@ namespace orc {
       createColumnPrinter(buffer, *type);
     StringVectorBatch batch(1024);
     char blob[45];
-    for(int i=0; i < sizeof(blob); ++i) {
+    for(size_t i=0; i < sizeof(blob); ++i) {
       blob[i] = static_cast<char>(i);
     }
     batch.numElements = 10;
