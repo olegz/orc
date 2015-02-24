@@ -139,13 +139,14 @@ namespace orc {
                           unsigned long indexLength,
                           unsigned long dataLength,
                           unsigned long footerLength,
-                          unsigned long numRows) :
-      offset(offset),
-      indexLength(indexLength),
-      dataLength(dataLength),
-      footerLength(footerLength),
-      numRows(numRows)
-    {}
+                          unsigned long numRows) {
+
+      this->offset = offset;
+      this->indexLength = indexLength;
+      this->dataLength = dataLength;
+      this->footerLength = footerLength;
+      this->numRows = numRows;
+    }
 
     ~StripeInformationImpl() {}
 
