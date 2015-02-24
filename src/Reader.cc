@@ -135,18 +135,17 @@ namespace orc {
 
   public:
 
-    StripeInformationImpl(unsigned long offset,
-                          unsigned long indexLength,
-                          unsigned long dataLength,
-                          unsigned long footerLength,
-                          unsigned long numRows) {
-
-      this->offset = offset;
-      this->indexLength = indexLength;
-      this->dataLength = dataLength;
-      this->footerLength = footerLength;
-      this->numRows = numRows;
-    }
+    StripeInformationImpl(unsigned long _offset,
+                          unsigned long _indexLength,
+                          unsigned long _dataLength,
+                          unsigned long _footerLength,
+                          unsigned long _numRows) :
+      offset(_offset),
+      indexLength(_indexLength),
+      dataLength(_dataLength),
+      footerLength(_footerLength),
+      numRows(_numRows)
+    {}
 
     ~StripeInformationImpl() {}
 
