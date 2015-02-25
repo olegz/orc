@@ -1482,8 +1482,10 @@ namespace orc {
   }
 
   std::unique_ptr<Reader> createReader(std::unique_ptr<InputStream> stream,
-                                       const ReaderOptions& options) {
-    return std::unique_ptr<Reader>(new ReaderImpl(std::move(stream), options));
+                                       const ReaderOptions& options,
+                                       void* (*customMalloc)(size_t),
+                                       void (*customFree)(void*)) {
+    return std::unique_ptr<Reader>(new ReaderImpl(std::move(stream), options, customMalloc, customFree));
   }
 
   ColumnStatistics::~ColumnStatistics() {

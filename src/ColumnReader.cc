@@ -1243,7 +1243,6 @@ namespace orc {
       while (true) {
         readBuffer();
         unsigned char ch = static_cast<unsigned char>(*(buffer++));
-//        ofs << (unsigned short) ch << std::endl;
         work = ch & 0x7f;
         // If we have read more than 128 bits, we flag the error, but keep
         // reading bytes so the stream isn't thrown off.
@@ -1262,18 +1261,7 @@ namespace orc {
         return result;
       }
       unZigZagInt128(value);
-
-      std::ofstream ofs;
-      ofs.open ("/tmp/col.txt", std::ofstream::out | std::ofstream::app);
-      ofs << "scale = " << scale << std::endl;
-      ofs << "currentScale = " << currentScale << std::endl;
-      ofs << "unscaled value = " << value.toString() << std::endl;
-
       scaleInt128(value, scale, currentScale);
-
-      ofs << "scaled value = " << value.toString() << std::endl;
-      ofs.close();
-
       return value >= MIN_VALUE && value <= MAX_VALUE;
     }
 
