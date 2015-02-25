@@ -277,8 +277,7 @@ namespace orc {
     if (hasNulls && !notNull[rowId]) {
       stream << "null";
     } else {
-      std::streamsize oldPrecision =
-        stream.precision(std::numeric_limits<double>::digits);
+      std::streamsize oldPrecision = stream.precision(16);
       stream << data[rowId];
       stream.precision(oldPrecision);
     }
