@@ -9,7 +9,6 @@ before_install:
   - sudo apt-get -qq install libprotobuf-dev
   - sudo apt-get -qq install protobuf-compiler
   - sudo apt-get -qq install libsnappy-dev
-  - sudo apt-get -qq install valgrind
 install:
   - if [ "$CXX" = "g++" ]; then export CXX="g++-4.8"; fi
 before_script:
@@ -17,4 +16,4 @@ before_script:
   - cd build
   - cmake ..
   - make
-script: env TZ=America/Denver valgrind --error-exitcode=1 test/test-orc
+script: env TZ=America/Denver test/test-orc
