@@ -536,7 +536,6 @@ TEST(RLEv1, simpleTest) {
   for (size_t i = 0; i < 100; ++i) {
     EXPECT_EQ(100 - i, data[i]) << "Output wrong at " << i;
   }
-  new char[100];
   EXPECT_EQ(2, data[100]);
   EXPECT_EQ(3, data[101]);
   EXPECT_EQ(5, data[102]);
