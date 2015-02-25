@@ -15,4 +15,5 @@ before_script:
   - mkdir build
   - cd build
   - cmake ..
-script: make && env TZ=America/Denver make test-out
+  - make
+script: env TZ=America/Denver valgrind --suppressions=../test/orc.suppressions --error-exitcode=1 test-out
