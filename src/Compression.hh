@@ -49,7 +49,11 @@ namespace orc {
    * to the protobuf readers.
    */
   class SeekableInputStream: public google::protobuf::io::ZeroCopyInputStream {
+  protected:
+    MemoryPool* memoryPool;
   public:
+    SeekableInputStream(MemoryPool* pool = nullptr);
+    MemoryPool* getMemoryPool();
     virtual ~SeekableInputStream();
     virtual void seek(PositionProvider& position) = 0;
     virtual std::string getName() const = 0;
@@ -70,14 +74,17 @@ namespace orc {
   public:
     #if __cplusplus >= 201103L
       SeekableArrayInputStream(std::initializer_list<unsigned char> list,
-                               long block_size = -1);
+                               long block_size = -1,
+                               MemoryPool* pool = nullptr);
     #endif // __cplusplus
     SeekableArrayInputStream(const unsigned char* list,
                              unsigned long length,
-                             long block_size = -1);
+                             long block_size = -1,
+                             MemoryPool* pool = nullptr);
     SeekableArrayInputStream(const char* list,
                              unsigned long length,
-                             long block_size = -1);
+                             long block_size = -1,
+                             MemoryPool* pool = nullptr);
     virtual ~SeekableArrayInputStream();
     virtual bool Next(const void** data, int*size) override;
     virtual void BackUp(int count) override;
@@ -105,7 +112,8 @@ namespace orc {
     SeekableFileInputStream(InputStream* input,
                             unsigned long offset,
                             unsigned long length,
-                            long blockSize = -1);
+                            long blockSize = -1,
+                            MemoryPool* pool = nullptr);
     virtual ~SeekableFileInputStream();
 
     virtual bool Next(const void** data, int*size) override;

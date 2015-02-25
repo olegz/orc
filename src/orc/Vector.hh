@@ -20,6 +20,7 @@
 #define ORC_VECTOR_HH
 
 #include "C09Adapter.hh"
+#include "MemoryPool.hh"
 #include "Int128.hh"
 
 #include <list>
@@ -27,6 +28,7 @@
 #include <cstring>
 #include <vector>
 #include <stdexcept>
+#include <cstdlib>
 
 namespace orc {
 
@@ -96,14 +98,8 @@ namespace orc {
     createUnionType(std::vector<Type*> types);
 
 
-  // Custom memory handling function
-  extern void* (*orcMalloc)(size_t) ;
-  extern void (*orcFree)(void*) ;
-
   class DataBufferMem {
   protected:
-      void* (*malloc)(size_t) ;
-      void (*free)(void*) ;
 
   public:
       DataBufferMem();
@@ -114,62 +110,76 @@ namespace orc {
   };
 
   template <class T>
-  class DataBuffer : public DataBufferMem {
+  class DataBuffer {
   private:
+    MemoryPool* memoryPool ;
+    std::unique_ptr<MemoryPool> privateMemoryPool ;
     T* buf;
-    uint64_t length;    // current length
-    uint64_t maxLength;  // maximal capacity (actual allocated memory)
+    uint64_t _size;    // current size
+    uint64_t _capacity;  // maximal capacity (actual allocated memory)
     DataBuffer(DataBuffer& buffer);
+    DataBuffer& operator=(DataBuffer& buffer);
 
   public:
     T* data() { return buf; }
     const T* data() const { return buf; }
-    uint64_t size() { return length; }
-    uint64_t capacity() { return maxLength; }
+    uint64_t size() { return _size; }
+    uint64_t capacity() { return _capacity; }
     T& operator[](uint64_t i) { return buf[i]; }
 
     void reserve(uint64_t size){
-      if (size > maxLength) {  // re-allocate memory only if required
+      if (size > _capacity) {  // re-allocate memory only if required
         if (buf) {
           T* buf_old = buf;
-          buf = (T*)this->malloc(sizeof(T)*size);
-          std::memcpy(buf, buf_old, sizeof(T)*length);
-          std::memset(buf+length, 0, sizeof(T)*(size-length));
-          this->free(buf_old);
+          buf = (T*)memoryPool->malloc(sizeof(T)*size);
+          std::memcpy(buf, buf_old, sizeof(T)*_size);
+          std::memset(buf+_size, 0, sizeof(T)*(size-_size));
+          memoryPool->free(buf_old);
         } else {
-          buf = (T*)this->malloc(sizeof(T)*size);
+          buf = (T*)memoryPool->malloc(sizeof(T)*size);
           std::memset(buf, 0, sizeof(T)*size);
         }
-        maxLength = size;
+        _capacity = size;
       }
     }
 
     void resize(uint64_t size){
       reserve(size);
-      length = size ;
+      _size = size ;
     }
 
-    DataBuffer(uint64_t size=0):
-      DataBufferMem(), buf(nullptr), length(0), maxLength(0) {
+    /*
+     * Hard reset of the DataBuffer (all data is deleted)
+     */
+    void reset(uint64_t size, MemoryPool* pool) {
+      if (buf) {
+        memoryPool->free(buf);
+        buf = nullptr;
+      }
+      _size = _capacity = 0;
+
+      if (pool) {
+        // If a memory pool is provided, use it
+        memoryPool = pool;
+        privateMemoryPool.reset(nullptr);
+      } else {
+        // If a memory pool is not provided, use a private copy
+        privateMemoryPool.reset(createStandardMemoryPool().release());
+        memoryPool = privateMemoryPool.get();
+      }
       if (size > 0) {
         resize(size);
       }
     }
 
-    DataBuffer(uint64_t size,
-        void* (*customMalloc)(size_t),
-        void (*customFree)(void*)):
-              buf(nullptr), length(0), maxLength(0) {
-      malloc = customMalloc;
-      free = customFree;
-      if (size > 0) {
-        resize(size);
-      }
+    DataBuffer(uint64_t size = 0, MemoryPool* pool = nullptr) :
+      buf(nullptr) {
+      reset(size, pool);
     }
 
     virtual ~DataBuffer(){
       if (buf) {
-        this->free(buf);
+        memoryPool->free(buf);
       }
     }
   };
@@ -180,7 +190,7 @@ namespace orc {
    * notNull vector.
    */
   struct ColumnVectorBatch {
-    ColumnVectorBatch(uint64_t capacity);
+    ColumnVectorBatch(uint64_t capacity, MemoryPool* pool = nullptr);
     virtual ~ColumnVectorBatch();
 
     // the number of slots available
@@ -192,6 +202,9 @@ namespace orc {
     DataBuffer<char> notNull;
     // whether there are any null values
     bool hasNulls;
+
+    // custom memory pool
+    MemoryPool* memoryPool;
 
     /**
      * Generate a description of this vector as a string.
@@ -210,7 +223,7 @@ namespace orc {
   };
 
   struct LongVectorBatch: public ColumnVectorBatch {
-    LongVectorBatch(uint64_t capacity);
+    LongVectorBatch(uint64_t capacity, MemoryPool* pool = nullptr);
     virtual ~LongVectorBatch();
 //    std::vector<int64_t> data;
     DataBuffer<int64_t> data;
@@ -219,7 +232,7 @@ namespace orc {
   };
 
   struct DoubleVectorBatch: public ColumnVectorBatch {
-    DoubleVectorBatch(uint64_t capacity);
+    DoubleVectorBatch(uint64_t capacity, MemoryPool* pool = nullptr);
     virtual ~DoubleVectorBatch();
     std::string toString() const;
     void resize(uint64_t capacity);
@@ -229,7 +242,7 @@ namespace orc {
   };
 
   struct StringVectorBatch: public ColumnVectorBatch {
-    StringVectorBatch(uint64_t capacity);
+    StringVectorBatch(uint64_t capacity, MemoryPool* pool = nullptr);
     virtual ~StringVectorBatch();
     std::string toString() const;
     void resize(uint64_t capacity);
@@ -252,7 +265,7 @@ namespace orc {
   };
 
   struct ListVectorBatch: public ColumnVectorBatch {
-    ListVectorBatch(uint64_t capacity);
+    ListVectorBatch(uint64_t capacity, MemoryPool* pool = nullptr);
     virtual ~ListVectorBatch();
     std::string toString() const;
     void resize(uint64_t capacity);
@@ -269,7 +282,7 @@ namespace orc {
   };
 
   struct MapVectorBatch: public ColumnVectorBatch {
-    MapVectorBatch(uint64_t capacity);
+    MapVectorBatch(uint64_t capacity, MemoryPool* pool = nullptr);
     virtual ~MapVectorBatch();
     std::string toString() const;
     void resize(uint64_t capacity);
@@ -297,7 +310,7 @@ namespace orc {
   };
 
   struct Decimal64VectorBatch: public ColumnVectorBatch {
-    Decimal64VectorBatch(uint64_t capacity);
+    Decimal64VectorBatch(uint64_t capacity, MemoryPool* pool = nullptr);
     virtual ~Decimal64VectorBatch();
     std::string toString() const;
     void resize(uint64_t capacity);
@@ -322,7 +335,7 @@ namespace orc {
   };
 
   struct Decimal128VectorBatch: public ColumnVectorBatch {
-    Decimal128VectorBatch(uint64_t capacity);
+    Decimal128VectorBatch(uint64_t capacity, MemoryPool* pool = nullptr);
     virtual ~Decimal128VectorBatch();
     std::string toString() const;
     void resize(uint64_t capacity);

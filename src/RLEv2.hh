@@ -112,11 +112,6 @@ private:
   uint32_t bitSize; // Used by DIRECT, PATCHED_BASE and DELTA
   uint32_t bitsLeft; // Used by anything that uses readLongs
   uint32_t curByte; // Used by anything that uses readLongs
-  // TODO: Allow allocator for buffer.
-//  std::vector<int64_t> unpacked; // Used by PATCHED_BASE
-//  std::vector<int64_t> unpackedPatch; // Used by PATCHED_BASE
-  DataBuffer<int64_t> unpacked; // Used by PATCHED_BASE
-  DataBuffer<int64_t> unpackedPatch; // Used by PATCHED_BASE
   uint32_t patchBitSize; // Used by PATCHED_BASE
   unsigned long unpackedIdx; // Used by PATCHED_BASE
   unsigned long patchIdx; // Used by PATCHED_BASE
@@ -125,6 +120,12 @@ private:
   long curPatch; // Used by PATCHED_BASE
   long patchMask; // Used by PATCHED_BASE
   long actualGap; // Used by PATCHED_BASE
+  // TODO: Allow allocator for buffer.
+//  std::vector<int64_t> unpacked; // Used by PATCHED_BASE
+//  std::vector<int64_t> unpackedPatch; // Used by PATCHED_BASE
+  DataBuffer<int64_t> unpacked; // Used by PATCHED_BASE
+  DataBuffer<int64_t> unpackedPatch; // Used by PATCHED_BASE
+
 };
 }  // namespace orc
 

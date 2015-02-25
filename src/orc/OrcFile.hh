@@ -20,7 +20,6 @@
 #define ORC_FILE_HH
 
 #include <string>
-#include <cstdlib>
 
 #include "Reader.hh"
 
@@ -72,8 +71,7 @@ namespace orc {
    */
   std::unique_ptr<Reader> createReader(std::unique_ptr<InputStream> stream,
                                        const ReaderOptions& options,
-                                       void* (*customMalloc)(size_t) = &std::malloc,
-                                       void (*customFree)(void*) = &std::free);
+                                       MemoryPool* pool = nullptr);
 }
 
 #endif

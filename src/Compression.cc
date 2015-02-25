@@ -63,6 +63,13 @@ namespace orc {
     return result;
   }
 
+  SeekableInputStream::SeekableInputStream(MemoryPool* pool):
+      memoryPool(pool) {}
+
+  MemoryPool* SeekableInputStream::getMemoryPool() {
+    return memoryPool;
+  }
+
   SeekableInputStream::~SeekableInputStream() {
     // PASS
   }
@@ -74,7 +81,9 @@ namespace orc {
   #if __cplusplus >= 201103L
     SeekableArrayInputStream::SeekableArrayInputStream
        (std::initializer_list<unsigned char> values,
-        long blkSize): ownedData(values.size()), data(0) {
+        long blkSize,
+        MemoryPool* pool):
+        SeekableInputStream(pool), ownedData(values.size(), pool), data(0) {
       length = values.size();
       memcpy(ownedData.data(), values.begin(), values.size());
       position = 0;
@@ -84,7 +93,9 @@ namespace orc {
 
   SeekableArrayInputStream::SeekableArrayInputStream
      (const unsigned char* values, unsigned long size,
-      long blkSize): ownedData(size), data(0) {
+      long blkSize,
+      MemoryPool* pool):
+      SeekableInputStream(pool), ownedData(size, pool), data(0) {
     length = size;
     char *ptr = ownedData.data();
     for(unsigned long i = 0; i < size; ++i) {
@@ -96,9 +107,11 @@ namespace orc {
 
   SeekableArrayInputStream::SeekableArrayInputStream(const char* values,
                                                      unsigned long size,
-                                                     long blkSize
-                                                     ): ownedData(0),
-                                                        data(values) {
+                                                     long blkSize,
+                                                     MemoryPool* pool):
+                                                 SeekableInputStream(pool),
+                                                 ownedData(0, pool),
+                                                 data(values) {
     length = size;
     position = 0;
     blockSize = blkSize == -1 ? length : static_cast<unsigned long>(blkSize);
@@ -157,7 +170,9 @@ namespace orc {
   SeekableFileInputStream::SeekableFileInputStream(InputStream* _input,
                                                    unsigned long _offset,
                                                    unsigned long _length,
-                                                   long _blockSize) {
+                                                   long _blockSize,
+                                                   MemoryPool* pool):
+                                                   SeekableInputStream(pool) {
     input = _input;
     offset = _offset;
     length = _length;
@@ -165,7 +180,7 @@ namespace orc {
     blockSize = std::min(length,
                          static_cast<unsigned long>(_blockSize < 0 ?
                                                     256 * 1024 : _blockSize));
-    buffer.resize(blockSize);
+    buffer.reset(blockSize, pool);
     remainder = 0;
   }
 
@@ -339,7 +354,7 @@ namespace orc {
                     size_t _blockSize
                     ): blockSize(_blockSize),
                        input(std::move(inStream)),
-                       buffer(_blockSize) {
+                       buffer(_blockSize, input->getMemoryPool()) {
     zstream.next_in = Z_NULL;
     zstream.avail_in = 0;
     zstream.zalloc = Z_NULL;
@@ -604,7 +619,8 @@ namespace orc {
                     std::unique_ptr<SeekableInputStream> inStream,
                     size_t blockSize) :
       input(std::move(inStream)),
-      outputBuffer(blockSize),
+      inputBuffer(0, input->getMemoryPool()),
+      outputBuffer(blockSize, input->getMemoryPool()),
       state(DECOMPRESS_HEADER),
       outputBufferPtr(0),
       outputBufferLength(0),

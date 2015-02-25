@@ -292,8 +292,8 @@ namespace orc {
 
 //    std::vector<int64_t> seconds(rowBatch.capacity);
 //    std::vector<int64_t> nanoseconds(rowBatch.capacity);
-    DataBuffer<int64_t> seconds(rowBatch.capacity);
-    DataBuffer<int64_t> nanoseconds(rowBatch.capacity);
+    DataBuffer<int64_t> seconds(rowBatch.capacity, rowBatch.memoryPool);
+    DataBuffer<int64_t> nanoseconds(rowBatch.capacity, rowBatch.memoryPool);
 
     rle->next(seconds.data(),
               numValues, rowBatch.hasNulls ? rowBatch.notNull.data() : 0);
@@ -457,7 +457,7 @@ namespace orc {
     unsigned int dictionaryCount;
 
   public:
-    StringDictionaryColumnReader(const Type& type, StripeStreams& stipe);
+    StringDictionaryColumnReader(const Type& type, StripeStreams& stipe, MemoryPool* pool = nullptr);
     ~StringDictionaryColumnReader();
 
     unsigned long skip(unsigned long numValues) override;
@@ -469,7 +469,8 @@ namespace orc {
 
   StringDictionaryColumnReader::StringDictionaryColumnReader
       (const Type& type,
-       StripeStreams& stripe
+       StripeStreams& stripe,
+       MemoryPool* pool
        ): ColumnReader(type, stripe) {
     RleVersion rleVersion = convertRleVersion(stripe.getEncoding(columnId)
                                                 .kind());
@@ -481,7 +482,7 @@ namespace orc {
       createRleDecoder(stripe.getStream(columnId,
                                         proto::Stream_Kind_LENGTH),
                        false, rleVersion);
-    dictionaryOffset.resize(dictionaryCount+1);
+    dictionaryOffset.reset(dictionaryCount+1, pool);
     int64_t* lengthArray = dictionaryOffset.data();
     lengthDecoder->next(lengthArray + 1, dictionaryCount, 0);
     lengthArray[0] = 0;
@@ -489,7 +490,7 @@ namespace orc {
       lengthArray[i] += lengthArray[i-1];
     }
     long blobSize = lengthArray[dictionaryCount];
-    dictionaryBlob.resize(static_cast<unsigned long>(blobSize));
+    dictionaryBlob.reset(static_cast<unsigned long>(blobSize), pool);
     std::unique_ptr<SeekableInputStream> blobStream =
       stripe.getStream(columnId, proto::Stream_Kind_DICTIONARY_DATA);
     readFully(dictionaryBlob.data(), blobSize, blobStream.get());
@@ -649,7 +650,7 @@ namespace orc {
     // Load data from the blob stream into our buffer until we have enough
     // to get the rest directly out of the stream's buffer.
     size_t bytesBuffered = 0;
-    blobBuffer.reserve(totalLength);
+    blobBuffer.reset(totalLength, rowBatch.memoryPool);
     char *ptr= blobBuffer.data();
     while (bytesBuffered + lastBufferLength < totalLength) {
       blobBuffer.resize(bytesBuffered + lastBufferLength);
