@@ -43,26 +43,27 @@ int main(int argc, char* argv[]) {
     return -1;
   }
 
- // print out all selected columns statistics.
- std::list<orc::ColumnStatistics*> colStats = reader->getStatistics();
- std::cout << "File " << argv[1] << " has " << colStats.size() << " columns"  << std::endl;
- int i = 0;
- for(std::list<orc::ColumnStatistics*>::const_iterator iter = colStats.begin();
-     iter != colStats.end(); iter++,i++) {
-   std::cout << "*** Column " << i << " ***" << std::endl;
-   std::cout << (*iter)->toString() << std::endl;
- }
+  // print out all selected columns statistics.
+  std::unique_ptr<orc::Statistics> colStats = reader->getStatistics();
+  std::cout << "File " << argv[1] << " has "
+            << colStats->getNumberOfColumns() << " columns"  << std::endl;
+  for(uint32_t i=0; i < colStats->getNumberOfColumns(); ++i) {
+    std::cout << "*** Column " << i << " ***" << std::endl;
+    std::cout << colStats->getColumnStatistics(i)->toString() << std::endl;
+  }
 
- // test stripe statistics
- std::unique_ptr<orc::StripeStatistics> stripeStats;
- std::cout << "File " << argv[1] << " has " << reader->getNumberOfStripes() << " stripes"  << std::endl;
- for (unsigned int j = 0; j < reader->getNumberOfStripes(); j++) {
-   stripeStats = reader->getStripeStatistics(j);
-   std::cout << "*** Stripe " << j << " ***" << std::endl << std::endl ;
+  // test stripe statistics
+  std::unique_ptr<orc::Statistics> stripeStats;
+  std::cout << "File " << argv[1] << " has " << reader->getNumberOfStripes()
+            << " stripes"  << std::endl;
+  for (unsigned int j = 0; j < reader->getNumberOfStripes(); j++) {
+    stripeStats = reader->getStripeStatistics(j);
+    std::cout << "*** Stripe " << j << " ***" << std::endl << std::endl ;
 
-   for(unsigned int k = 0; k < stripeStats->getNumberOfColumnStatistics(); ++k){
-     std::cout << "--- Column " << k << " ---" << std::endl;
-     std::cout << stripeStats->getColumnStatisticsInStripe(k)->toString() << std::endl;
+    for(unsigned int k = 0; k < stripeStats->getNumberOfColumns(); ++k) {
+      std::cout << "--- Column " << k << " ---" << std::endl;
+      std::cout << stripeStats->getColumnStatistics(k)->toString()
+                << std::endl;
    }
  }
 

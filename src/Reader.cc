@@ -257,7 +257,8 @@ namespace orc {
       buffer << "Data type: Boolean" << std::endl
              << "Values: " << valueCount << std::endl;
       if(_hasCount){
-        buffer << "(true: " << trueCount << "; false: " << valueCount - trueCount << ")" << std::endl;
+        buffer << "(true: " << trueCount << "; false: "
+	       << valueCount - trueCount << ")" << std::endl;
       } else {
         buffer << "(true: not defined; false: not defined)" << std::endl;
         buffer << "True and false count are not defined" << std::endl;
@@ -748,83 +749,76 @@ namespace orc {
     }
   };
 
-  ColumnStatistics* convertColumnStatistics(const Type& type,
-                                            const proto::ColumnStatistics& s) {
-    switch(static_cast<int>(type.getKind())) {
-    case BYTE:
-    case SHORT:
-    case INT:
-    case LONG:
+  ColumnStatistics* convertColumnStatistics(const proto::ColumnStatistics& s) {
+    if (s.has_intstatistics()) {
       return new IntegerColumnStatisticsImpl(s);
-    case STRING:
-    case CHAR:
-    case VARCHAR:
-      return new StringColumnStatisticsImpl(s);
-    case FLOAT:
-    case DOUBLE:
+    } else if (s.has_doublestatistics()) {
       return new DoubleColumnStatisticsImpl(s);
-    case DATE:
-      return new DateColumnStatisticsImpl(s);
-    case TIMESTAMP:
-      return new TimestampColumnStatisticsImpl(s);
-    case BINARY:
-      return new BinaryColumnStatisticsImpl(s);
-    case DECIMAL:
-      return new DecimalColumnStatisticsImpl(s);
-    case BOOLEAN:
+    } else if (s.has_stringstatistics()) {
+      return new StringColumnStatisticsImpl(s);
+    } else if (s.has_bucketstatistics()) {
       return new BooleanColumnStatisticsImpl(s);
-    case STRUCT:
-    case LIST:
-    case MAP:
-    case UNION:
+    } else if (s.has_decimalstatistics()) {
+      return new DecimalColumnStatisticsImpl(s);
+    } else if (s.has_timestampstatistics()) {
+      return new TimestampColumnStatisticsImpl(s);
+    } else if (s.has_datestatistics()) {
+      return new DateColumnStatisticsImpl(s);
+    } else if (s.has_binarystatistics()) {
+      return new BinaryColumnStatisticsImpl(s);
+    } else {
       return new ColumnStatisticsImpl(s);
-    default:
-      throw NotImplementedYet("not supported yet");
     }
   }
 
-  StripeStatistics::~StripeStatistics() {
+  Statistics::~Statistics() {
     // PASS
   }
 
-  class StripeStatisticsImpl: public StripeStatistics {
+  class StatisticsImpl: public Statistics {
   private:
-    unsigned long numberOfColStats;
     std::list<ColumnStatistics*> colStats;
+
+    // DELIBERATELY NOT IMPLEMENTED
+    StatisticsImpl(const StatisticsImpl&);
+    StatisticsImpl& operator=(const StatisticsImpl&);
+
   public:
-    virtual ~StripeStatisticsImpl();
-    StripeStatisticsImpl(proto::StripeStatistics stripeStats,
-                         const Type & schema) {
-      for(int i = 0; i < stripeStats.colstats_size()-1; i++) {
+    StatisticsImpl(const proto::StripeStatistics& stripeStats) {
+      for(int i = 0; i < stripeStats.colstats_size(); i++) {
         colStats.push_back(convertColumnStatistics
-                           (schema.getSubtype(static_cast<unsigned int>(i)),
-                            stripeStats.colstats(i+1)));
+                           (stripeStats.colstats(i)));
       }
-      numberOfColStats = colStats.size();
     }
 
-    std::unique_ptr<ColumnStatistics>
-    getColumnStatisticsInStripe(unsigned long colIndex) const override {
-      if(colIndex >= numberOfColStats){
-        throw std::logic_error("column index out of range");
+    StatisticsImpl(const proto::Footer& footer) {
+      for(int i = 0; i < footer.statistics_size(); i++) {
+        colStats.push_back(convertColumnStatistics
+                           (footer.statistics(i)));
       }
+    }
 
+    virtual const ColumnStatistics* getColumnStatistics(uint32_t columnId
+							) const {
       std::list<ColumnStatistics*>::const_iterator it = colStats.begin();
-      std::advance(it, static_cast<long>(colIndex));
-      return std::unique_ptr<ColumnStatistics> (*it);
+      std::advance(it, static_cast<long>(columnId));
+      return *it;
     }
 
-    std::list<ColumnStatistics*> getStatisticsInStripe() const override
-    {
-      return colStats;
-    }
+    virtual ~StatisticsImpl();
 
-    unsigned long getNumberOfColumnStatistics() const override
-    {
-      return numberOfColStats;
+    uint32_t getNumberOfColumns() const override {
+      return static_cast<uint32_t>(colStats.size());
     }
   };
 
+  StatisticsImpl::~StatisticsImpl() {
+    for(std::list<ColumnStatistics*>::iterator ptr = colStats.begin();
+	ptr != colStats.end();
+	++ptr) {
+      delete *ptr;
+    }
+  }
 
   Reader::~Reader() {
     // PASS
@@ -916,15 +910,16 @@ namespace orc {
     std::unique_ptr<StripeInformation> getStripe(unsigned long
                                                  ) const override;
 
-    std::unique_ptr<StripeStatistics>
+    std::unique_ptr<Statistics>
     getStripeStatistics(unsigned long stripeIndex) const override;
 
 
     unsigned long getContentLength() const override;
 
-    std::list<ColumnStatistics*> getStatistics() const override;
+    std::unique_ptr<Statistics> getStatistics() const override;
 
-    std::unique_ptr<ColumnStatistics> getColumnStatistics(unsigned long index) const override;
+    std::unique_ptr<ColumnStatistics> getColumnStatistics(uint32_t columnId
+							  ) const override;
 
     const Type& getType() const override;
 
@@ -1144,39 +1139,28 @@ namespace orc {
     return previousRow;
   }
 
-  std::list<ColumnStatistics*> ReaderImpl::getStatistics() const {
-    std::list<ColumnStatistics*> result;
-    for(uint colIdx=0; colIdx < schema->getSubtypeCount(); ++colIdx) {
-      const Type& colType = schema->getSubtype(colIdx);
-      proto::ColumnStatistics col =
-        footer.statistics(static_cast<int>(colIdx+1));
-      result.push_back(convertColumnStatistics(colType, col));
-    }
-    return result;
+  std::unique_ptr<Statistics> ReaderImpl::getStatistics() const {
+    return std::unique_ptr<Statistics>(new StatisticsImpl(footer));
   }
 
-  // index start from 0
   std::unique_ptr<ColumnStatistics>
-  ReaderImpl::getColumnStatistics(unsigned long index) const {
+  ReaderImpl::getColumnStatistics(uint32_t index) const {
     if (index >= static_cast<unsigned int>(footer.statistics_size())) {
       throw std::logic_error("column index out of range");
     }
-    const Type& colType = schema->getSubtype(static_cast<uint>(index));
-    proto::ColumnStatistics col = footer.statistics(static_cast<int>(index+1));
+    proto::ColumnStatistics col = footer.statistics(static_cast<int>(index));
     return std::unique_ptr<ColumnStatistics> (convertColumnStatistics
-                                              (colType, col));
+                                              (col));
   }
 
-  // stripeIndex start from 0
-  std::unique_ptr<StripeStatistics>
+  std::unique_ptr<Statistics>
   ReaderImpl::getStripeStatistics(unsigned long stripeIndex) const {
     if(stripeIndex >= static_cast<unsigned int>(metadata.stripestats_size())) {
       throw std::logic_error("stripe index out of range");
     }
-    return std::unique_ptr<StripeStatistics>
-      (new StripeStatisticsImpl(metadata.stripestats
-                                (static_cast<int>(stripeIndex)),
-                                getType()));
+    return std::unique_ptr<Statistics>
+      (new StatisticsImpl(metadata.stripestats
+			  (static_cast<int>(stripeIndex))));
   }
 
 
@@ -1683,7 +1667,4 @@ namespace orc {
     }
   }
 
-  StripeStatisticsImpl::~StripeStatisticsImpl() {
-    // PASS
-  }
 }// namespace

@@ -375,17 +375,22 @@ TEST(Reader, columnStatistics) {
     orc::createReader(orc::readLocalFile(filename.str()), opts);
 
   // test column statistics
-  EXPECT_EQ(9, reader->getStatistics().size());
+  std::unique_ptr<orc::Statistics> stats = reader->getStatistics();
+  EXPECT_EQ(10, stats->getNumberOfColumns());
 
   // column[5]
-  std::unique_ptr<orc::ColumnStatistics> col_5 = reader->getColumnStatistics(5);
-  const orc::StringColumnStatistics& strStats = dynamic_cast<const orc::StringColumnStatistics&> (*(col_5.get()));
+  std::unique_ptr<orc::ColumnStatistics> col_5 =
+    reader->getColumnStatistics(6);
+  const orc::StringColumnStatistics& strStats =
+    dynamic_cast<const orc::StringColumnStatistics&> (*(col_5.get()));
   EXPECT_EQ("Good", strStats.getMinimum());
   EXPECT_EQ("Unknown", strStats.getMaximum());
 
   // column[6]
-  std::unique_ptr<orc::ColumnStatistics> col_6 = reader->getColumnStatistics(6);
-  const orc::IntegerColumnStatistics& intStats = dynamic_cast<const orc::IntegerColumnStatistics&> (*(col_6.get()));
+  std::unique_ptr<orc::ColumnStatistics> col_6 =
+    reader->getColumnStatistics(7);
+  const orc::IntegerColumnStatistics& intStats =
+    dynamic_cast<const orc::IntegerColumnStatistics&> (*(col_6.get()));
   EXPECT_EQ(0, intStats.getMinimum());
   EXPECT_EQ(6, intStats.getMaximum());
   EXPECT_EQ(5762400, intStats.getSum());
@@ -401,22 +406,24 @@ TEST(Reader, stripeStatistics) {
   // test stripe statistics
   // stripe[60]
   unsigned long stripeIdx = 60;
-  std::unique_ptr<orc::StripeStatistics> stripeStats = reader->getStripeStatistics(stripeIdx);
-
-  EXPECT_EQ(9, stripeStats->getNumberOfColumnStatistics());
+  std::unique_ptr<orc::Statistics> stripeStats =
+    reader->getStripeStatistics(stripeIdx);
+  EXPECT_EQ(10, stripeStats->getNumberOfColumns());
 
   // column[5]
-  std::unique_ptr<orc::ColumnStatistics> col_5 = stripeStats->getColumnStatisticsInStripe(5);
-  const orc::StringColumnStatistics& strStats = dynamic_cast<const orc::StringColumnStatistics&> (*(col_5.get()));
-  EXPECT_EQ("Good", strStats.getMinimum());
-  EXPECT_EQ("Unknown", strStats.getMaximum());
+  const StringColumnStatistics* col_5 =
+    dynamic_cast<const StringColumnStatistics*>
+    (stripeStats->getColumnStatistics(6));
+  EXPECT_EQ("Good", col_5->getMinimum());
+  EXPECT_EQ("Unknown", col_5->getMaximum());
 
   // column[6]
-  std::unique_ptr<orc::ColumnStatistics> col_6 = stripeStats->getColumnStatisticsInStripe(6);
-  const orc::IntegerColumnStatistics& intStats = dynamic_cast<const orc::IntegerColumnStatistics&> (*(col_6.get()));
-  EXPECT_EQ(4, intStats.getMinimum());
-  EXPECT_EQ(5, intStats.getMaximum());
-  EXPECT_EQ(22600, intStats.getSum());
+  const IntegerColumnStatistics* col_6 =
+    dynamic_cast<const IntegerColumnStatistics*>
+    (stripeStats->getColumnStatistics(7));
+  EXPECT_EQ(4, col_6->getMinimum());
+  EXPECT_EQ(5, col_6->getMaximum());
+  EXPECT_EQ(22600, col_6->getSum());
 }
 
 }  // namespace

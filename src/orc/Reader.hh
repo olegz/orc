@@ -376,28 +376,22 @@ namespace orc {
     virtual unsigned long getNumberOfRows() const = 0;
   };
 
-  class StripeStatistics {
+  class Statistics {
   public:
-    virtual ~StripeStatistics();
+    virtual ~Statistics();
 
     /**
-     * Get the statistics of indexth col in the stripe.
+     * Get the statistics of colId column.
      * @return one column's statistics
      */
-    virtual std::unique_ptr<ColumnStatistics>
-    getColumnStatisticsInStripe(unsigned long index) const = 0;
+    virtual const ColumnStatistics* getColumnStatistics(uint32_t colId
+							) const = 0;
 
     /**
-     * Get the statistics of all cols in the stripe.
-     * @return all columns' statistics
+     * Get the number of columns
+     * @return the number of columns
      */
-    virtual std::list<ColumnStatistics*> getStatisticsInStripe() const = 0;
-
-    /**
-     * Get the number of columns in this stripe
-     * @return columnstatistics
-     */
-    virtual unsigned long getNumberOfColumnStatistics() const = 0;
+    virtual uint32_t getNumberOfColumns() const = 0;
   };
 
 
@@ -593,7 +587,7 @@ namespace orc {
      * @param stripeIndex the stripe 0 to N-1 to get statistics about
      * @return the statistics about that stripe
      */
-    virtual std::unique_ptr<StripeStatistics>
+    virtual std::unique_ptr<Statistics>
     getStripeStatistics(unsigned long stripeIndex) const = 0;
 
     /**
@@ -606,14 +600,14 @@ namespace orc {
      * Get the statistics about the columns in the file.
      * @return the information about the column
      */
-    virtual std::list<ColumnStatistics*> getStatistics() const = 0;
+    virtual std::unique_ptr<Statistics> getStatistics() const = 0;
 
     /**
-     * Get the statistics about the columns in the file.
+     * Get the statistics about a single column in the file.
      * @return the information about the column
      */
     virtual std::unique_ptr<ColumnStatistics>
-    getColumnStatistics(unsigned long index) const = 0;
+    getColumnStatistics(uint32_t columnId) const = 0;
 
     /**
      * Get the type of the rows in the file. The top level is always a struct.
