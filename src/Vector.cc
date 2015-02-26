@@ -30,7 +30,7 @@ namespace orc {
   ColumnVectorBatch::ColumnVectorBatch(uint64_t cap, MemoryPool* pool
                        ):  capacity(cap),
                            numElements(0),
-                           notNull(new DataBuffer<char>(cap,pool)),
+                           notNull(cap,pool),
                            hasNulls(false),
                            memoryPool(pool) {}
 
@@ -41,7 +41,7 @@ namespace orc {
   void ColumnVectorBatch::resize(uint64_t cap) {
     if (capacity < cap) {
       capacity = cap;
-      notNull->resize(cap);
+      notNull.resize(cap);
     }
   }
 
@@ -55,7 +55,7 @@ namespace orc {
 
   LongVectorBatch::LongVectorBatch(uint64_t capacity, MemoryPool* pool
                      ): ColumnVectorBatch(capacity, pool),
-                        data(new DataBuffer<int64_t>(capacity, pool)) {
+                        data(capacity, pool) {
     // PASS
   }
 
@@ -72,13 +72,13 @@ namespace orc {
   void LongVectorBatch::resize(uint64_t cap) {
     if (capacity < cap) {
       ColumnVectorBatch::resize(cap);
-      data->resize(cap);
+      data.resize(cap);
     }
   }
 
   DoubleVectorBatch::DoubleVectorBatch(uint64_t capacity, MemoryPool* pool
                    ): ColumnVectorBatch(capacity, pool),
-                       data(new DataBuffer<double>(capacity, pool)) {
+                       data(capacity, pool) {
     // PASS
   }
 
@@ -95,14 +95,14 @@ namespace orc {
   void DoubleVectorBatch::resize(uint64_t cap) {
     if (capacity < cap) {
       ColumnVectorBatch::resize(cap);
-      data->resize(cap);
+      data.resize(cap);
     }
   }
 
   StringVectorBatch::StringVectorBatch(uint64_t capacity, MemoryPool* pool
                ): ColumnVectorBatch(capacity, pool),
-                   data(new DataBuffer<char*>(capacity, pool)),
-                   length(new DataBuffer<int64_t>(capacity, pool)) {
+                   data(capacity, pool),
+                   length(capacity, pool) {
     // PASS
   }
 
@@ -119,8 +119,8 @@ namespace orc {
   void StringVectorBatch::resize(uint64_t cap) {
     if (capacity < cap) {
       ColumnVectorBatch::resize(cap);
-      data->resize(cap);
-      length->resize(cap);
+      data.resize(cap);
+      length.resize(cap);
     }
   }
 
@@ -153,7 +153,7 @@ namespace orc {
 
   ListVectorBatch::ListVectorBatch(uint64_t cap, MemoryPool* pool
                    ): ColumnVectorBatch(cap, pool),
-                   offsets(new DataBuffer<int64_t>(cap+1, pool)) {
+                   offsets(cap+1, pool) {
     // PASS
   }
 
@@ -171,13 +171,13 @@ namespace orc {
   void ListVectorBatch::resize(uint64_t cap) {
     if (capacity < cap) {
       ColumnVectorBatch::resize(cap);
-      offsets->resize(cap + 1);
+      offsets.resize(cap + 1);
     }
   }
 
   MapVectorBatch::MapVectorBatch(uint64_t cap, MemoryPool* pool
                  ): ColumnVectorBatch(cap, pool),
-                     offsets(new DataBuffer<int64_t>(cap+1, pool)) {
+                     offsets(cap+1, pool) {
     // PASS
   }
 
@@ -196,13 +196,13 @@ namespace orc {
   void MapVectorBatch::resize(uint64_t cap) {
     if (capacity < cap) {
       ColumnVectorBatch::resize(cap);
-      offsets->resize(cap + 1);
+      offsets.resize(cap + 1);
     }
   }
 
   Decimal64VectorBatch::Decimal64VectorBatch(uint64_t cap, MemoryPool* pool
                  ): ColumnVectorBatch(cap, pool),
-                     values(new DataBuffer<int64_t>(cap, pool)),
+                     values(cap, pool),
                      readScales(new DataBuffer<int64_t>(cap, pool)) {
     // PASS
   }
@@ -221,14 +221,14 @@ namespace orc {
   void Decimal64VectorBatch::resize(uint64_t cap) {
     if (capacity < cap) {
       ColumnVectorBatch::resize(cap);
-      values->resize(cap);
+      values.resize(cap);
       readScales->resize(cap);
     }
   }
 
   Decimal128VectorBatch::Decimal128VectorBatch(uint64_t cap, MemoryPool* pool
                ): ColumnVectorBatch(cap, pool),
-                   values(new DataBuffer<Int128>(cap, pool)),
+                   values(cap, pool),
                    readScales(new DataBuffer<int64_t>(cap, pool)) {
     // PASS
   }
@@ -247,7 +247,7 @@ namespace orc {
   void Decimal128VectorBatch::resize(uint64_t cap) {
     if (capacity < cap) {
       ColumnVectorBatch::resize(cap);
-      values->resize(cap);
+      values.resize(cap);
       readScales->resize(cap);
     }
   }

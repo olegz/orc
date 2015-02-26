@@ -120,7 +120,7 @@ namespace orc {
     for(size_t i=0; i < bytes.size(); ++i) {
       bytes[i] = static_cast<char>(i);
     }
-    SeekableArrayInputStream stream(bytes.data(), bytes.size(), 20);
+    SeekableArrayInputStream stream(bytes.data(), bytes.size(), nullptr, 20);
     const void *ptr;
     int len;
     ASSERT_THROW(stream.BackUp(10), std::logic_error);
@@ -153,7 +153,7 @@ namespace orc {
     for(size_t i=0; i < bytes.size(); ++i) {
       bytes[i] = static_cast<char>(i);
     }
-    SeekableArrayInputStream stream(bytes.data(), bytes.size(), 20);
+    SeekableArrayInputStream stream(bytes.data(), bytes.size(), nullptr, 20);
     const void *ptr;
     int len;
     ASSERT_EQ(true, stream.Next(&ptr, &len));
@@ -175,7 +175,7 @@ namespace orc {
     for(size_t i=0; i < bytes.size(); ++i) {
       bytes[i] = static_cast<char>(i);
     }
-    SeekableArrayInputStream stream(bytes.data(), bytes.size(), 20);
+    SeekableArrayInputStream stream(bytes.data(), bytes.size(), nullptr, 20);
     const void *ptr;
     int len;
     ASSERT_EQ(true, stream.Next(&ptr, &len));
@@ -204,7 +204,7 @@ namespace orc {
   TEST_F(TestCompression, testFileBackup) {
     SCOPED_TRACE("testFileBackup");
     std::unique_ptr<InputStream> file = readLocalFile(simpleFile);
-    SeekableFileInputStream stream(file.get(), 0, 200, 20);
+    SeekableFileInputStream stream(file.get(), 0, 200, nullptr, 20);
     const void *ptr;
     int len;
     ASSERT_THROW(stream.BackUp(10), std::logic_error);
@@ -235,7 +235,7 @@ namespace orc {
   TEST_F(TestCompression, testFileSkip) {
     SCOPED_TRACE("testFileSkip");
     std::unique_ptr<InputStream> file = readLocalFile(simpleFile);
-    SeekableFileInputStream stream(file.get(), 0, 200, 20);
+    SeekableFileInputStream stream(file.get(), 0, 200, nullptr, 20);
     const void *ptr;
     int len;
     ASSERT_EQ(true, stream.Next(&ptr, &len));
@@ -255,7 +255,7 @@ namespace orc {
   TEST_F(TestCompression, testFileCombo) {
     SCOPED_TRACE("testFileCombo");
     std::unique_ptr<InputStream> file = readLocalFile(simpleFile);
-    SeekableFileInputStream stream(file.get(), 0, 200, 20);
+    SeekableFileInputStream stream(file.get(), 0, 200, nullptr, 20);
     const void *ptr;
     int len;
     ASSERT_EQ(true, stream.Next(&ptr, &len));
@@ -275,7 +275,7 @@ namespace orc {
   TEST_F(TestCompression, testFileSeek) {
     SCOPED_TRACE("testFileSeek");
     std::unique_ptr<InputStream> file = readLocalFile(simpleFile);
-    SeekableFileInputStream stream(file.get(), 0, 200, 20);
+    SeekableFileInputStream stream(file.get(), 0, 200, nullptr, 20);
     const void *ptr;
     int len;
     EXPECT_EQ(0, stream.ByteCount());
@@ -542,6 +542,7 @@ namespace orc {
          std::unique_ptr<SeekableInputStream>
            (new SeekableArrayInputStream(compressBuffer.getBuffer(),
                                          compressBuffer.getBufferSize(),
+                                         nullptr,
                                          blockSize)),
          buf.size());
     const void *data;
@@ -582,7 +583,7 @@ namespace orc {
     std::unique_ptr<SeekableInputStream> result = createDecompressor
         (CompressionKind_SNAPPY,
          std::unique_ptr<SeekableInputStream>
-         (new SeekableArrayInputStream(input.data(), input.size(), blockSize)),
+         (new SeekableArrayInputStream(input.data(), input.size(), nullptr, blockSize)),
            buf.size());
     for (int i=0; i < 4; ++i) {
       const void *data;
@@ -615,6 +616,7 @@ namespace orc {
          std::unique_ptr<SeekableInputStream>
            (new SeekableArrayInputStream(compressBuffer.getBuffer(),
                                          compressBuffer.getBufferSize(),
+                                         nullptr,
                                          blockSize)),
          buf.size());
     const void *data;

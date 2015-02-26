@@ -95,7 +95,7 @@ namespace orc {
     rowBatch.numElements = numValues;
     ByteRleDecoder* decoder = notNullDecoder.get();
     if (decoder) {
-      char* notNullArray = rowBatch.notNull->data();
+      char* notNullArray = rowBatch.notNull.data();
       decoder->next(notNullArray, numValues, incomingMask);
       // check to see if there are nulls in this batch
       for(unsigned long i=0; i < numValues; ++i) {
@@ -162,9 +162,9 @@ namespace orc {
     ColumnReader::next(rowBatch, numValues, notNull);
     // Since the byte rle places the output in a char* instead of long*,
     // we cheat here and use the long* and then expand it in a second pass.
-    int64_t *ptr = dynamic_cast<LongVectorBatch&>(rowBatch).data->data();
+    int64_t *ptr = dynamic_cast<LongVectorBatch&>(rowBatch).data.data();
     rle->next(reinterpret_cast<char*>(ptr),
-              numValues, rowBatch.hasNulls ? rowBatch.notNull->data() : 0);
+              numValues, rowBatch.hasNulls ? rowBatch.notNull.data() : 0);
     expandBytesToLongs(ptr, numValues);
   }
 
@@ -207,9 +207,9 @@ namespace orc {
     ColumnReader::next(rowBatch, numValues, notNull);
     // Since the byte rle places the output in a char* instead of long*,
     // we cheat here and use the long* and then expand it in a second pass.
-    int64_t *ptr = dynamic_cast<LongVectorBatch&>(rowBatch).data->data();
+    int64_t *ptr = dynamic_cast<LongVectorBatch&>(rowBatch).data.data();
     rle->next(reinterpret_cast<char*>(ptr),
-              numValues, rowBatch.hasNulls ? rowBatch.notNull->data() : 0);
+              numValues, rowBatch.hasNulls ? rowBatch.notNull.data() : 0);
     expandBytesToLongs(ptr, numValues);
   }
 
@@ -253,8 +253,8 @@ namespace orc {
                                  unsigned long numValues,
                                  char *notNull) {
     ColumnReader::next(rowBatch, numValues, notNull);
-    rle->next(dynamic_cast<LongVectorBatch&>(rowBatch).data->data(),
-              numValues, rowBatch.hasNulls ? rowBatch.notNull->data() : 0);
+    rle->next(dynamic_cast<LongVectorBatch&>(rowBatch).data.data(),
+              numValues, rowBatch.hasNulls ? rowBatch.notNull.data() : 0);
   }
 
   class TimestampColumnReader: public IntegerColumnReader {
@@ -306,12 +306,12 @@ namespace orc {
     DataBuffer<int64_t> nanoseconds(rowBatch.capacity, memoryPool);
 
     rle->next(seconds.data(),
-              numValues, rowBatch.hasNulls ? rowBatch.notNull->data() : 0);
+              numValues, rowBatch.hasNulls ? rowBatch.notNull.data() : 0);
     nanos->next(nanoseconds.data(),
-              numValues, rowBatch.hasNulls ? rowBatch.notNull->data() : 0);
+              numValues, rowBatch.hasNulls ? rowBatch.notNull.data() : 0);
 
     // Construct the values
-    int64_t* pStamp = dynamic_cast<LongVectorBatch&>(rowBatch).data->data();
+    int64_t* pStamp = dynamic_cast<LongVectorBatch&>(rowBatch).data.data();
     int zeroes = 0;
     int64_t value = 0;
     for(unsigned int i=0; i<rowBatch.capacity; i++) {
@@ -416,8 +416,8 @@ namespace orc {
                                 char *notNull) {
     ColumnReader::next(rowBatch, numValues, notNull);
     // update the notNull from the parent class
-    notNull = rowBatch.hasNulls ? rowBatch.notNull->data() : 0;
-    double* outArray = dynamic_cast<DoubleVectorBatch&>(rowBatch).data->data();
+    notNull = rowBatch.hasNulls ? rowBatch.notNull.data() : 0;
+    double* outArray = dynamic_cast<DoubleVectorBatch&>(rowBatch).data.data();
 
     if (columnKind == FLOAT) {
       if (notNull) {
@@ -524,12 +524,12 @@ namespace orc {
                                           char *notNull) {
     ColumnReader::next(rowBatch, numValues, notNull);
     // update the notNull from the parent class
-    notNull = rowBatch.hasNulls ? rowBatch.notNull->data() : 0;
+    notNull = rowBatch.hasNulls ? rowBatch.notNull.data() : 0;
     StringVectorBatch& byteBatch = dynamic_cast<StringVectorBatch&>(rowBatch);
     char *blob = dictionaryBlob->data();
     int64_t *dictionaryOffsets = dictionaryOffset->data();
-    char **outputStarts = byteBatch.data->data();
-    int64_t *outputLengths = byteBatch.length->data();
+    char **outputStarts = byteBatch.data.data();
+    int64_t *outputLengths = byteBatch.length.data();
     rle->next(outputLengths, numValues, notNull);
     if (notNull) {
       for(unsigned int i=0; i < numValues; ++i) {
@@ -651,10 +651,10 @@ namespace orc {
                                       char *notNull) {
     ColumnReader::next(rowBatch, numValues, notNull);
     // update the notNull from the parent class
-    notNull = rowBatch.hasNulls ? rowBatch.notNull->data() : 0;
+    notNull = rowBatch.hasNulls ? rowBatch.notNull.data() : 0;
     StringVectorBatch& byteBatch = dynamic_cast<StringVectorBatch&>(rowBatch);
-    char **startPtr = byteBatch.data->data();
-    int64_t *lengthPtr = byteBatch.length->data();
+    char **startPtr = byteBatch.data.data();
+    int64_t *lengthPtr = byteBatch.length.data();
 
     // read the length vector
     lengthRle->next(lengthPtr, numValues, notNull);
@@ -795,7 +795,7 @@ namespace orc {
                                 char *notNull) {
     ColumnReader::next(rowBatch, numValues, notNull);
     unsigned int i=0;
-    notNull = rowBatch.hasNulls? rowBatch.notNull->data() : 0;
+    notNull = rowBatch.hasNulls? rowBatch.notNull.data() : 0;
     for(std::vector<ColumnReader*>::iterator ptr=children.begin();
         ptr != children.end(); ++ptr, ++i) {
       (*ptr)->next(*(dynamic_cast<StructVectorBatch&>(rowBatch).fields[i]),
@@ -868,8 +868,8 @@ namespace orc {
                               char *notNull) {
     ColumnReader::next(rowBatch, numValues, notNull);
     ListVectorBatch &listBatch = dynamic_cast<ListVectorBatch&>(rowBatch);
-    int64_t* offsets = listBatch.offsets->data();
-    notNull = listBatch.hasNulls ? listBatch.notNull->data() : 0;
+    int64_t* offsets = listBatch.offsets.data();
+    notNull = listBatch.hasNulls ? listBatch.notNull.data() : 0;
     rle->next(offsets, numValues, notNull);
     unsigned long totalChildren = 0;
     if (notNull) {
@@ -971,8 +971,8 @@ namespace orc {
                              char *notNull) {
     ColumnReader::next(rowBatch, numValues, notNull);
     MapVectorBatch &mapBatch = dynamic_cast<MapVectorBatch&>(rowBatch);
-    int64_t* offsets = mapBatch.offsets->data();
-    notNull = mapBatch.hasNulls ? mapBatch.notNull->data() : 0;
+    int64_t* offsets = mapBatch.offsets.data();
+    notNull = mapBatch.hasNulls ? mapBatch.notNull.data() : 0;
     rle->next(offsets, numValues, notNull);
     unsigned long totalChildren = 0;
     if (notNull) {
@@ -1137,10 +1137,10 @@ namespace orc {
                                    unsigned long numValues,
                                    char *notNull) {
     ColumnReader::next(rowBatch, numValues, notNull);
-    notNull = rowBatch.hasNulls ? rowBatch.notNull->data() : 0;
+    notNull = rowBatch.hasNulls ? rowBatch.notNull.data() : 0;
     Decimal64VectorBatch &batch =
       dynamic_cast<Decimal64VectorBatch&>(rowBatch);
-    int64_t* values = batch.values->data();
+    int64_t* values = batch.values.data();
     // read the next group of scales
     int64_t* scaleBuffer = batch.readScales->data();
     scaleDecoder->next(scaleBuffer, numValues, notNull);
@@ -1226,10 +1226,10 @@ namespace orc {
                                    unsigned long numValues,
                                    char *notNull) {
     ColumnReader::next(rowBatch, numValues, notNull);
-    notNull = rowBatch.hasNulls ? rowBatch.notNull->data() : 0;
+    notNull = rowBatch.hasNulls ? rowBatch.notNull.data() : 0;
     Decimal128VectorBatch &batch =
       dynamic_cast<Decimal128VectorBatch&>(rowBatch);
-    Int128* values = batch.values->data();
+    Int128* values = batch.values.data();
     // read the next group of scales
     int64_t* scaleBuffer = batch.readScales->data();
     scaleDecoder->next(scaleBuffer, numValues, notNull);
@@ -1319,10 +1319,10 @@ namespace orc {
                                        unsigned long numValues,
                                        char *notNull) {
     ColumnReader::next(rowBatch, numValues, notNull);
-    notNull = rowBatch.hasNulls ? rowBatch.notNull->data() : 0;
+    notNull = rowBatch.hasNulls ? rowBatch.notNull.data() : 0;
     Decimal128VectorBatch &batch =
       dynamic_cast<Decimal128VectorBatch&>(rowBatch);
-    Int128* values = batch.values->data();
+    Int128* values = batch.values.data();
     // read the next group of scales
     int64_t* scaleBuffer = batch.readScales->data();
 
@@ -1357,7 +1357,7 @@ namespace orc {
                          << "Hive 0.11 decimal with more than 38 digits "
                          << "replaced by NULL.\n";
             batch.hasNulls = true;
-            (*batch.notNull)[i] = false;
+            batch.notNull[i] = false;
           }
         }
       }

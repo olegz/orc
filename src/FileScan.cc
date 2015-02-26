@@ -34,11 +34,9 @@ int main(int argc, char* argv[]) {
   cols.push_back(0);
   opts.include(cols);
 
-  std::unique_ptr<orc::MemoryPool> pool(orc::createTestMemoryPool().release());
   std::unique_ptr<orc::Reader> reader;
-
   try{
-    reader = orc::createReader(orc::readLocalFile(std::string(argv[1])), opts, pool.get());
+    reader = orc::createReader(orc::readLocalFile(std::string(argv[1])), opts);
   } catch (orc::ParseError e) {
     std::cout << "Error reading file " << argv[1] << "! "
               << e.what() << std::endl;

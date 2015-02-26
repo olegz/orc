@@ -94,7 +94,7 @@ namespace orc {
    */
   std::unique_ptr<ColumnReader> buildReader(const Type& type,
                                             StripeStreams& stripe,
-                                            MemoryPool* pool);
+                                            MemoryPool* pool = nullptr);
 }
 
 #endif

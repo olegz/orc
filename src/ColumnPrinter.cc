@@ -172,7 +172,7 @@ namespace orc {
   void ColumnPrinter::reset(const ColumnVectorBatch& batch) {
     hasNulls = batch.hasNulls;
     if (hasNulls) {
-      notNull = batch.notNull->data();
+      notNull = batch.notNull.data();
     } else {
       notNull = nullptr ;
     }
@@ -251,7 +251,7 @@ namespace orc {
 
   void LongColumnPrinter::reset(const  ColumnVectorBatch& batch) {
     ColumnPrinter::reset(batch);
-    data = dynamic_cast<const LongVectorBatch&>(batch).data->data();
+    data = dynamic_cast<const LongVectorBatch&>(batch).data.data();
   }
 
   void LongColumnPrinter::printRow(unsigned long rowId) {
@@ -270,7 +270,7 @@ namespace orc {
 
   void DoubleColumnPrinter::reset(const  ColumnVectorBatch& batch) {
     ColumnPrinter::reset(batch);
-    data = dynamic_cast<const DoubleVectorBatch&>(batch).data->data();
+    data = dynamic_cast<const DoubleVectorBatch&>(batch).data.data();
   }
 
   void DoubleColumnPrinter::printRow(unsigned long rowId) {
@@ -293,7 +293,7 @@ namespace orc {
 
   void Decimal64ColumnPrinter::reset(const  ColumnVectorBatch& batch) {
     ColumnPrinter::reset(batch);
-    data = dynamic_cast<const Decimal64VectorBatch&>(batch).values->data();
+    data = dynamic_cast<const Decimal64VectorBatch&>(batch).values.data();
     scale = dynamic_cast<const Decimal64VectorBatch&>(batch).scale;
   }
 
@@ -343,7 +343,7 @@ namespace orc {
 
    void Decimal128ColumnPrinter::reset(const  ColumnVectorBatch& batch) {
      ColumnPrinter::reset(batch);
-     data = dynamic_cast<const Decimal128VectorBatch&>(batch).values->data();
+     data = dynamic_cast<const Decimal128VectorBatch&>(batch).values.data();
      scale =dynamic_cast<const Decimal128VectorBatch&>(batch).scale;
    }
 
@@ -363,8 +363,8 @@ namespace orc {
 
   void StringColumnPrinter::reset(const ColumnVectorBatch& batch) {
     ColumnPrinter::reset(batch);
-    start = dynamic_cast<const StringVectorBatch&>(batch).data->data();
-    length = dynamic_cast<const StringVectorBatch&>(batch).length->data();
+    start = dynamic_cast<const StringVectorBatch&>(batch).data.data();
+    length = dynamic_cast<const StringVectorBatch&>(batch).length.data();
   }
 
   void StringColumnPrinter::printRow(unsigned long rowId) {
@@ -413,7 +413,7 @@ namespace orc {
 
   void ListColumnPrinter::reset(const  ColumnVectorBatch& batch) {
     ColumnPrinter::reset(batch);
-    offsets = dynamic_cast<const ListVectorBatch&>(batch).offsets->data();
+    offsets = dynamic_cast<const ListVectorBatch&>(batch).offsets.data();
     elementPrinter->reset(*dynamic_cast<const ListVectorBatch&>(batch).
                           elements);
   }
@@ -443,7 +443,7 @@ namespace orc {
   void MapColumnPrinter::reset(const  ColumnVectorBatch& batch) {
     ColumnPrinter::reset(batch);
     const MapVectorBatch& myBatch = dynamic_cast<const MapVectorBatch&>(batch);
-    offsets = myBatch.offsets->data();
+    offsets = myBatch.offsets.data();
     keyPrinter->reset(*myBatch.keys);
     elementPrinter->reset(*myBatch.elements);
   }
@@ -528,7 +528,7 @@ namespace orc {
 
   void DateColumnPrinter::reset(const ColumnVectorBatch& batch) {
     ColumnPrinter::reset(batch);
-    data = dynamic_cast<const LongVectorBatch&>(batch).data->data();
+    data = dynamic_cast<const LongVectorBatch&>(batch).data.data();
   }
 
   BooleanColumnPrinter::BooleanColumnPrinter(std::ostream& stream,
@@ -547,7 +547,7 @@ namespace orc {
 
   void BooleanColumnPrinter::reset(const ColumnVectorBatch& batch) {
     ColumnPrinter::reset(batch);
-    data = dynamic_cast<const LongVectorBatch&>(batch).data->data();
+    data = dynamic_cast<const LongVectorBatch&>(batch).data.data();
   }
 
   BinaryColumnPrinter::BinaryColumnPrinter(std::ostream& stream,
@@ -573,8 +573,8 @@ namespace orc {
 
   void BinaryColumnPrinter::reset(const ColumnVectorBatch& batch) {
     ColumnPrinter::reset(batch);
-    start = dynamic_cast<const StringVectorBatch&>(batch).data->data();
-    length = dynamic_cast<const StringVectorBatch&>(batch).length->data();
+    start = dynamic_cast<const StringVectorBatch&>(batch).data.data();
+    length = dynamic_cast<const StringVectorBatch&>(batch).length.data();
   }
 
   TimestampColumnPrinter::TimestampColumnPrinter(std::ostream& stream,
@@ -631,6 +631,6 @@ namespace orc {
 
   void TimestampColumnPrinter::reset(const ColumnVectorBatch& batch) {
     ColumnPrinter::reset(batch);
-    data = dynamic_cast<const LongVectorBatch&>(batch).data->data();
+    data = dynamic_cast<const LongVectorBatch&>(batch).data.data();
   }
 }

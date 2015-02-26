@@ -52,7 +52,7 @@ namespace orc {
   protected:
     MemoryPool* memoryPool;
   public:
-    SeekableInputStream(MemoryPool* pool);
+    SeekableInputStream(MemoryPool* pool = nullptr);
     MemoryPool* getMemoryPool();
     virtual ~SeekableInputStream();
     virtual void seek(PositionProvider& position) = 0;
@@ -75,15 +75,15 @@ namespace orc {
     #if __cplusplus >= 201103L
       SeekableArrayInputStream(std::initializer_list<unsigned char> list,
                        long block_size = -1,
-                       MemoryPool* pool = createDefaultMemoryPool().release());
+                       MemoryPool* pool = nullptr);
     #endif // __cplusplus
     SeekableArrayInputStream(const unsigned char* list,
                              unsigned long length,
-                             MemoryPool* pool,
+                             MemoryPool* pool = nullptr,
                              long block_size = -1);
     SeekableArrayInputStream(const char* list,
                              unsigned long length,
-                             MemoryPool* pool,
+                             MemoryPool* pool = nullptr,
                              long block_size = -1);
     virtual ~SeekableArrayInputStream();
     virtual bool Next(const void** data, int*size) override;
@@ -112,7 +112,7 @@ namespace orc {
     SeekableFileInputStream(InputStream* input,
                             unsigned long offset,
                             unsigned long length,
-                            MemoryPool* pool,
+                            MemoryPool* pool = nullptr,
                             long blockSize = -1);
     virtual ~SeekableFileInputStream();
 

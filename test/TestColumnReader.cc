@@ -880,7 +880,7 @@ TEST(TestColumnReader, testStringDirectShortBuffer) {
   }
   EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_DATA))
       .WillRepeatedly(testing::Return(new SeekableArrayInputStream
-      (blob, 200, 3)));
+      (blob, 200, nullptr, 3)));
 
   EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_LENGTH))
       .WillRepeatedly(testing::Return(new SeekableArrayInputStream
@@ -941,7 +941,7 @@ TEST(TestColumnReader, testStringDirectShortBufferWithNulls) {
   }
   EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_DATA))
       .WillRepeatedly(testing::Return(new SeekableArrayInputStream
-      (blob, 512, 30)));
+      (blob, 512, nullptr, 30)));
 
   EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_LENGTH))
       .WillRepeatedly(testing::Return(new SeekableArrayInputStream
@@ -1008,7 +1008,7 @@ TEST(TestColumnReader, testStringDirectSkip) {
   }
   EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_DATA))
       .WillRepeatedly(testing::Return(new SeekableArrayInputStream
-      (blob, BLOB_SIZE, 200)));
+      (blob, BLOB_SIZE, nullptr, 200)));
 
   // the stream of 0 to 1199
   EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_LENGTH))
@@ -1107,7 +1107,7 @@ TEST(TestColumnReader, testStringDirectSkipWithNulls) {
   }
   EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_DATA))
       .WillRepeatedly(testing::Return(new SeekableArrayInputStream
-      (blob, BLOB_SIZE, 200)));
+      (blob, BLOB_SIZE, nullptr, 200)));
 
   // range(1200)
   EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_LENGTH))
@@ -2559,7 +2559,7 @@ TEST(DecimalColumnReader, testDecimal64) {
   }
   EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_DATA))
     .WillRepeatedly(testing::Return(new SeekableArrayInputStream(numBuffer,
-                                                                 65, 3)));
+                                                         65, nullptr, 3)));
 
   // [0x02] * 65
   EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_SECONDARY))
@@ -2708,7 +2708,7 @@ TEST(DecimalColumnReader, testDecimal128) {
   }
   EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_DATA))
     .WillRepeatedly(testing::Return(new SeekableArrayInputStream(numBuffer,
-                                                                 65, 3)));
+                                                         65, nullptr, 3)));
 
   // [0x02] * 65
   EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_SECONDARY))
@@ -2882,7 +2882,7 @@ TEST(DecimalColumnReader, testDecimalHive11) {
   }
   EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_DATA))
     .WillRepeatedly(testing::Return(new SeekableArrayInputStream(numBuffer,
-                                                                 65, 3)));
+                                                         65, nullptr, 3)));
 
   unsigned char scaleBuffer[] = {0x3e, 0x00, 0x0c};
   EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_SECONDARY))
