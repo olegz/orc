@@ -25,8 +25,6 @@
 
 namespace orc {
 
-  int index = 0;
-
   ColumnVectorBatch::ColumnVectorBatch(uint64_t cap, MemoryPool* pool
                        ):  capacity(cap),
                            numElements(0),

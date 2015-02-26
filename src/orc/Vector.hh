@@ -98,8 +98,6 @@ namespace orc {
   std::unique_ptr<Type>
     createUnionType(std::vector<Type*> types);
 
-  extern int index ;
-
   template <class T>
   class DataBuffer {
   private:
