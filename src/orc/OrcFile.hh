@@ -71,7 +71,7 @@ namespace orc {
    */
   std::unique_ptr<Reader> createReader(std::unique_ptr<InputStream> stream,
                                        const ReaderOptions& options,
-                                       MemoryPool* pool = nullptr);
+                                       MemoryPool* pool);
 }
 
 #endif

@@ -64,7 +64,9 @@ namespace orc {
   }
 
   SeekableInputStream::SeekableInputStream(MemoryPool* pool):
-      memoryPool(pool) {}
+      memoryPool(pool) {
+    // PASS
+  }
 
   MemoryPool* SeekableInputStream::getMemoryPool() {
     return memoryPool;
@@ -83,21 +85,26 @@ namespace orc {
        (std::initializer_list<unsigned char> values,
         long blkSize,
         MemoryPool* pool):
-        SeekableInputStream(pool), ownedData(values.size(), pool), data(0) {
+        SeekableInputStream(pool),
+        ownedData(new DataBuffer<char>(values.size(), pool)),
+        data(0) {
       length = values.size();
-      memcpy(ownedData.data(), values.begin(), values.size());
+      memcpy(ownedData->data(), values.begin(), values.size());
       position = 0;
       blockSize = blkSize == -1 ? length : static_cast<unsigned long>(blkSize);
     }
   #endif // __cplusplus
 
   SeekableArrayInputStream::SeekableArrayInputStream
-     (const unsigned char* values, unsigned long size,
-      long blkSize,
-      MemoryPool* pool):
-      SeekableInputStream(pool), ownedData(size, pool), data(0) {
+     (const unsigned char* values,
+      unsigned long size,
+      MemoryPool* pool,
+      long blkSize):
+      SeekableInputStream(pool),
+      ownedData(new DataBuffer<char>(size, pool)),
+      data(0) {
     length = size;
-    char *ptr = ownedData.data();
+    char *ptr = ownedData->data();
     for(unsigned long i = 0; i < size; ++i) {
       ptr[i] = static_cast<char>(values[i]);
     }
@@ -107,11 +114,11 @@ namespace orc {
 
   SeekableArrayInputStream::SeekableArrayInputStream(const char* values,
                                                      unsigned long size,
-                                                     long blkSize,
-                                                     MemoryPool* pool):
-                                                 SeekableInputStream(pool),
-                                                 ownedData(0, pool),
-                                                 data(values) {
+                                                     MemoryPool* pool,
+                                                     long blkSize):
+                       SeekableInputStream(pool),
+                       ownedData(new DataBuffer<char>(0, pool)),
+                       data(values) {
     length = size;
     position = 0;
     blockSize = blkSize == -1 ? length : static_cast<unsigned long>(blkSize);
@@ -120,7 +127,7 @@ namespace orc {
   bool SeekableArrayInputStream::Next(const void** buffer, int*size) {
     unsigned long currentSize = std::min(length - position, blockSize);
     if (currentSize > 0) {
-      *buffer = (data ? data : ownedData.data()) + position;
+      *buffer = (data ? data : ownedData->data()) + position;
       *size = static_cast<int>(currentSize);
       position += currentSize;
       return true;
@@ -170,8 +177,8 @@ namespace orc {
   SeekableFileInputStream::SeekableFileInputStream(InputStream* _input,
                                                    unsigned long _offset,
                                                    unsigned long _length,
-                                                   long _blockSize,
-                                                   MemoryPool* pool):
+                                                   MemoryPool* pool,
+                                                   long _blockSize):
                                                    SeekableInputStream(pool) {
     input = _input;
     offset = _offset;
@@ -180,7 +187,7 @@ namespace orc {
     blockSize = std::min(length,
                          static_cast<unsigned long>(_blockSize < 0 ?
                                                     256 * 1024 : _blockSize));
-    buffer.reset(blockSize, pool);
+    buffer.reset(new DataBuffer<char>(blockSize, pool));
     remainder = 0;
   }
 
@@ -191,9 +198,9 @@ namespace orc {
   bool SeekableFileInputStream::Next(const void** data, int*size) {
     unsigned long bytesRead = std::min(length - position, blockSize);
     if (bytesRead > 0) {
-      *data = buffer.data();
+      *data = buffer->data();
       // read from the file, skipping over the remainder
-      input->read(buffer.data() + remainder, offset + position + remainder,
+      input->read(buffer->data() + remainder, offset + position + remainder,
                   bytesRead - remainder);
       position += bytesRead;
       remainder = 0;
@@ -211,8 +218,8 @@ namespace orc {
     }
     remainder = static_cast<unsigned long>(count);
     position -= remainder;
-    memmove(buffer.data(),
-            buffer.data() + blockSize - static_cast<size_t>(count),
+    memmove(buffer->data(),
+            buffer->data() + blockSize - static_cast<size_t>(count),
             static_cast<size_t>(count));
   }
 
@@ -229,7 +236,7 @@ namespace orc {
     }
     if (remainder > count) {
       remainder -= count;
-      memmove(buffer.data(), buffer.data() + count, remainder);
+      memmove(buffer->data(), buffer->data() + count, remainder);
     } else {
       remainder = 0;
     }
@@ -321,10 +328,10 @@ namespace orc {
     }
 
     const size_t blockSize;
-    const std::unique_ptr<SeekableInputStream> input;
+    std::unique_ptr<SeekableInputStream> input;
     z_stream zstream;
 //    std::vector<char> buffer;
-    DataBuffer<char> buffer;
+    std::unique_ptr<DataBuffer<char> > buffer;
 
     // the current state
     DecompressState state;
@@ -352,15 +359,16 @@ namespace orc {
   ZlibDecompressionStream::ZlibDecompressionStream
                    (std::unique_ptr<SeekableInputStream> inStream,
                     size_t _blockSize
-                    ): blockSize(_blockSize),
-                       input(std::move(inStream)),
-                       buffer(_blockSize, input->getMemoryPool()) {
+                    ): SeekableInputStream(inStream->getMemoryPool()),
+                       blockSize(_blockSize),
+                       buffer(new DataBuffer<char>(_blockSize, memoryPool)) {
+    input.reset(inStream.release());
     zstream.next_in = Z_NULL;
     zstream.avail_in = 0;
     zstream.zalloc = Z_NULL;
     zstream.zfree = Z_NULL;
     zstream.opaque = Z_NULL;
-    zstream.next_out = reinterpret_cast<Bytef*>(buffer.data());
+    zstream.next_out = reinterpret_cast<Bytef*>(buffer->data());
     zstream.avail_out = static_cast<uInt>(blockSize);
     int result = inflateInit2(&zstream, -15);
     switch (result) {
@@ -427,7 +435,7 @@ namespace orc {
       zstream.next_in =
         reinterpret_cast<Bytef*>(const_cast<char*>(inputBuffer));
       zstream.avail_in = static_cast<uInt>(availSize);
-      outputBuffer = buffer.data();
+      outputBuffer = buffer->data();
       zstream.next_out =
         reinterpret_cast<Bytef*>(const_cast<char*>(outputBuffer));
       zstream.avail_out = static_cast<uInt>(blockSize);
@@ -585,16 +593,16 @@ namespace orc {
       }
     }
 
-    const std::unique_ptr<SeekableInputStream> input;
+    std::unique_ptr<SeekableInputStream> input;
 
     // may need to stitch together multiple input buffers;
     // to give snappy a contiguous block
 //    std::vector<char> inputBuffer;
-    DataBuffer<char> inputBuffer;
+    std::unique_ptr<DataBuffer<char> > inputBuffer;
 
     // uncompressed output
 //    std::vector<char> outputBuffer;
-    DataBuffer<char> outputBuffer;
+    std::unique_ptr<DataBuffer<char> > outputBuffer;
 
     // the current state
     DecompressState state;
@@ -618,17 +626,17 @@ namespace orc {
   SnappyDecompressionStream::SnappyDecompressionStream(
                     std::unique_ptr<SeekableInputStream> inStream,
                     size_t blockSize) :
-      input(std::move(inStream)),
-      inputBuffer(0, input->getMemoryPool()),
-      outputBuffer(blockSize, input->getMemoryPool()),
+      SeekableInputStream(inStream->getMemoryPool()),
+      inputBuffer(new DataBuffer<char>(0, memoryPool)),
+      outputBuffer(new DataBuffer<char>(blockSize, memoryPool)),
       state(DECOMPRESS_HEADER),
       outputBufferPtr(0),
       outputBufferLength(0),
       remainingLength(0),
       inputBufferPtr(0),
       inputBufferPtrEnd(0),
-      bytesReturned(0)
-  {
+      bytesReturned(0)  {
+    input.reset(inStream.release());
   }
 
   bool SnappyDecompressionStream::Next(const void** data, int*size) {
@@ -668,19 +676,19 @@ namespace orc {
           inputBufferPtr += availSize;
       } else {
         // Did not read enough from input.
-        if (inputBuffer.capacity() < remainingLength) {
-          inputBuffer.resize(remainingLength);
+        if (inputBuffer->capacity() < remainingLength) {
+          inputBuffer->resize(remainingLength);
         }
-        ::memcpy(inputBuffer.data(), inputBufferPtr, availSize);
+        ::memcpy(inputBuffer->data(), inputBufferPtr, availSize);
         inputBufferPtr += availSize;
-        compressed = inputBuffer.data();
+        compressed = inputBuffer->data();
 
         for (size_t pos = availSize; pos < remainingLength; ) {
           readBuffer(true);
           size_t avail =
               std::min(static_cast<size_t>(inputBufferPtrEnd - inputBufferPtr),
                        remainingLength - pos);
-          ::memcpy(inputBuffer.data() + pos, inputBufferPtr, avail);
+          ::memcpy(inputBuffer->data() + pos, inputBufferPtr, avail);
           pos += avail;
           inputBufferPtr += avail;
         }
@@ -691,20 +699,20 @@ namespace orc {
         throw ParseError("SnappyDecompressionStream choked on corrupt input");
       }
 
-      if (outputBufferLength > outputBuffer.capacity()) {
+      if (outputBufferLength > outputBuffer->capacity()) {
         throw std::logic_error("uncompressed length exceeds block size");
       }
 
       if (!snappy::RawUncompress(compressed, remainingLength,
-                                 outputBuffer.data())) {
+                                 outputBuffer->data())) {
         throw ParseError("SnappyDecompressionStream choked on corrupt input");
       }
 
       remainingLength = 0;
       state = DECOMPRESS_HEADER;
-      *data = outputBuffer.data();
+      *data = outputBuffer->data();
       *size = static_cast<int>(outputBufferLength);
-      outputBufferPtr = outputBuffer.data() + outputBufferLength;
+      outputBufferPtr = outputBuffer->data() + outputBufferLength;
       outputBufferLength = 0;
     }
 

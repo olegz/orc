@@ -852,7 +852,7 @@ namespace orc {
     // footer
     proto::Footer footer;
 //    std::vector<unsigned long> firstRowOfStripe;
-    DataBuffer<unsigned long> firstRowOfStripe;
+    std::unique_ptr<DataBuffer<unsigned long> > firstRowOfStripe;
     unsigned long numberOfStripes;
     std::unique_ptr<Type> schema;
 
@@ -897,7 +897,7 @@ namespace orc {
      */
     ReaderImpl(std::unique_ptr<InputStream> stream,
                const ReaderOptions& options,
-               MemoryPool* pool = nullptr);
+               MemoryPool* pool);
 
     const ReaderOptions& getReaderOptions() const;
     CompressionKind getCompression() const override;
@@ -943,6 +943,8 @@ namespace orc {
     unsigned long getRowNumber() const override;
 
     void seekToRow(unsigned long rowNumber) override;
+
+    MemoryPool* getMemoryPool() const ;
   };
 
   InputStream::~InputStream() {
@@ -983,9 +985,13 @@ namespace orc {
     lastStripe = 0;
     currentRowInStripe = 0;
     unsigned long rowTotal = 0;
-    firstRowOfStripe.reset(static_cast<size_t>(footer.stripes_size()), memoryPool);
+
+    // firstRowOfStripe.resize(static_cast<size_t>(footer.stripes_size()));
+    firstRowOfStripe.reset(new DataBuffer<unsigned long>(
+        static_cast<size_t>(footer.stripes_size()), memoryPool));
+
     for(size_t i=0; i < static_cast<size_t>(footer.stripes_size()); ++i) {
-      firstRowOfStripe[i] = rowTotal;
+      (*firstRowOfStripe)[i] = rowTotal;
       proto::StripeInformation stripeInfo = footer.stripes(static_cast<int>(i));
       rowTotal += stripeInfo.numberofrows();
       bool isStripeInRange = stripeInfo.offset() >= opts.getOffset() &&
@@ -1190,6 +1196,10 @@ namespace orc {
     throw NotImplementedYet("seekToRow");
   }
 
+  MemoryPool* ReaderImpl::getMemoryPool() const {
+    return memoryPool;
+  }
+
   void ReaderImpl::readPostscript(char *buffer, unsigned long readSize) {
     postscriptLength = buffer[readSize - 1] & 0xff;
 
@@ -1231,7 +1241,7 @@ namespace orc {
     std::unique_ptr<SeekableInputStream> pbStream =
       createDecompressor(compression,
                          std::unique_ptr<SeekableInputStream>
-                         (new SeekableArrayInputStream(pBuffer, footerSize)),
+                         (new SeekableArrayInputStream(pBuffer, footerSize, memoryPool)),
                          blockSize);
     // TODO: do not SeekableArrayInputStream, rather use an array
     //    if (!footer.ParseFromArray(buffer+readSize-tailSize, footerSize)) {
@@ -1253,6 +1263,7 @@ namespace orc {
                          (new SeekableFileInputStream(stream.get(),
                                                       footerStart,
                                                       footerLength,
+                                                      memoryPool,
                                                       static_cast<long>
                                                       (blockSize)
                                                       )),
@@ -1278,7 +1289,7 @@ namespace orc {
       createDecompressor(compression,
                          std::unique_ptr<SeekableInputStream>
                          (new SeekableArrayInputStream(buffer+(readSize - tailSize),
-                                                       metadataSize)),
+                                                       metadataSize,memoryPool)),
                          blockSize);
 
     if (!metadata.ParseFromZeroCopyStream(pbStream.get())) {
@@ -1354,6 +1365,7 @@ namespace orc {
                                    (&input,
                                     offset,
                                     stream.length(),
+                                    static_cast<MemoryPool*>(reader.getMemoryPool()),
                                     static_cast<long>
                                     (reader.getCompressionSize()))),
                                   reader.getCompressionSize());
@@ -1370,7 +1382,7 @@ namespace orc {
     StripeStreamsImpl stripeStreams(*this, currentStripeFooter,
                                     currentStripeInfo.offset(),
                                     *(stream.get()));
-    reader = buildReader(*(schema.get()), stripeStreams);
+    reader = buildReader(*(schema.get()), stripeStreams, memoryPool);
   }
 
   void ReaderImpl::checkOrcVersion() {
@@ -1380,7 +1392,7 @@ namespace orc {
   bool ReaderImpl::next(ColumnVectorBatch& data) {
     if (currentStripe > lastStripe) {
       data.numElements = 0;
-      previousRow = firstRowOfStripe[lastStripe] +
+      previousRow = (*firstRowOfStripe)[lastStripe] +
         footer.stripes(static_cast<int>(lastStripe)).numberofrows();
       return false;
     }
@@ -1393,7 +1405,7 @@ namespace orc {
     data.numElements = rowsToRead;
     reader->next(data, rowsToRead, 0);
     // update row number
-    previousRow = firstRowOfStripe[currentStripe] + currentRowInStripe;
+    previousRow = (*firstRowOfStripe)[currentStripe] + currentRowInStripe;
     currentRowInStripe += rowsToRead;
     if (currentRowInStripe >= rowsInCurrentStripe) {
       currentStripe += 1;
@@ -1414,20 +1426,20 @@ namespace orc {
     case LONG:
     case TIMESTAMP:
     case DATE:
-      result = new LongVectorBatch(capacity);
+      result = new LongVectorBatch(capacity, memoryPool);
       break;
     case FLOAT:
     case DOUBLE:
-      result = new DoubleVectorBatch(capacity);
+      result = new DoubleVectorBatch(capacity, memoryPool);
       break;
     case STRING:
     case BINARY:
     case CHAR:
     case VARCHAR:
-      result = new StringVectorBatch(capacity);
+      result = new StringVectorBatch(capacity, memoryPool);
       break;
     case STRUCT:
-      result = new StructVectorBatch(capacity);
+      result = new StructVectorBatch(capacity, memoryPool);
       for(unsigned int i=0; i < type.getSubtypeCount(); ++i) {
         subtype = &(type.getSubtype(i));
         if (selectedColumns[static_cast<size_t>(subtype->getColumnId())]) {
@@ -1437,7 +1449,7 @@ namespace orc {
       }
       break;
     case LIST:
-      result = new ListVectorBatch(capacity);
+      result = new ListVectorBatch(capacity, memoryPool);
       subtype = &(type.getSubtype(0));
       if (selectedColumns[static_cast<size_t>(subtype->getColumnId())]) {
         dynamic_cast<ListVectorBatch*>(result)->elements =
@@ -1445,7 +1457,7 @@ namespace orc {
       }
       break;
     case MAP:
-      result = new MapVectorBatch(capacity);
+      result = new MapVectorBatch(capacity, memoryPool);
       subtype = &(type.getSubtype(0));
       if (selectedColumns[static_cast<size_t>(subtype->getColumnId())]) {
         dynamic_cast<MapVectorBatch*>(result)->keys =
@@ -1459,9 +1471,9 @@ namespace orc {
       break;
     case DECIMAL:
       if (type.getPrecision() == 0 || type.getPrecision() > 18) {
-        result = new Decimal128VectorBatch(capacity);
+        result = new Decimal128VectorBatch(capacity, memoryPool);
       } else {
-        result = new Decimal64VectorBatch(capacity);
+        result = new Decimal64VectorBatch(capacity, memoryPool);
       }
       break;
     case UNION:

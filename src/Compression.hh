@@ -52,7 +52,7 @@ namespace orc {
   protected:
     MemoryPool* memoryPool;
   public:
-    SeekableInputStream(MemoryPool* pool = nullptr);
+    SeekableInputStream(MemoryPool* pool);
     MemoryPool* getMemoryPool();
     virtual ~SeekableInputStream();
     virtual void seek(PositionProvider& position) = 0;
@@ -65,7 +65,7 @@ namespace orc {
   class SeekableArrayInputStream: public SeekableInputStream {
   private:
 //    std::vector<char> ownedData;
-    DataBuffer<char> ownedData;
+    std::unique_ptr<DataBuffer<char> > ownedData;
     const char* data;
     unsigned long length;
     unsigned long position;
@@ -74,17 +74,17 @@ namespace orc {
   public:
     #if __cplusplus >= 201103L
       SeekableArrayInputStream(std::initializer_list<unsigned char> list,
-                               long block_size = -1,
-                               MemoryPool* pool = nullptr);
+                       long block_size = -1,
+                       MemoryPool* pool = createDefaultMemoryPool().release());
     #endif // __cplusplus
     SeekableArrayInputStream(const unsigned char* list,
                              unsigned long length,
-                             long block_size = -1,
-                             MemoryPool* pool = nullptr);
+                             MemoryPool* pool,
+                             long block_size = -1);
     SeekableArrayInputStream(const char* list,
                              unsigned long length,
-                             long block_size = -1,
-                             MemoryPool* pool = nullptr);
+                             MemoryPool* pool,
+                             long block_size = -1);
     virtual ~SeekableArrayInputStream();
     virtual bool Next(const void** data, int*size) override;
     virtual void BackUp(int count) override;
@@ -101,7 +101,7 @@ namespace orc {
   private:
     InputStream* input;
 //    std::vector<char> buffer;
-    DataBuffer<char> buffer;
+    std::unique_ptr<DataBuffer<char> > buffer;
     unsigned long offset;
     unsigned long length;
     unsigned long position;
@@ -112,8 +112,8 @@ namespace orc {
     SeekableFileInputStream(InputStream* input,
                             unsigned long offset,
                             unsigned long length,
-                            long blockSize = -1,
-                            MemoryPool* pool = nullptr);
+                            MemoryPool* pool,
+                            long blockSize = -1);
     virtual ~SeekableFileInputStream();
 
     virtual bool Next(const void** data, int*size) override;
