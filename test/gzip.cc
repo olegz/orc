@@ -19,6 +19,7 @@
 #include "gzip.hh"
 
 #include <iostream>
+#include <stdexcept>
 
 #ifdef __clang__
 #pragma clang diagnostic ignored "-Wold-style-cast"
