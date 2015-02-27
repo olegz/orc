@@ -16,6 +16,8 @@
  * limitations under the License.
  */
 
+#include "ColumnPrinter.hh"
+#include "gzip.hh"
 #include "orc/OrcFile.hh"
 #include "TestDriver.hh"
 
@@ -33,6 +35,7 @@ namespace orc {
   class OrcFileDescription {
   public:
     std::string filename;
+    std::string json;
     std::string typeString;
     uint64_t rowCount;
     uint64_t contentLength;
@@ -42,6 +45,7 @@ namespace orc {
     uint64_t rowIndexStride;
 
     OrcFileDescription(const std::string& _filename,
+                       const std::string& _json,
                        const std::string& _typeString,
                        uint64_t _rowCount,
                        uint64_t _contentLength,
@@ -50,6 +54,7 @@ namespace orc {
                        size_t _compressionSize,
                        uint64_t _rowIndexStride
                        ): filename(_filename),
+                          json(_json),
                           typeString(_typeString),
                           rowCount(_rowCount),
                           contentLength(_contentLength),
@@ -76,13 +81,13 @@ namespace orc {
 
     std::string getFilename() {
       std::ostringstream filename;
-      filename << exampleDirectory << "/" << GetParam().filename << ".orc";
+      filename << exampleDirectory << "/" << GetParam().filename;
       return filename.str();
     }
 
     std::string getJsonFilename() {
       std::ostringstream filename;
-      filename << exampleDirectory << "/" << GetParam().filename << ".jsn.gz";
+      filename << exampleDirectory << "/" << GetParam().json;
       return filename.str();
     }
   };
@@ -116,16 +121,30 @@ namespace orc {
       createReader(readLocalFile(getFilename()), opts);
     unsigned long rowCount = 0;
     std::unique_ptr<ColumnVectorBatch> batch = reader->createRowBatch(1024);
+    GzipTextReader expected(getJsonFilename());
+    std::string expectedLine;
+    std::stringstream outBuffer;
+    std::unique_ptr<orc::ColumnPrinter> printer =
+      orc::createColumnPrinter(outBuffer, reader->getType());
     while (reader->next(*batch)) {
       EXPECT_EQ(rowCount, reader->getRowNumber());
       rowCount += batch->numElements;
+      printer->reset(*batch);
+      for(size_t i=0; i < batch->numElements; ++i) {
+        ASSERT_EQ(true, expected.nextLine(expectedLine));
+        outBuffer.str("");
+        printer->printRow(i);
+        EXPECT_EQ(expectedLine, outBuffer.str());
+      }
     }
+    EXPECT_EQ(false, expected.nextLine(expectedLine));
     EXPECT_EQ(GetParam().rowCount, rowCount);
     EXPECT_EQ(GetParam().rowCount, reader->getRowNumber());
   }
 
   INSTANTIATE_TEST_CASE_P(TestReader, MatchTest,
-    testing::Values(OrcFileDescription("demo-11-none",
+    testing::Values(OrcFileDescription("demo-11-none.orc",
+                                       "demo-12-zlib.jsn.gz",
                                        ("struct<_col0:int,_col1:string,"
                                         "_col2:string,_col3:string,_col4:int,"
                                         "_col5:string,_col6:int,_col7:int,"
@@ -136,7 +155,8 @@ namespace orc {
                                        CompressionKind_NONE,
                                        262144,
                                        10000),
-                    OrcFileDescription("demo-11-zlib",
+                    OrcFileDescription("demo-11-zlib.orc",
+                                       "demo-12-zlib.jsn.gz",
                                        ("struct<_col0:int,_col1:string,"
                                         "_col2:string,_col3:string,_col4:int,"
                                         "_col5:string,_col6:int,_col7:int,"
@@ -147,7 +167,8 @@ namespace orc {
                                        CompressionKind_ZLIB,
                                        262144,
                                        10000),
-                    OrcFileDescription("demo-12-zlib",
+                    OrcFileDescription("demo-12-zlib.orc",
+                                       "demo-12-zlib.jsn.gz",
                                        ("struct<_col0:int,_col1:string,"
                                         "_col2:string,_col3:string,_col4:int,"
                                         "_col5:string,_col6:int,_col7:int,"
@@ -158,7 +179,8 @@ namespace orc {
                                        CompressionKind_ZLIB,
                                        262144,
                                        10000),
-                    OrcFileDescription("nulls-at-end-snappy",
+                    OrcFileDescription("nulls-at-end-snappy.orc",
+                                       "nulls-at-end-snappy.jsn.gz",
                                        ("struct<_col0:tinyint,_col1:smallint,"
                                         "_col2:int,_col3:bigint,_col4:float,"
                                         "_col5:double,_col6:boolean>"),
@@ -168,7 +190,8 @@ namespace orc {
                                        CompressionKind_SNAPPY,
                                        262144,
                                        10000),
-                    OrcFileDescription("orc-file-11-format",
+                    OrcFileDescription("orc-file-11-format.orc",
+                                       "orc-file-11-format.jsn.gz",
                                        ("struct<boolean1:boolean,"
                                         "byte1:tinyint,short1:smallint,"
                                         "int1:int,long1:bigint,float1:float,"
@@ -186,7 +209,8 @@ namespace orc {
                                        CompressionKind_NONE,
                                        262144,
                                        10000),
-                    OrcFileDescription("orc_split_elim",
+                    OrcFileDescription("orc_split_elim.orc",
+                                       "orc_split_elim.jsn.gz",
                                        ("struct<userid:bigint,string1:string,"
                                         "subtype:double,decimal1:decimal(0,0),"
                                         "ts:timestamp>"),
@@ -196,7 +220,8 @@ namespace orc {
                                        CompressionKind_NONE,
                                        262144,
                                        10000),
-                    OrcFileDescription("decimal",
+                    OrcFileDescription("decimal.orc",
+                                       "decimal.jsn.gz",
                                        "struct<_col0:decimal(10,5)>",
                                        6000,
                                        16186,
