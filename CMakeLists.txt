@@ -120,6 +120,4 @@ set (EXAMPLE_DIRECTORY ${CMAKE_SOURCE_DIR}/examples)
 
 add_subdirectory(libs)
 add_subdirectory(src)
-if(NOT C09)
-  add_subdirectory(test)
-endif(NOT C09)
+add_subdirectory(test)
