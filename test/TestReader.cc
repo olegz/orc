@@ -385,6 +385,8 @@ TEST(Reader, readRangeTest) {
   EXPECT_FALSE(lastReader->next(*lastBatch));
 }
 
+#ifndef _WIN32
+// We temporary snappy for windows
 TEST(Reader, nullsAtEndRLEv2Test) {
   orc::ReaderOptions opts;
   std::ostringstream filename;
@@ -400,5 +402,6 @@ TEST(Reader, nullsAtEndRLEv2Test) {
   }
   ASSERT_EQ(70000, count);
 }
+#endif
 
 }  // namespace
