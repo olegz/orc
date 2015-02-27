@@ -24,6 +24,13 @@
 #include <sys/types.h>
 #include <unistd.h>
 
+#ifndef _WIN32
+// O_BINARY is windows specific, without which reader will not work.
+// So fake a flag here for poxis platform.
+// TODO: move this adapter somewhere else better?
+#define O_BINARY 0
+#endif
+
 namespace orc {
 
   class FileInputStream : public InputStream {
