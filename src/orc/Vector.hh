@@ -109,31 +109,6 @@ namespace orc {
     DataBuffer(DataBuffer& buffer);
     DataBuffer& operator=(DataBuffer& buffer);
 
-    /*
-     * Hard reset of the DataBuffer (all data is deleted)
-     */
-    void reset(uint64_t size, MemoryPool* pool) {
-      if (buf) {
-        memoryPool->free(buf);
-      }
-      buf = nullptr;
-      _size = _capacity = 0;
-
-      if (pool) {
-        // if memory pool provided, use it
-        memoryPool = pool;
-        privateMemoryPool.reset(nullptr);
-      } else {
-        // if memory pool is not provided, create a private instance
-        memoryPool = createDefaultMemoryPool().release();
-        privateMemoryPool.reset(memoryPool);
-      }
-
-      if (size > 0) {
-        resize(size);
-      }
-    }
-
   public:
     T* data() { return buf; }
     const T* data() const { return buf; }
@@ -163,8 +138,19 @@ namespace orc {
     }
 
     DataBuffer(uint64_t size = 0, MemoryPool* pool = nullptr) :
-      buf(nullptr) {
-      reset(size, pool);
+            buf(nullptr), _size(0), _capacity(0) {
+      if (pool) {
+        // if memory pool provided, use it
+        memoryPool = pool;
+        privateMemoryPool.reset(nullptr);
+      } else {
+        // if memory pool is not provided, create a private instance
+        memoryPool = createDefaultMemoryPool().release();
+        privateMemoryPool.reset(memoryPool);
+      }
+      if (size > 0) {
+        resize(size);
+      }
     }
 
     virtual ~DataBuffer(){
