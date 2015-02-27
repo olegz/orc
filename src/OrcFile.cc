@@ -35,7 +35,7 @@ namespace orc {
   public:
     FileInputStream(std::string _filename) {
       filename = _filename ;
-      file = open(filename.c_str(), O_RDONLY);
+      file = open(filename.c_str(), O_RDONLY | O_BINARY);
       if (file == -1) {
         throw ParseError("Can't open " + filename);
       }

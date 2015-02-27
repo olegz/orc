@@ -200,7 +200,7 @@ namespace orc {
 
     // footer
     proto::Footer footer;
-    std::vector<unsigned long> firstRowOfStripe;
+    std::vector<uint64_t> firstRowOfStripe;
     unsigned long numberOfStripes;
     std::unique_ptr<Type> schema;
 
@@ -275,7 +275,7 @@ namespace orc {
 
     bool next(ColumnVectorBatch& data) override;
 
-    unsigned long getRowNumber() const override;
+    uint64_t getRowNumber() const override;
 
     void seekToRow(unsigned long rowNumber) override;
   };
@@ -328,7 +328,7 @@ namespace orc {
 
     schema = convertType(footer.types(0), footer);
     schema->assignIds(0);
-    previousRow = (std::numeric_limits<unsigned long>::max)();
+    previousRow = (std::numeric_limits<uint64_t>::max)();
 
     selectedColumns.assign(static_cast<size_t>(footer.types_size()), false);
 
@@ -468,7 +468,7 @@ namespace orc {
     return *(schema.get());
   }
 
-  unsigned long ReaderImpl::getRowNumber() const {
+  uint64_t ReaderImpl::getRowNumber() const {
     return previousRow;
   }
 
