@@ -49,6 +49,8 @@ namespace orc {
   class DoubleColumnPrinter: public ColumnPrinter {
   private:
     const double* data;
+    const int32_t digits;
+
   public:
     DoubleColumnPrinter(std::ostream&, const Type&);
     virtual ~DoubleColumnPrinter() {}
@@ -264,7 +266,9 @@ namespace orc {
 
   DoubleColumnPrinter::DoubleColumnPrinter(std::ostream& stream,
                                            const Type& type
-                                           ): ColumnPrinter(stream, type) {
+                                           ): ColumnPrinter(stream, type),
+                                              digits(type.getKind() == FLOAT
+                                                     ? 7 : 15) {
     // PASS
   }
 
@@ -277,8 +281,7 @@ namespace orc {
     if (hasNulls && !notNull[rowId]) {
       stream << "null";
     } else {
-      std::streamsize oldPrecision =
-        stream.precision(std::numeric_limits<double>::digits);
+      std::streamsize oldPrecision = stream.precision(digits);
       stream << data[rowId];
       stream.precision(oldPrecision);
     }
