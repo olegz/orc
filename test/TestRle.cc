@@ -490,8 +490,9 @@ TEST(RLEv1, signedNullLiteralTest) {
   std::vector<char> notNull(8, 1);
   rle->next(data.data(), 8, notNull.data());
 
-  for (int64_t i = 0; i < 8; ++i) {
-    EXPECT_EQ(i % 2 == 0 ? i/2 : -((i+1)/2),
+  for (size_t i = 0; i < 8; ++i) {
+    int64_t tmp = static_cast<int64_t>(i);
+    EXPECT_EQ(tmp % 2 == 0 ? tmp/2 : -((tmp+1)/2),
               data[i]);
   }
 }
