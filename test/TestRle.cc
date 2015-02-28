@@ -219,8 +219,8 @@ TEST(RLEv2, multiByteShortRepeats) {
   const size_t nVals = 3;
   const size_t count = nVals * runLength;
   std::vector<int64_t> values;
-  for (int64_t i = 0; i < nVals; ++i) {
-    for (int64_t j = 0; j < runLength; ++j) {
+  for (size_t i = 0; i < nVals; ++i) {
+    for (size_t j = 0; j < runLength; ++j) {
       values.push_back(static_cast<int64_t>(i)+(1LL<<62));
     }
   }
@@ -553,8 +553,8 @@ TEST(RLEv1, testSigned) {
                        true, RleVersion_1);
   std::vector<int64_t> data(100);
   rle->next(data.data(), data.size(), nullptr);
-  for (int64_t i = 0; i < data.size(); ++i) {
-    EXPECT_EQ(16 - i, data[i]) << "Wrong output at " << i;
+  for (size_t i = 0; i < data.size(); ++i) {
+    EXPECT_EQ(16 - static_cast<int64_t>(i), data[i]) << "Wrong output at " << i;
   }
   rle->next(data.data(), 30, nullptr);
   for(size_t i = 0; i < 30; ++i) {
