@@ -51,7 +51,7 @@ private:
 
     inline void readHeader();
 
-    inline unsigned long readLong();
+    inline uint64_t readLong();
 
     inline void skipLongs(unsigned long numValues);
 

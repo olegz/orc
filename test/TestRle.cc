@@ -52,7 +52,7 @@ std::vector<int64_t> decodeRLEv2(const unsigned char *bytes,
 void checkResults(const std::vector<int64_t> &e, const std::vector<int64_t> &a,
                   size_t n, const char* notNull = nullptr) {
   EXPECT_EQ(e.size(), a.size()) << "vectors differ in size";
-  for (size_t i = 0; i < e.size(); ++i) {
+  for (int64_t i = 0; i < e.size(); ++i) {
     if (!notNull || notNull[i]) {
       EXPECT_EQ(e[i], a[i]) << "Output wrong at " << i << ", n=" << n;
     }
@@ -219,9 +219,9 @@ TEST(RLEv2, multiByteShortRepeats) {
   const size_t nVals = 3;
   const size_t count = nVals * runLength;
   std::vector<int64_t> values;
-  for (size_t i = 0; i < nVals; ++i) {
-    for (size_t j = 0; j < runLength; ++j) {
-      values.push_back(static_cast<int64_t>(i)+(1L<<62));
+  for (int64_t i = 0; i < nVals; ++i) {
+    for (int64_t j = 0; j < runLength; ++j) {
+      values.push_back(static_cast<int64_t>(i)+(1LL<<62));
     }
   }
 
@@ -490,7 +490,7 @@ TEST(RLEv1, signedNullLiteralTest) {
   std::vector<char> notNull(8, 1);
   rle->next(data.data(), 8, notNull.data());
 
-  for (size_t i = 0; i < 8; ++i) {
+  for (int64_t i = 0; i < 8; ++i) {
     EXPECT_EQ(i % 2 == 0 ? i/2 : -((i+1)/2),
               data[i]);
   }
@@ -553,7 +553,7 @@ TEST(RLEv1, testSigned) {
                        true, RleVersion_1);
   std::vector<int64_t> data(100);
   rle->next(data.data(), data.size(), nullptr);
-  for (size_t i = 0; i < data.size(); ++i) {
+  for (int64_t i = 0; i < data.size(); ++i) {
     EXPECT_EQ(16 - i, data[i]) << "Wrong output at " << i;
   }
   rle->next(data.data(), 30, nullptr);

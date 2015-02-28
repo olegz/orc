@@ -85,10 +85,10 @@ inline uint32_t getClosestFixedBits(uint32_t n) {
 uint64_t RleDecoderV2::readLongs(int64_t *data, uint64_t offset,
                                  uint64_t len, uint64_t fb,
                                  const char *notNull) {
-  unsigned long ret = 0;
+  uint64_t ret = 0;
 
   // TODO: unroll to improve performance
-  for(unsigned long i = offset; i < (offset + len); i++) {
+  for(uint64_t i = offset; i < (offset + len); i++) {
     // skip null positions
     if (notNull && !notNull[i]) {
       continue;
@@ -109,7 +109,7 @@ uint64_t RleDecoderV2::readLongs(int64_t *data, uint64_t offset,
       bitsLeft -= bitsLeftToRead;
       result |= (curByte >> bitsLeft) & ((1 << bitsLeftToRead) - 1);
     }
-    data[i] = static_cast<long>(result);
+    data[i] = static_cast<int64_t>(result);
     ++ret;
   }
 
@@ -131,8 +131,8 @@ unsigned char RleDecoderV2::readByte() {
   return result;
 }
 
-long RleDecoderV2::readLongBE(unsigned bsz) {
-  long ret = 0, val;
+int64_t RleDecoderV2::readLongBE(unsigned bsz) {
+  int64_t ret = 0, val;
   unsigned n = bsz;
   while (n > 0) {
     n--;
@@ -302,7 +302,7 @@ uint64_t RleDecoderV2::nextDirect(int64_t* const data,
     runRead = 0;
   }
 
-  unsigned long nRead = std::min(runLength - runRead, numValues);
+  uint64_t nRead = std::min(runLength - runRead, numValues);
 
   runRead += readLongs(data, offset, nRead, bitSize, notNull);
   if (isSigned) {
