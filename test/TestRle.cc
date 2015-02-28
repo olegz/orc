@@ -52,7 +52,7 @@ std::vector<int64_t> decodeRLEv2(const unsigned char *bytes,
 void checkResults(const std::vector<int64_t> &e, const std::vector<int64_t> &a,
                   size_t n, const char* notNull = nullptr) {
   EXPECT_EQ(e.size(), a.size()) << "vectors differ in size";
-  for (int64_t i = 0; i < e.size(); ++i) {
+  for (size_t i = 0; i < e.size(); ++i) {
     if (!notNull || notNull[i]) {
       EXPECT_EQ(e[i], a[i]) << "Output wrong at " << i << ", n=" << n;
     }
