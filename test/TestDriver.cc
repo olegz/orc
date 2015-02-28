@@ -34,7 +34,7 @@ GTEST_API_ int main(int argc, char **argv) {
   if (argc >= 2) {
     exampleDirectory = argv[1];
   } else {
-    exampleDirectory = EXAMPLE_DIRECTORY;
+    exampleDirectory = "../examples";
   }
   std::cout << "example dir = " << exampleDirectory << "\n";
   testing::InitGoogleTest(&argc, argv);
