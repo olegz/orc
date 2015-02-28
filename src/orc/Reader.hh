@@ -466,7 +466,7 @@ namespace orc {
      * Get the row number of the first row in the previously read batch.
      * @return the row number of the previous batch.
      */
-    virtual unsigned long getRowNumber() const = 0;
+    virtual uint64_t getRowNumber() const = 0;
 
     /**
      * Seek to a given row.

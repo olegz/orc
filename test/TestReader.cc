@@ -226,7 +226,8 @@ TEST(Reader, zlibReaderTestRle2) {
 
 TEST(Reader, columnSelectionTest) {
   orc::ReaderOptions opts;
-  std::list<int> includes = {1,3,5,7,9};
+  int tmpInts[] = {1,3,5,7,9};
+  std::list<int> includes(tmpInts, tmpInts + sizeof(tmpInts) / sizeof(int));
   opts.include(includes);
   std::ostringstream filename;
   filename << exampleDirectory << "/demo-11-none.orc";
@@ -384,6 +385,8 @@ TEST(Reader, readRangeTest) {
   EXPECT_FALSE(lastReader->next(*lastBatch));
 }
 
+#ifndef _WIN32
+// We temporary snappy for windows
 TEST(Reader, nullsAtEndRLEv2Test) {
   orc::ReaderOptions opts;
   std::ostringstream filename;
@@ -399,5 +402,6 @@ TEST(Reader, nullsAtEndRLEv2Test) {
   }
   ASSERT_EQ(70000, count);
 }
+#endif
 
 }  // namespace

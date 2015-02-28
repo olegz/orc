@@ -55,7 +55,7 @@ TEST(TestColumnReader, testBooleanWithNulls) {
   MockStripeStreams streams;
 
   // set getSelectedColumns()
-  std::vector<bool> selectedColumns = { true, true };
+  std::vector<bool> selectedColumns (2, true);
   EXPECT_CALL(streams, getSelectedColumns())
       .WillRepeatedly(testing::Return(selectedColumns));
 
@@ -65,22 +65,26 @@ TEST(TestColumnReader, testBooleanWithNulls) {
   EXPECT_CALL(streams, getEncoding(testing::_))
       .WillRepeatedly(testing::Return(directEncoding));
 
+  unsigned char list1[2] = { 0x3d, 0xf0 };
+
   // set getStream
   EXPECT_CALL(streams, getStreamProxy(0, proto::Stream_Kind_PRESENT))
-      .WillRepeatedly(testing::Return(nullptr));
+      .WillRepeatedly(testing::ReturnNull());
   // alternate 4 non-null and 4 null via [0xf0 for x in range(512 / 8)]
   EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_PRESENT))
       .WillRepeatedly(testing::Return(new SeekableArrayInputStream
-      ( { 0x3d, 0xf0 })));
+      (list1, sizeof(list1) / sizeof(unsigned char))));
 
   // [0x0f for x in range(256 / 8)]
+  unsigned char list2[] = { 0x1d, 0x0f };
   EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_DATA))
       .WillRepeatedly(testing::Return(new SeekableArrayInputStream
-      ( { 0x1d, 0x0f })));
+      (list2, sizeof(list2) / sizeof(unsigned char))));
 
   // create the row type
-  std::unique_ptr<Type> rowType =
-      createStructType( { createPrimitiveType(BOOLEAN) }, { "col0" });
+  std::vector<Type*> vtypes(1, createPrimitiveType(BOOLEAN).release());
+  std::vector<std::string> vfields (1, "col0");
+  std::unique_ptr<Type> rowType = createStructType(vtypes, vfields);
   rowType->assignIds(0);
 
   std::unique_ptr<ColumnReader> reader = buildReader(*rowType, streams);
@@ -108,7 +112,7 @@ TEST(TestColumnReader, testBooleanSkipsWithNulls) {
   MockStripeStreams streams;
 
   // set getSelectedColumns()
-  std::vector<bool> selectedColumns = { true, true };
+  std::vector<bool> selectedColumns(2, true);
   EXPECT_CALL(streams, getSelectedColumns())
       .WillRepeatedly(testing::Return(selectedColumns));
 
@@ -120,19 +124,24 @@ TEST(TestColumnReader, testBooleanSkipsWithNulls) {
 
   // set getStream
   EXPECT_CALL(streams, getStreamProxy(0, proto::Stream_Kind_PRESENT))
-      .WillRepeatedly(testing::Return(nullptr));
+      .WillRepeatedly(testing::ReturnNull());
   // alternate 4 non-null and 4 null via [0xf0 for x in range(512 / 8)]
+  unsigned char list[2] = { 0x3d, 0xf0 };
   EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_PRESENT))
       .WillRepeatedly(testing::Return(new SeekableArrayInputStream
-      ( { 0x3d, 0xf0 })));
+      (list, 2)));
   // [0x0f for x in range(128 / 8)]
+  list[0] = 0x1d;
+  list[1] = 0x0f;
   EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_DATA))
       .WillRepeatedly(testing::Return(new SeekableArrayInputStream
-      ( { 0x1d, 0x0f })));
+      (list, 2)));
 
   // create the row type
-  std::unique_ptr<Type> rowType =
-      createStructType( { createPrimitiveType(BOOLEAN) }, { "col0" });
+  std::vector<Type*> vtypes;
+  vtypes.push_back(createPrimitiveType(BOOLEAN).release());
+  std::vector<std::string> vfields (1, "col0");
+  std::unique_ptr<Type> rowType = createStructType(vtypes, vfields);
   rowType->assignIds(0);
 
   std::unique_ptr<ColumnReader> reader = buildReader(*rowType, streams);
@@ -162,7 +171,7 @@ TEST(TestColumnReader, testByteWithNulls) {
   MockStripeStreams streams;
 
   // set getSelectedColumns()
-  std::vector<bool> selectedColumns = { true, true };
+  std::vector<bool> selectedColumns (2, true);
   EXPECT_CALL(streams, getSelectedColumns())
       .WillRepeatedly(testing::Return(selectedColumns));
 
@@ -174,11 +183,12 @@ TEST(TestColumnReader, testByteWithNulls) {
 
   // set getStream
   EXPECT_CALL(streams, getStreamProxy(0, proto::Stream_Kind_PRESENT))
-      .WillRepeatedly(testing::Return(nullptr));
+      .WillRepeatedly(testing::ReturnNull());
   // alternate 4 non-null and 4 null via [0xf0 for x in range(512 / 8)]
+  unsigned char list[] = { 0x3d, 0xf0 };
   EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_PRESENT))
       .WillRepeatedly(testing::Return(new SeekableArrayInputStream
-      ( { 0x3d, 0xf0 })));
+      (list, sizeof(list) / sizeof(unsigned char))));
 
   // range(256)
   char buffer[258];
@@ -195,8 +205,10 @@ TEST(TestColumnReader, testByteWithNulls) {
       (buffer, 258)));
 
   // create the row type
-  std::unique_ptr<Type> rowType =
-      createStructType( { createPrimitiveType(BYTE) }, { "col0" });
+  std::vector<Type*> vtypes;
+  vtypes.push_back(createPrimitiveType(BYTE).release());
+  std::vector<std::string> vfields (1, "col0");
+  std::unique_ptr<Type> rowType = createStructType(vtypes, vfields);
   rowType->assignIds(0);
 
   std::unique_ptr<ColumnReader> reader =
@@ -225,7 +237,7 @@ TEST(TestColumnReader, testByteSkipsWithNulls) {
   MockStripeStreams streams;
 
   // set getSelectedColumns()
-  std::vector<bool> selectedColumns = { true, true };
+  std::vector<bool> selectedColumns(2, true);
   EXPECT_CALL(streams, getSelectedColumns())
       .WillRepeatedly(testing::Return(selectedColumns));
 
@@ -237,11 +249,15 @@ TEST(TestColumnReader, testByteSkipsWithNulls) {
 
   // set getStream
   EXPECT_CALL(streams, getStreamProxy(0, proto::Stream_Kind_PRESENT))
-      .WillRepeatedly(testing::Return(nullptr));
+      .WillRepeatedly(testing::ReturnNull());
   // alternate 4 non-null and 4 null via [0xf0 for x in range(512 / 8)]
+  unsigned char list[] = {
+    static_cast<unsigned char>(0x3d),
+    static_cast<unsigned char>(0xf0)
+  };
   EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_PRESENT))
       .WillRepeatedly(testing::Return(new SeekableArrayInputStream
-      ( { 0x3d, 0xf0 })));
+      (list, sizeof(list) / sizeof(unsigned char))));
 
   // range(256)
   char buffer[258];
@@ -258,8 +274,10 @@ TEST(TestColumnReader, testByteSkipsWithNulls) {
       (buffer, 258)));
 
   // create the row type
-  std::unique_ptr<Type> rowType =
-      createStructType( { createPrimitiveType(BYTE) }, { "col0" });
+  std::vector<Type*> vtypes;
+  vtypes.push_back(createPrimitiveType(BYTE).release());
+  std::vector<std::string> vfields (1, "col0");
+  std::unique_ptr<Type> rowType = createStructType(vtypes, vfields);
   rowType->assignIds(0);
 
   std::unique_ptr<ColumnReader> reader =
@@ -290,7 +308,7 @@ TEST(TestColumnReader, testIntegerWithNulls) {
   MockStripeStreams streams;
 
   // set getSelectedColumns()
-  std::vector<bool> selectedColumns = { true, true };
+  std::vector<bool> selectedColumns (2, true);
   EXPECT_CALL(streams, getSelectedColumns())
       .WillRepeatedly(testing::Return(selectedColumns));
 
@@ -302,17 +320,21 @@ TEST(TestColumnReader, testIntegerWithNulls) {
 
   // set getStream
   EXPECT_CALL(streams, getStreamProxy(0, proto::Stream_Kind_PRESENT))
-      .WillRepeatedly(testing::Return(nullptr));
+      .WillRepeatedly(testing::ReturnNull());
+  unsigned char list1[] = { 0x16, 0xf0 };
   EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_PRESENT))
       .WillRepeatedly(testing::Return(new SeekableArrayInputStream
-      ( { 0x16, 0xf0 })));
+      (list1, sizeof(list1) / sizeof(unsigned char))));
+  unsigned char list2[] = { 0x64, 0x01, 0x00 };
   EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_DATA))
       .WillRepeatedly(testing::Return(new SeekableArrayInputStream
-      ( { 0x64, 0x01, 0x00 })));
+      (list2, sizeof(list2) / sizeof(unsigned char))));
 
   // create the row type
-  std::unique_ptr<Type> rowType =
-      createStructType( { createPrimitiveType(INT) }, { "myInt" });
+  std::vector<Type*> vtypes;
+  vtypes.push_back(createPrimitiveType(INT).release());
+  std::vector<std::string> vfields (1, "myInt");
+  std::unique_ptr<Type> rowType = createStructType(vtypes, vfields);
   rowType->assignIds(0);
 
   std::unique_ptr<ColumnReader> reader =
@@ -340,7 +362,7 @@ TEST(TestColumnReader, testDictionaryWithNulls) {
   MockStripeStreams streams;
 
   // set getSelectedColumns()
-  std::vector<bool> selectedColumns = { true, true };
+  std::vector<bool> selectedColumns (2, true);
   EXPECT_CALL(streams, getSelectedColumns())
       .WillRepeatedly(testing::Return(selectedColumns));
 
@@ -357,25 +379,29 @@ TEST(TestColumnReader, testDictionaryWithNulls) {
 
   // set getStream
   EXPECT_CALL(streams, getStreamProxy(0, proto::Stream_Kind_PRESENT))
-      .WillRepeatedly(testing::Return(nullptr));
+      .WillRepeatedly(testing::ReturnNull());
+  unsigned char list1[] = { 0x19, 0xf0 };
   EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_PRESENT))
       .WillRepeatedly(testing::Return(new SeekableArrayInputStream
-      ( { 0x19, 0xf0 })));
+      (list1, sizeof(list1) / sizeof(unsigned char))));
+  unsigned char list2[] = { 0x2f, 0x00, 0x00, 0x2f, 0x00, 0x01 };
   EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_DATA))
       .WillRepeatedly(testing::Return(new SeekableArrayInputStream
-      ( { 0x2f, 0x00, 0x00,
-          0x2f, 0x00, 0x01 })));
+      (list2, sizeof(list2) / sizeof(unsigned char))));
+  unsigned char list3[] = { 0x4f, 0x52, 0x43, 0x4f, 0x77, 0x65, 0x6e };
   EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_DICTIONARY_DATA))
       .WillRepeatedly(testing::Return(new SeekableArrayInputStream
-      ( { 0x4f, 0x52, 0x43, 0x4f, 0x77,
-          0x65, 0x6e })));
+      (list3, sizeof(list3) / sizeof(unsigned char))));
+  unsigned char list4[] = { 0x02, 0x01, 0x03 };
   EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_LENGTH))
       .WillRepeatedly(testing::Return(new SeekableArrayInputStream
-      ( { 0x02, 0x01, 0x03 })));
+      (list4, sizeof(list4) / sizeof(unsigned char))));
 
   // create the row type
-  std::unique_ptr<Type> rowType =
-      createStructType( { createPrimitiveType(STRING) }, { "myString" });
+  std::vector<Type*> vtypes;
+  vtypes.push_back(createPrimitiveType(STRING).release());
+  std::vector<std::string> vfields (1, "myString");
+  std::unique_ptr<Type> rowType = createStructType(vtypes, vfields);
   rowType->assignIds(0);
 
   std::unique_ptr<ColumnReader> reader =
@@ -408,7 +434,8 @@ TEST(TestColumnReader, testVarcharDictionaryWithNulls) {
   MockStripeStreams streams;
 
   // set getSelectedColumns()
-  std::vector<bool> selectedColumns = { true, true, true, false };
+  std::vector<bool> selectedColumns(3, true);
+  selectedColumns.push_back(false);
   EXPECT_CALL(streams, getSelectedColumns())
       .WillRepeatedly(testing::Return(selectedColumns));
 
@@ -432,42 +459,48 @@ TEST(TestColumnReader, testVarcharDictionaryWithNulls) {
 
   // set getStream
   EXPECT_CALL(streams, getStreamProxy(0, proto::Stream_Kind_PRESENT))
-      .WillRepeatedly(testing::Return(nullptr));
-
+      .WillRepeatedly(testing::ReturnNull());
+  unsigned char list1[] = { 0x16, 0xff };
   EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_PRESENT))
       .WillRepeatedly(testing::Return(new SeekableArrayInputStream
-      ( { 0x16, 0xff })));
+      (list1, sizeof(list1) / sizeof(unsigned char))));
+  unsigned char list2[] = { 0x61, 0x00, 0x01, 0x61, 0x00, 0x00 };
   EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_DATA))
       .WillRepeatedly(testing::Return(new SeekableArrayInputStream
-      ( { 0x61, 0x00, 0x01,
-          0x61, 0x00, 0x00 })));
+      (list2, sizeof(list2) / sizeof(unsigned char))));
+  unsigned char list3[] = { 0x4f, 0x52, 0x43, 0x4f, 0x77, 0x65, 0x6e };
   EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_DICTIONARY_DATA))
       .WillRepeatedly(testing::Return(new SeekableArrayInputStream
-      ( { 0x4f, 0x52, 0x43, 0x4f, 0x77,
-          0x65, 0x6e })));
+      (list3, sizeof(list3) / sizeof(unsigned char))));
+  unsigned char list4[] = { 0x02, 0x01, 0x03 };
   EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_LENGTH))
       .WillRepeatedly(testing::Return(new SeekableArrayInputStream
-      ( { 0x02, 0x01, 0x03 })));
-
+      (list4, sizeof(list4) / sizeof(unsigned char))));
+  unsigned char list5[] = { 0x16, 0x00 };
   EXPECT_CALL(streams, getStreamProxy(2, proto::Stream_Kind_PRESENT))
       .WillRepeatedly(testing::Return(new SeekableArrayInputStream
-      ( { 0x16, 0x00 })));
+      (list5, sizeof(list5) / sizeof(unsigned char))));
+  unsigned char* null_list = NULL;
   EXPECT_CALL(streams, getStreamProxy(2, proto::Stream_Kind_DATA))
       .WillRepeatedly(testing::Return(new SeekableArrayInputStream
-      ( { })));
+      (null_list, 0)));
   EXPECT_CALL(streams, getStreamProxy(2, proto::Stream_Kind_DICTIONARY_DATA))
       .WillRepeatedly(testing::Return(new SeekableArrayInputStream
-      ( { })));
+      (null_list, 0)));
   EXPECT_CALL(streams, getStreamProxy(2, proto::Stream_Kind_LENGTH))
       .WillRepeatedly(testing::Return(new SeekableArrayInputStream
-      ( { })));
+      (null_list, 0)));
 
   // create the row type
-  std::unique_ptr<Type> rowType =
-      createStructType( { createPrimitiveType(VARCHAR),
-          createPrimitiveType(CHAR),
-          createPrimitiveType(STRING) },
-          { "col0", "col1", "col2" });
+  TypeKind typekinds[3] = { VARCHAR, CHAR, STRING };
+  std::string cols[3] = { "col0", "col1", "col2" };
+  std::vector<Type*> vtypes;
+  std::vector<std::string> vfields;
+  for (int i = 0; i < 3; i++) {
+    vtypes.push_back(createPrimitiveType(typekinds[i]).release());
+    vfields.push_back(cols[i]);
+  }
+  std::unique_ptr<Type> rowType = createStructType(vtypes, vfields);
   rowType->assignIds(0);
 
   std::unique_ptr<ColumnReader> reader =
@@ -501,7 +534,7 @@ TEST(TestColumnReader, testSubstructsWithNulls) {
   MockStripeStreams streams;
 
   // set getSelectedColumns()
-  std::vector<bool> selectedColumns = { true, true, true, true };
+  std::vector<bool> selectedColumns(4, true);
   EXPECT_CALL(streams, getSelectedColumns())
       .WillRepeatedly(testing::Return(selectedColumns));
 
@@ -513,31 +546,36 @@ TEST(TestColumnReader, testSubstructsWithNulls) {
 
   // set getStream
   EXPECT_CALL(streams, getStreamProxy(0, proto::Stream_Kind_PRESENT))
-      .WillRepeatedly(testing::Return(nullptr));
+      .WillRepeatedly(testing::ReturnNull());
 
+  unsigned char list1[] = { 0x16, 0x0f };
   EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_PRESENT))
       .WillRepeatedly(testing::Return(new SeekableArrayInputStream
-      ( { 0x16, 0x0f })));
+      (list1, sizeof(list1) / sizeof(unsigned char))));
 
+  unsigned char list2[] = { 0x0a, 0x55 };
   EXPECT_CALL(streams, getStreamProxy(2, proto::Stream_Kind_PRESENT))
       .WillRepeatedly(testing::Return(new SeekableArrayInputStream
-      ( { 0x0a, 0x55 })));
+      (list2, sizeof(list2) / sizeof(unsigned char))));
 
+  unsigned char list3[] = { 0x04, 0xf0 };
   EXPECT_CALL(streams, getStreamProxy(3, proto::Stream_Kind_PRESENT))
       .WillRepeatedly(testing::Return(new SeekableArrayInputStream
-      ( { 0x04, 0xf0 })));
+      (list3, sizeof(list3) / sizeof(unsigned char))));
+
+  unsigned char list4[] = { 0x17, 0x01, 0x00 };
   EXPECT_CALL(streams, getStreamProxy(3, proto::Stream_Kind_DATA))
       .WillRepeatedly(testing::Return(new SeekableArrayInputStream
-      ( { 0x17, 0x01, 0x00 })));
+      (list4, sizeof(list4) / sizeof(unsigned char))));
 
   // create the row type
-  std::unique_ptr<Type> rowType =
-      createStructType
-      ( { createStructType
-          ( { createStructType
-              ( { createPrimitiveType(LONG) }, { "col2" }) },
-              { "col1" }) },
-          { "col0" });
+  std::vector<std::string> vfields0 (1, "col0");
+  std::vector<std::string> vfields1 (1, "col1");
+  std::vector<std::string> vfields2 (1, "col2");
+  std::vector<Type*> vtypes2 (1, createPrimitiveType(LONG).release());
+  std::vector<Type*> vtypes1 (1, createStructType(vtypes2, vfields2).release());
+  std::vector<Type*> vtypes0 (1, createStructType(vtypes1, vfields1).release());
+  std::unique_ptr<Type> rowType = createStructType(vtypes0, vfields0);
   rowType->assignIds(0);
 
   std::unique_ptr<ColumnReader> reader = buildReader(*rowType, streams);
@@ -588,7 +626,7 @@ TEST(TestColumnReader, testSkipWithNulls) {
   MockStripeStreams streams;
 
   // set getSelectedColumns()
-  std::vector<bool> selectedColumns = { true, true, true };
+  std::vector<bool> selectedColumns (3, true);
   EXPECT_CALL(streams, getSelectedColumns())
       .WillRepeatedly(testing::Return(selectedColumns));
 
@@ -605,21 +643,27 @@ TEST(TestColumnReader, testSkipWithNulls) {
 
   // set getStream
   EXPECT_CALL(streams, getStreamProxy(0, proto::Stream_Kind_PRESENT))
-      .WillRepeatedly(testing::Return(nullptr));
+      .WillRepeatedly(testing::ReturnNull());
+
+  unsigned char list1[] =
+    { 0x03, 0x00, 0xff, 0x3f, 0x08, 0xff,
+      0xff, 0xfc, 0x03, 0x00 };
   EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_PRESENT))
       .WillRepeatedly(testing::Return(new SeekableArrayInputStream
-      ( { 0x03, 0x00, 0xff, 0x3f, 0x08, 0xff,
-          0xff, 0xfc, 0x03, 0x00 })));
+      (list1, sizeof(list1) / sizeof(unsigned char))));
+
   EXPECT_CALL(streams, getStreamProxy(2, proto::Stream_Kind_PRESENT))
       .WillRepeatedly(testing::Return(new SeekableArrayInputStream
-      ( { 0x03, 0x00, 0xff, 0x3f, 0x08, 0xff,
-          0xff, 0xfc, 0x03, 0x00 })));
+      (list1, sizeof(list1) / sizeof(unsigned char))));
+
+  unsigned char list2[] = { 0x61, 0x01, 0x00 };
   EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_DATA))
       .WillRepeatedly(testing::Return(new SeekableArrayInputStream
-      ( { 0x61, 0x01, 0x00 })));
+      (list2, sizeof(list2) / sizeof(unsigned char))));
+
   EXPECT_CALL(streams, getStreamProxy(2, proto::Stream_Kind_DATA))
       .WillRepeatedly(testing::Return(new SeekableArrayInputStream
-      ( { 0x61, 0x01, 0x00 })));
+      (list2, sizeof(list2) / sizeof(unsigned char))));
 
   // fill the dictionary with '00' to '99'
   char digits[200];
@@ -632,14 +676,19 @@ TEST(TestColumnReader, testSkipWithNulls) {
   EXPECT_CALL(streams, getStreamProxy(2, proto::Stream_Kind_DICTIONARY_DATA))
       .WillRepeatedly(testing::Return(new SeekableArrayInputStream
       (digits, 200)));
+  unsigned char list3[] = { 0x61, 0x00, 0x02 };
   EXPECT_CALL(streams, getStreamProxy(2, proto::Stream_Kind_LENGTH))
       .WillRepeatedly(testing::Return(new SeekableArrayInputStream
-      ( { 0x61, 0x00, 0x02 })));
+      (list3, sizeof(list3) / sizeof(unsigned char))));
 
   // create the row type
-  std::unique_ptr<Type> rowType =
-      createStructType( { createPrimitiveType(INT),
-          createPrimitiveType(STRING) }, { "myInt", "myString" });
+  std::vector<Type*> vtypes;
+  vtypes.push_back(createPrimitiveType(INT).release());
+  vtypes.push_back(createPrimitiveType(STRING).release());
+  std::vector<std::string> vfields;
+  vfields.push_back("myInt");
+  vfields.push_back("myString");
+  std::unique_ptr<Type> rowType = createStructType(vtypes, vfields);
   rowType->assignIds(0);
 
   std::unique_ptr<ColumnReader> reader =
@@ -684,7 +733,7 @@ TEST(TestColumnReader, testBinaryDirect) {
   MockStripeStreams streams;
 
   // set getSelectedColumns()
-  std::vector<bool> selectedColumns = { true, true };
+  std::vector<bool> selectedColumns (2, true);
   EXPECT_CALL(streams, getSelectedColumns())
       .WillRepeatedly(testing::Return(selectedColumns));
 
@@ -696,10 +745,10 @@ TEST(TestColumnReader, testBinaryDirect) {
 
   // set getStream
   EXPECT_CALL(streams, getStreamProxy(0, proto::Stream_Kind_PRESENT))
-      .WillRepeatedly(testing::Return(nullptr));
+      .WillRepeatedly(testing::ReturnNull());
 
   EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_PRESENT))
-      .WillRepeatedly(testing::Return(nullptr));
+      .WillRepeatedly(testing::ReturnNull());
 
   char blob[200];
   for (size_t i = 0; i < 10; ++i) {
@@ -712,13 +761,16 @@ TEST(TestColumnReader, testBinaryDirect) {
       .WillRepeatedly(testing::Return(new SeekableArrayInputStream
       (blob, 200)));
 
+  unsigned char list[] = { 0x61, 0x00, 0x02 };
   EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_LENGTH))
       .WillRepeatedly(testing::Return(new SeekableArrayInputStream
-      ( { 0x61, 0x00, 0x02 })));
+      (list, sizeof(list) / sizeof(unsigned char))));
 
   // create the row type
+  std::vector<Type*> vtypes(1, createPrimitiveType(BINARY).release());
+  std::vector<std::string> vfields (1, "col0");
   std::unique_ptr<Type> rowType =
-      createStructType( { createPrimitiveType(BINARY) }, { "col0" });
+      createStructType(vtypes, vfields);
   rowType->assignIds(0);
 
   std::unique_ptr<ColumnReader> reader = buildReader(*rowType, streams);
@@ -744,7 +796,7 @@ TEST(TestColumnReader, testBinaryDirectWithNulls) {
   MockStripeStreams streams;
 
   // set getSelectedColumns()
-  std::vector<bool> selectedColumns = { true, true };
+  std::vector<bool> selectedColumns (2, true);
   EXPECT_CALL(streams, getSelectedColumns())
       .WillRepeatedly(testing::Return(selectedColumns));
 
@@ -756,11 +808,12 @@ TEST(TestColumnReader, testBinaryDirectWithNulls) {
 
   // set getStream
   EXPECT_CALL(streams, getStreamProxy(0, proto::Stream_Kind_PRESENT))
-      .WillRepeatedly(testing::Return(nullptr));
+      .WillRepeatedly(testing::ReturnNull());
 
+  unsigned char list1[] = { 0x1d, 0xf0 };
   EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_PRESENT))
       .WillRepeatedly(testing::Return(new SeekableArrayInputStream
-      ( { 0x1d, 0xf0 })));
+      (list1, sizeof(list1) / sizeof(unsigned char))));
 
   char blob[256];
   for (size_t i = 0; i < 8; ++i) {
@@ -773,13 +826,15 @@ TEST(TestColumnReader, testBinaryDirectWithNulls) {
       .WillRepeatedly(testing::Return(new SeekableArrayInputStream
       (blob, 256)));
 
+  unsigned char list2[] = { 0x7d, 0x00, 0x02 };
   EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_LENGTH))
       .WillRepeatedly(testing::Return(new SeekableArrayInputStream
-      ( { 0x7d, 0x00, 0x02 })));
+      (list2, sizeof(list2) / sizeof(unsigned char))));
 
   // create the row type
-  std::unique_ptr<Type> rowType =
-      createStructType( { createPrimitiveType(BINARY) }, { "col0" });
+  std::vector<Type*> vtypes(1, createPrimitiveType(BINARY).release());
+  std::vector<std::string> vfields(1, "col0");
+  std::unique_ptr<Type> rowType = createStructType(vtypes, vfields);
   rowType->assignIds(0);
 
   std::unique_ptr<ColumnReader> reader = buildReader(*rowType, streams);
@@ -810,7 +865,7 @@ TEST(TestColumnReader, testShortBlobError) {
   MockStripeStreams streams;
 
   // set getSelectedColumns()
-  std::vector<bool> selectedColumns = { true, true };
+  std::vector<bool> selectedColumns(2, true);
   EXPECT_CALL(streams, getSelectedColumns())
       .WillRepeatedly(testing::Return(selectedColumns));
 
@@ -822,23 +877,25 @@ TEST(TestColumnReader, testShortBlobError) {
 
   // set getStream
   EXPECT_CALL(streams, getStreamProxy(0, proto::Stream_Kind_PRESENT))
-      .WillRepeatedly(testing::Return(nullptr));
+      .WillRepeatedly(testing::ReturnNull());
 
   EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_PRESENT))
-      .WillRepeatedly(testing::Return(nullptr));
+      .WillRepeatedly(testing::ReturnNull());
 
   char blob[100];
   EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_DATA))
       .WillRepeatedly(testing::Return(new SeekableArrayInputStream
       (blob, 100)));
 
+  unsigned char list[] = { 0x61, 0x00, 0x02 };
   EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_LENGTH))
       .WillRepeatedly(testing::Return(new SeekableArrayInputStream
-      ( { 0x61, 0x00, 0x02 })));
+      (list, sizeof(list) / sizeof(unsigned char))));
 
   // create the row type
-  std::unique_ptr<Type> rowType =
-      createStructType( { createPrimitiveType(STRING) }, { "col0" });
+  std::vector<Type*> vtypes(1, createPrimitiveType(STRING).release());
+  std::vector<std::string> vfields(1, "col0");
+  std::unique_ptr<Type> rowType = createStructType(vtypes, vfields);
   rowType->assignIds(0);
 
   std::unique_ptr<ColumnReader> reader = buildReader(*rowType, streams);
@@ -853,7 +910,7 @@ TEST(TestColumnReader, testStringDirectShortBuffer) {
   MockStripeStreams streams;
 
   // set getSelectedColumns()
-  std::vector<bool> selectedColumns = { true, true };
+  std::vector<bool> selectedColumns(2, true);
   EXPECT_CALL(streams, getSelectedColumns())
       .WillRepeatedly(testing::Return(selectedColumns));
 
@@ -865,10 +922,10 @@ TEST(TestColumnReader, testStringDirectShortBuffer) {
 
   // set getStream
   EXPECT_CALL(streams, getStreamProxy(0, proto::Stream_Kind_PRESENT))
-      .WillRepeatedly(testing::Return(nullptr));
+      .WillRepeatedly(testing::ReturnNull());
 
   EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_PRESENT))
-      .WillRepeatedly(testing::Return(nullptr));
+      .WillRepeatedly(testing::ReturnNull());
 
   char blob[200];
   for (size_t i = 0; i < 10; ++i) {
@@ -881,13 +938,15 @@ TEST(TestColumnReader, testStringDirectShortBuffer) {
       .WillRepeatedly(testing::Return(new SeekableArrayInputStream
       (blob, 200, 3)));
 
+  unsigned char list[] = { 0x61, 0x00, 0x02 };
   EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_LENGTH))
       .WillRepeatedly(testing::Return(new SeekableArrayInputStream
-      ( { 0x61, 0x00, 0x02 })));
+      (list, sizeof(list) / sizeof(unsigned char))));
 
   // create the row type
-  std::unique_ptr<Type> rowType =
-      createStructType( { createPrimitiveType(STRING) }, { "col0" });
+  std::vector<Type*> vtypes(1, createPrimitiveType(STRING).release());
+  std::vector<std::string> vfields(1, "col0");
+  std::unique_ptr<Type> rowType = createStructType(vtypes, vfields);
   rowType->assignIds(0);
 
   std::unique_ptr<ColumnReader> reader = buildReader(*rowType, streams);
@@ -913,7 +972,7 @@ TEST(TestColumnReader, testStringDirectShortBufferWithNulls) {
   MockStripeStreams streams;
 
   // set getSelectedColumns()
-  std::vector<bool> selectedColumns = { true, true };
+  std::vector<bool> selectedColumns(2, true);
   EXPECT_CALL(streams, getSelectedColumns())
       .WillRepeatedly(testing::Return(selectedColumns));
 
@@ -925,11 +984,12 @@ TEST(TestColumnReader, testStringDirectShortBufferWithNulls) {
 
   // set getStream
   EXPECT_CALL(streams, getStreamProxy(0, proto::Stream_Kind_PRESENT))
-      .WillRepeatedly(testing::Return(nullptr));
+      .WillRepeatedly(testing::ReturnNull());
 
+  unsigned char list1[] = { 0x3d, 0xf0 };
   EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_PRESENT))
       .WillRepeatedly(testing::Return(new SeekableArrayInputStream
-      ( { 0x3d, 0xf0 })));
+      (list1, sizeof(list1) / sizeof(unsigned char))));
 
   char blob[512];
   for (size_t i = 0; i < 16; ++i) {
@@ -942,13 +1002,15 @@ TEST(TestColumnReader, testStringDirectShortBufferWithNulls) {
       .WillRepeatedly(testing::Return(new SeekableArrayInputStream
       (blob, 512, 30)));
 
+  unsigned char list2[] = { 0x7d, 0x00, 0x02, 0x7d, 0x00, 0x02 };
   EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_LENGTH))
       .WillRepeatedly(testing::Return(new SeekableArrayInputStream
-      ( { 0x7d, 0x00, 0x02, 0x7d, 0x00, 0x02 })));
+      (list2, sizeof(list2) / sizeof(unsigned char))));
 
   // create the row type
-  std::unique_ptr<Type> rowType =
-      createStructType( { createPrimitiveType(STRING) }, { "col0" });
+  std::vector<Type*> vtypes(1, createPrimitiveType(STRING).release());
+  std::vector<std::string> vfields(1, "col0");
+  std::unique_ptr<Type> rowType = createStructType(vtypes, vfields);
   rowType->assignIds(0);
 
   std::unique_ptr<ColumnReader> reader = buildReader(*rowType, streams);
@@ -979,7 +1041,7 @@ TEST(TestColumnReader, testStringDirectSkip) {
   MockStripeStreams streams;
 
   // set getSelectedColumns()
-  std::vector<bool> selectedColumns = { true, true };
+  std::vector<bool> selectedColumns(2, true);
   EXPECT_CALL(streams, getSelectedColumns())
       .WillRepeatedly(testing::Return(selectedColumns));
 
@@ -991,10 +1053,10 @@ TEST(TestColumnReader, testStringDirectSkip) {
 
   // set getStream
   EXPECT_CALL(streams, getStreamProxy(0, proto::Stream_Kind_PRESENT))
-      .WillRepeatedly(testing::Return(nullptr));
+      .WillRepeatedly(testing::ReturnNull());
 
   EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_PRESENT))
-      .WillRepeatedly(testing::Return(nullptr));
+      .WillRepeatedly(testing::ReturnNull());
 
   // sum(0 to 1199)
   const size_t BLOB_SIZE = 719400;
@@ -1010,22 +1072,25 @@ TEST(TestColumnReader, testStringDirectSkip) {
       (blob, BLOB_SIZE, 200)));
 
   // the stream of 0 to 1199
+  unsigned char list[] =
+    { 0x7f, 0x01, 0x00,
+      0x7f, 0x01, 0x82, 0x01,
+      0x7f, 0x01, 0x84, 0x02,
+      0x7f, 0x01, 0x86, 0x03,
+      0x7f, 0x01, 0x88, 0x04,
+      0x7f, 0x01, 0x8a, 0x05,
+      0x7f, 0x01, 0x8c, 0x06,
+      0x7f, 0x01, 0x8e, 0x07,
+      0x7f, 0x01, 0x90, 0x08,
+      0x1b, 0x01, 0x92, 0x09 };
   EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_LENGTH))
       .WillRepeatedly(testing::Return(new SeekableArrayInputStream
-      ( { 0x7f, 0x01, 0x00,
-          0x7f, 0x01, 0x82, 0x01,
-          0x7f, 0x01, 0x84, 0x02,
-          0x7f, 0x01, 0x86, 0x03,
-          0x7f, 0x01, 0x88, 0x04,
-          0x7f, 0x01, 0x8a, 0x05,
-          0x7f, 0x01, 0x8c, 0x06,
-          0x7f, 0x01, 0x8e, 0x07,
-          0x7f, 0x01, 0x90, 0x08,
-          0x1b, 0x01, 0x92, 0x09 })));
+      (list, sizeof(list) / sizeof(unsigned char))));
 
   // create the row type
-  std::unique_ptr<Type> rowType =
-      createStructType( { createPrimitiveType(STRING) }, { "col0" });
+  std::vector<Type*> vtypes(1, createPrimitiveType(STRING).release());
+  std::vector<std::string> vfields(1, "col0");
+  std::unique_ptr<Type> rowType = createStructType(vtypes, vfields);
   rowType->assignIds(0);
 
   std::unique_ptr<ColumnReader> reader = buildReader(*rowType, streams);
@@ -1074,7 +1139,7 @@ TEST(TestColumnReader, testStringDirectSkipWithNulls) {
   MockStripeStreams streams;
 
   // set getSelectedColumns()
-  std::vector<bool> selectedColumns = { true, true };
+  std::vector<bool> selectedColumns(2, true);
   EXPECT_CALL(streams, getSelectedColumns())
       .WillRepeatedly(testing::Return(selectedColumns));
 
@@ -1086,12 +1151,13 @@ TEST(TestColumnReader, testStringDirectSkipWithNulls) {
 
   // set getStream
   EXPECT_CALL(streams, getStreamProxy(0, proto::Stream_Kind_PRESENT))
-      .WillRepeatedly(testing::Return(nullptr));
+      .WillRepeatedly(testing::ReturnNull());
 
   // alternate 4 non-null and 4 null via [0xf0 for x in range(2400 / 8)]
+  unsigned char list1[] = { 0x7f, 0xf0, 0x7f, 0xf0, 0x25, 0xf0 };
   EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_PRESENT))
       .WillRepeatedly(testing::Return(new SeekableArrayInputStream
-      ( { 0x7f, 0xf0, 0x7f, 0xf0, 0x25, 0xf0 })));
+      (list1, sizeof(list1) / sizeof(unsigned char))));
 
   // sum(range(1200))
   const size_t BLOB_SIZE = 719400;
@@ -1109,22 +1175,25 @@ TEST(TestColumnReader, testStringDirectSkipWithNulls) {
       (blob, BLOB_SIZE, 200)));
 
   // range(1200)
+  unsigned char list2[] = {
+      0x7f, 0x01, 0x00,
+      0x7f, 0x01, 0x82, 0x01,
+      0x7f, 0x01, 0x84, 0x02,
+      0x7f, 0x01, 0x86, 0x03,
+      0x7f, 0x01, 0x88, 0x04,
+      0x7f, 0x01, 0x8a, 0x05,
+      0x7f, 0x01, 0x8c, 0x06,
+      0x7f, 0x01, 0x8e, 0x07,
+      0x7f, 0x01, 0x90, 0x08,
+      0x1b, 0x01, 0x92, 0x09 };
   EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_LENGTH))
       .WillRepeatedly(testing::Return(new SeekableArrayInputStream
-      ( { 0x7f, 0x01, 0x00,
-          0x7f, 0x01, 0x82, 0x01,
-          0x7f, 0x01, 0x84, 0x02,
-          0x7f, 0x01, 0x86, 0x03,
-          0x7f, 0x01, 0x88, 0x04,
-          0x7f, 0x01, 0x8a, 0x05,
-          0x7f, 0x01, 0x8c, 0x06,
-          0x7f, 0x01, 0x8e, 0x07,
-          0x7f, 0x01, 0x90, 0x08,
-          0x1b, 0x01, 0x92, 0x09 })));
+      (list2, sizeof(list2) / sizeof(unsigned char))));
 
   // create the row type
-  std::unique_ptr<Type> rowType =
-      createStructType( { createPrimitiveType(STRING) }, { "col0" });
+  std::vector<Type*> vtypes(1, createPrimitiveType(STRING).release());
+  std::vector<std::string> vfields(1, "col0");
+  std::unique_ptr<Type> rowType = createStructType(vtypes, vfields);
   rowType->assignIds(0);
 
   std::unique_ptr<ColumnReader> reader = buildReader(*rowType, streams);
@@ -1170,7 +1239,7 @@ TEST(TestColumnReader, testList) {
   MockStripeStreams streams;
 
   // set getSelectedColumns()
-  std::vector<bool> selectedColumns = { true, true, true };
+  std::vector<bool> selectedColumns(3, true);
   EXPECT_CALL(streams, getSelectedColumns())
       .WillRepeatedly(testing::Return(selectedColumns));
 
@@ -1183,35 +1252,40 @@ TEST(TestColumnReader, testList) {
   // set getStream
   EXPECT_CALL(streams, getStreamProxy(testing::_,
           proto::Stream_Kind_PRESENT))
-      .WillRepeatedly(testing::Return(nullptr));
+      .WillRepeatedly(testing::ReturnNull());
 
   // [2 for x in range(600)]
+  unsigned char list1[] = {
+      0x7f, 0x00, 0x02,
+      0x7f, 0x00, 0x02,
+      0x7f, 0x00, 0x02,
+      0x7f, 0x00, 0x02,
+      0x4d, 0x00, 0x02 };
   EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_LENGTH))
       .WillRepeatedly(testing::Return(new SeekableArrayInputStream
-      ( { 0x7f, 0x00, 0x02,
-          0x7f, 0x00, 0x02,
-          0x7f, 0x00, 0x02,
-          0x7f, 0x00, 0x02,
-          0x4d, 0x00, 0x02 })));
+      (list1, sizeof(list1) / sizeof(unsigned char))));
 
   // range(1200)
+  unsigned char list2[] = {
+      0x7f, 0x01, 0x00,
+      0x7f, 0x01, 0x84, 0x02,
+      0x7f, 0x01, 0x88, 0x04,
+      0x7f, 0x01, 0x8c, 0x06,
+      0x7f, 0x01, 0x90, 0x08,
+      0x7f, 0x01, 0x94, 0x0a,
+      0x7f, 0x01, 0x98, 0x0c,
+      0x7f, 0x01, 0x9c, 0x0e,
+      0x7f, 0x01, 0xa0, 0x10,
+      0x1b, 0x01, 0xa4, 0x12 };
   EXPECT_CALL(streams, getStreamProxy(2, proto::Stream_Kind_DATA))
       .WillRepeatedly(testing::Return(new SeekableArrayInputStream
-      ( { 0x7f, 0x01, 0x00,
-          0x7f, 0x01, 0x84, 0x02,
-          0x7f, 0x01, 0x88, 0x04,
-          0x7f, 0x01, 0x8c, 0x06,
-          0x7f, 0x01, 0x90, 0x08,
-          0x7f, 0x01, 0x94, 0x0a,
-          0x7f, 0x01, 0x98, 0x0c,
-          0x7f, 0x01, 0x9c, 0x0e,
-          0x7f, 0x01, 0xa0, 0x10,
-          0x1b, 0x01, 0xa4, 0x12 })));
+      (list2, sizeof(list2) / sizeof(unsigned char))));
 
   // create the row type
-  std::unique_ptr<Type> rowType =
-      createStructType( { createListType(createPrimitiveType(LONG)) },
-          { "col0" });
+  std::vector<Type*> vtypes(1,
+                            createListType(createPrimitiveType(LONG)).release());
+  std::vector<std::string> vfields(1, "col0");
+  std::unique_ptr<Type> rowType = createStructType(vtypes, vfields);
   rowType->assignIds(0);
 
   std::unique_ptr<ColumnReader> reader = buildReader(*rowType, streams);
@@ -1240,7 +1314,7 @@ TEST(TestColumnReader, testListWithNulls) {
   MockStripeStreams streams;
 
   // set getSelectedColumns()
-  std::vector<bool> selectedColumns = { true, true, true };
+  std::vector<bool> selectedColumns(3, true);
   EXPECT_CALL(streams, getSelectedColumns())
       .WillRepeatedly(testing::Return(selectedColumns));
 
@@ -1252,57 +1326,63 @@ TEST(TestColumnReader, testListWithNulls) {
 
   // set getStream
   EXPECT_CALL(streams, getStreamProxy(0, proto::Stream_Kind_PRESENT))
-      .WillRepeatedly(testing::Return(nullptr));
+      .WillRepeatedly(testing::ReturnNull());
 
   // [0xaa for x in range(2048/8)]
+  unsigned char list1[] = { 0x7f, 0xaa, 0x7b, 0xaa };
   EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_PRESENT))
       .WillRepeatedly(testing::Return(new SeekableArrayInputStream
-      ( { 0x7f, 0xaa, 0x7b, 0xaa })));
+      (list1, sizeof(list1) / sizeof(unsigned char))));
 
   EXPECT_CALL(streams, getStreamProxy(2, proto::Stream_Kind_PRESENT))
-      .WillRepeatedly(testing::Return(nullptr));
+      .WillRepeatedly(testing::ReturnNull());
 
   // [1 for x in range(260)] +
   // [4 for x in range(260)] +
   // [0 for x in range(260)] +
   // [3 for x in range(243)] +
   // [19]
+  unsigned char list2[] = {
+      0x7f, 0x00, 0x01,
+      0x7f, 0x00, 0x01,
+      0x7f, 0x00, 0x04,
+      0x7f, 0x00, 0x04,
+      0x7f, 0x00, 0x00,
+      0x7f, 0x00, 0x00,
+      0x7f, 0x00, 0x03,
+      0x6e, 0x00, 0x03,
+      0xff, 0x13 };
   EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_LENGTH))
       .WillRepeatedly(testing::Return(new SeekableArrayInputStream
-      ( { 0x7f, 0x00, 0x01,
-          0x7f, 0x00, 0x01,
-          0x7f, 0x00, 0x04,
-          0x7f, 0x00, 0x04,
-          0x7f, 0x00, 0x00,
-          0x7f, 0x00, 0x00,
-          0x7f, 0x00, 0x03,
-          0x6e, 0x00, 0x03,
-          0xff, 0x13 })));
+      (list2, sizeof(list2) / sizeof(unsigned char))));
 
   // range(2048)
+  unsigned char list3[] = {
+      0x7f, 0x01, 0x00,
+      0x7f, 0x01, 0x84, 0x02,
+      0x7f, 0x01, 0x88, 0x04,
+      0x7f, 0x01, 0x8c, 0x06,
+      0x7f, 0x01, 0x90, 0x08,
+      0x7f, 0x01, 0x94, 0x0a,
+      0x7f, 0x01, 0x98, 0x0c,
+      0x7f, 0x01, 0x9c, 0x0e,
+      0x7f, 0x01, 0xa0, 0x10,
+      0x7f, 0x01, 0xa4, 0x12,
+      0x7f, 0x01, 0xa8, 0x14,
+      0x7f, 0x01, 0xac, 0x16,
+      0x7f, 0x01, 0xb0, 0x18,
+      0x7f, 0x01, 0xb4, 0x1a,
+      0x7f, 0x01, 0xb8, 0x1c,
+      0x5f, 0x01, 0xbc, 0x1e };
   EXPECT_CALL(streams, getStreamProxy(2, proto::Stream_Kind_DATA))
       .WillRepeatedly(testing::Return(new SeekableArrayInputStream
-      ( { 0x7f, 0x01, 0x00,
-          0x7f, 0x01, 0x84, 0x02,
-          0x7f, 0x01, 0x88, 0x04,
-          0x7f, 0x01, 0x8c, 0x06,
-          0x7f, 0x01, 0x90, 0x08,
-          0x7f, 0x01, 0x94, 0x0a,
-          0x7f, 0x01, 0x98, 0x0c,
-          0x7f, 0x01, 0x9c, 0x0e,
-          0x7f, 0x01, 0xa0, 0x10,
-          0x7f, 0x01, 0xa4, 0x12,
-          0x7f, 0x01, 0xa8, 0x14,
-          0x7f, 0x01, 0xac, 0x16,
-          0x7f, 0x01, 0xb0, 0x18,
-          0x7f, 0x01, 0xb4, 0x1a,
-          0x7f, 0x01, 0xb8, 0x1c,
-          0x5f, 0x01, 0xbc, 0x1e })));
+      (list3, sizeof(list3) / sizeof(unsigned char))));
 
   // create the row type
-  std::unique_ptr<Type> rowType =
-      createStructType( { createListType(createPrimitiveType(LONG)) },
-          { "col0" });
+  std::vector<Type*> vtypes(1,
+                            createListType(createPrimitiveType(LONG)).release());
+  std::vector<std::string> vfields(1, "col0");
+  std::unique_ptr<Type> rowType = createStructType(vtypes, vfields);
   rowType->assignIds(0);
 
   std::unique_ptr<ColumnReader> reader = buildReader(*rowType, streams);
@@ -1401,7 +1481,7 @@ TEST(TestColumnReader, testListSkipWithNulls) {
   MockStripeStreams streams;
 
   // set getSelectedColumns()
-  std::vector<bool> selectedColumns = { true, true, true };
+  std::vector<bool> selectedColumns(3, true);
   EXPECT_CALL(streams, getSelectedColumns())
       .WillRepeatedly(testing::Return(selectedColumns));
 
@@ -1413,57 +1493,63 @@ TEST(TestColumnReader, testListSkipWithNulls) {
 
   // set getStream
   EXPECT_CALL(streams, getStreamProxy(0, proto::Stream_Kind_PRESENT))
-      .WillRepeatedly(testing::Return(nullptr));
+      .WillRepeatedly(testing::ReturnNull());
 
   // [0xaa for x in range(2048/8)]
+  unsigned char list1[] = { 0x7f, 0xaa, 0x7b, 0xaa };
   EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_PRESENT))
       .WillRepeatedly(testing::Return(new SeekableArrayInputStream
-      ( { 0x7f, 0xaa, 0x7b, 0xaa })));
+      (list1, sizeof(list1) / sizeof(unsigned char))));
 
   EXPECT_CALL(streams, getStreamProxy(2, proto::Stream_Kind_PRESENT))
-      .WillRepeatedly(testing::Return(nullptr));
+      .WillRepeatedly(testing::ReturnNull());
 
   // [1 for x in range(260)] +
   // [4 for x in range(260)] +
   // [0 for x in range(260)] +
   // [3 for x in range(243)] +
   // [19]
+  unsigned char list2[] = {
+      0x7f, 0x00, 0x01,
+      0x7f, 0x00, 0x01,
+      0x7f, 0x00, 0x04,
+      0x7f, 0x00, 0x04,
+      0x7f, 0x00, 0x00,
+      0x7f, 0x00, 0x00,
+      0x7f, 0x00, 0x03,
+      0x6e, 0x00, 0x03,
+      0xff, 0x13 };
   EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_LENGTH))
       .WillRepeatedly(testing::Return(new SeekableArrayInputStream
-      ( { 0x7f, 0x00, 0x01,
-          0x7f, 0x00, 0x01,
-          0x7f, 0x00, 0x04,
-          0x7f, 0x00, 0x04,
-          0x7f, 0x00, 0x00,
-          0x7f, 0x00, 0x00,
-          0x7f, 0x00, 0x03,
-          0x6e, 0x00, 0x03,
-          0xff, 0x13 })));
+      (list2, sizeof(list2) / sizeof(unsigned char))));
 
   // range(2048)
+  unsigned char list3[] = {
+      0x7f, 0x01, 0x00,
+      0x7f, 0x01, 0x84, 0x02,
+      0x7f, 0x01, 0x88, 0x04,
+      0x7f, 0x01, 0x8c, 0x06,
+      0x7f, 0x01, 0x90, 0x08,
+      0x7f, 0x01, 0x94, 0x0a,
+      0x7f, 0x01, 0x98, 0x0c,
+      0x7f, 0x01, 0x9c, 0x0e,
+      0x7f, 0x01, 0xa0, 0x10,
+      0x7f, 0x01, 0xa4, 0x12,
+      0x7f, 0x01, 0xa8, 0x14,
+      0x7f, 0x01, 0xac, 0x16,
+      0x7f, 0x01, 0xb0, 0x18,
+      0x7f, 0x01, 0xb4, 0x1a,
+      0x7f, 0x01, 0xb8, 0x1c,
+      0x5f, 0x01, 0xbc, 0x1e };
   EXPECT_CALL(streams, getStreamProxy(2, proto::Stream_Kind_DATA))
       .WillRepeatedly(testing::Return(new SeekableArrayInputStream
-      ( { 0x7f, 0x01, 0x00,
-          0x7f, 0x01, 0x84, 0x02,
-          0x7f, 0x01, 0x88, 0x04,
-          0x7f, 0x01, 0x8c, 0x06,
-          0x7f, 0x01, 0x90, 0x08,
-          0x7f, 0x01, 0x94, 0x0a,
-          0x7f, 0x01, 0x98, 0x0c,
-          0x7f, 0x01, 0x9c, 0x0e,
-          0x7f, 0x01, 0xa0, 0x10,
-          0x7f, 0x01, 0xa4, 0x12,
-          0x7f, 0x01, 0xa8, 0x14,
-          0x7f, 0x01, 0xac, 0x16,
-          0x7f, 0x01, 0xb0, 0x18,
-          0x7f, 0x01, 0xb4, 0x1a,
-          0x7f, 0x01, 0xb8, 0x1c,
-          0x5f, 0x01, 0xbc, 0x1e })));
+      (list3, sizeof(list3) / sizeof(unsigned char))));
 
   // create the row type
-  std::unique_ptr<Type> rowType =
-      createStructType( { createListType(createPrimitiveType(LONG)) },
-          { "col0" });
+  std::vector<Type*> vtypes(1,
+                            createListType(createPrimitiveType(LONG)).release());
+  std::vector<std::string> vfields(1, "col0");
+  std::unique_ptr<Type> rowType = createStructType(vtypes, vfields);
   rowType->assignIds(0);
 
   std::unique_ptr<ColumnReader> reader = buildReader(*rowType, streams);
@@ -1517,7 +1603,8 @@ TEST(TestColumnReader, testListSkipWithNullsNoData) {
   MockStripeStreams streams;
 
   // set getSelectedColumns()
-  std::vector<bool> selectedColumns = { true, true, false };
+  std::vector<bool> selectedColumns(2, true);
+  selectedColumns.push_back(false);
   EXPECT_CALL(streams, getSelectedColumns())
       .WillRepeatedly(testing::Return(selectedColumns));
 
@@ -1529,40 +1616,44 @@ TEST(TestColumnReader, testListSkipWithNullsNoData) {
 
   // set getStream
   EXPECT_CALL(streams, getStreamProxy(0, proto::Stream_Kind_PRESENT))
-      .WillRepeatedly(testing::Return(nullptr));
+      .WillRepeatedly(testing::ReturnNull());
 
   // [0xaa for x in range(2048/8)]
+  unsigned char list1[] = { 0x7f, 0xaa, 0x7b, 0xaa };
   EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_PRESENT))
       .WillRepeatedly(testing::Return(new SeekableArrayInputStream
-      ( { 0x7f, 0xaa, 0x7b, 0xaa })));
+      (list1, sizeof(list1) / sizeof(unsigned char))));
 
   EXPECT_CALL(streams, getStreamProxy(2, proto::Stream_Kind_PRESENT))
-      .WillRepeatedly(testing::Return(nullptr));
+      .WillRepeatedly(testing::ReturnNull());
 
   // [1 for x in range(260)] +
   // [4 for x in range(260)] +
   // [0 for x in range(260)] +
   // [3 for x in range(243)] +
   // [19]
+  unsigned char list2[] = {
+      0x7f, 0x00, 0x01,
+      0x7f, 0x00, 0x01,
+      0x7f, 0x00, 0x04,
+      0x7f, 0x00, 0x04,
+      0x7f, 0x00, 0x00,
+      0x7f, 0x00, 0x00,
+      0x7f, 0x00, 0x03,
+      0x6e, 0x00, 0x03,
+      0xff, 0x13 };
   EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_LENGTH))
       .WillRepeatedly(testing::Return(new SeekableArrayInputStream
-      ( { 0x7f, 0x00, 0x01,
-          0x7f, 0x00, 0x01,
-          0x7f, 0x00, 0x04,
-          0x7f, 0x00, 0x04,
-          0x7f, 0x00, 0x00,
-          0x7f, 0x00, 0x00,
-          0x7f, 0x00, 0x03,
-          0x6e, 0x00, 0x03,
-          0xff, 0x13 })));
+      (list2, sizeof(list2) / sizeof(unsigned char))));
 
   EXPECT_CALL(streams, getStreamProxy(2, proto::Stream_Kind_DATA))
-      .WillRepeatedly(testing::Return(nullptr));
+      .WillRepeatedly(testing::ReturnNull());
 
   // create the row type
-  std::unique_ptr<Type> rowType =
-      createStructType( { createListType(createPrimitiveType(LONG)) },
-          { "col0" });
+  std::vector<Type*> vtypes(1,
+                            createListType(createPrimitiveType(LONG)).release());
+  std::vector<std::string> vfields(1, "col0");
+  std::unique_ptr<Type> rowType = createStructType(vtypes, vfields);
   rowType->assignIds(0);
 
   std::unique_ptr<ColumnReader> reader = buildReader(*rowType, streams);
@@ -1603,7 +1694,7 @@ TEST(TestColumnReader, testMap) {
   MockStripeStreams streams;
 
   // set getSelectedColumns()
-  std::vector<bool> selectedColumns = { true, true, true, true };
+  std::vector<bool> selectedColumns(4, true);
   EXPECT_CALL(streams, getSelectedColumns())
       .WillRepeatedly(testing::Return(selectedColumns));
 
@@ -1616,50 +1707,58 @@ TEST(TestColumnReader, testMap) {
   // set getStream
   EXPECT_CALL(streams, getStreamProxy(testing::_,
           proto::Stream_Kind_PRESENT))
-      .WillRepeatedly(testing::Return(nullptr));
+      .WillRepeatedly(testing::ReturnNull());
 
   // [2 for x in range(600)]
+  unsigned char list1[] = {
+      0x7f, 0x00, 0x02,
+      0x7f, 0x00, 0x02,
+      0x7f, 0x00, 0x02,
+      0x7f, 0x00, 0x02,
+      0x4d, 0x00, 0x02 };
   EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_LENGTH))
       .WillRepeatedly(testing::Return(new SeekableArrayInputStream
-      ( { 0x7f, 0x00, 0x02,
-          0x7f, 0x00, 0x02,
-          0x7f, 0x00, 0x02,
-          0x7f, 0x00, 0x02,
-          0x4d, 0x00, 0x02 })));
+      (list1, sizeof(list1) / sizeof(unsigned char))));
 
   // range(1200)
+  unsigned char list2[] = {
+      0x7f, 0x01, 0x00,
+      0x7f, 0x01, 0x84, 0x02,
+      0x7f, 0x01, 0x88, 0x04,
+      0x7f, 0x01, 0x8c, 0x06,
+      0x7f, 0x01, 0x90, 0x08,
+      0x7f, 0x01, 0x94, 0x0a,
+      0x7f, 0x01, 0x98, 0x0c,
+      0x7f, 0x01, 0x9c, 0x0e,
+      0x7f, 0x01, 0xa0, 0x10,
+      0x1b, 0x01, 0xa4, 0x12 };
   EXPECT_CALL(streams, getStreamProxy(2, proto::Stream_Kind_DATA))
       .WillRepeatedly(testing::Return(new SeekableArrayInputStream
-      ( { 0x7f, 0x01, 0x00,
-          0x7f, 0x01, 0x84, 0x02,
-          0x7f, 0x01, 0x88, 0x04,
-          0x7f, 0x01, 0x8c, 0x06,
-          0x7f, 0x01, 0x90, 0x08,
-          0x7f, 0x01, 0x94, 0x0a,
-          0x7f, 0x01, 0x98, 0x0c,
-          0x7f, 0x01, 0x9c, 0x0e,
-          0x7f, 0x01, 0xa0, 0x10,
-          0x1b, 0x01, 0xa4, 0x12 })));
+      (list2, sizeof(list2) / sizeof(unsigned char))));
 
   // range(8, 1208)
+  unsigned char list3[] = {
+      0x7f, 0x01, 0x10,
+      0x7f, 0x01, 0x94, 0x02,
+      0x7f, 0x01, 0x98, 0x04,
+      0x7f, 0x01, 0x9c, 0x06,
+      0x7f, 0x01, 0xa0, 0x08,
+      0x7f, 0x01, 0xa4, 0x0a,
+      0x7f, 0x01, 0xa8, 0x0c,
+      0x7f, 0x01, 0xac, 0x0e,
+      0x7f, 0x01, 0xb0, 0x10,
+      0x1b, 0x01, 0xb4, 0x12 };
   EXPECT_CALL(streams, getStreamProxy(3, proto::Stream_Kind_DATA))
       .WillRepeatedly(testing::Return(new SeekableArrayInputStream
-      ( { 0x7f, 0x01, 0x10,
-          0x7f, 0x01, 0x94, 0x02,
-          0x7f, 0x01, 0x98, 0x04,
-          0x7f, 0x01, 0x9c, 0x06,
-          0x7f, 0x01, 0xa0, 0x08,
-          0x7f, 0x01, 0xa4, 0x0a,
-          0x7f, 0x01, 0xa8, 0x0c,
-          0x7f, 0x01, 0xac, 0x0e,
-          0x7f, 0x01, 0xb0, 0x10,
-          0x1b, 0x01, 0xb4, 0x12 })));
+      (list3, sizeof(list3) / sizeof(unsigned char))));
 
   // create the row type
-  std::unique_ptr<Type> rowType =
-      createStructType( { createMapType(createPrimitiveType(LONG),
-          createPrimitiveType(LONG)) },
-          { "col0", "col1" });
+  std::vector<Type*> vtypes(1,
+                            createMapType(createPrimitiveType(LONG),
+                                          createPrimitiveType(LONG)).release());
+  std::vector<std::string> vfields(1, "col0");
+  vfields.push_back("col1");
+  std::unique_ptr<Type> rowType = createStructType(vtypes, vfields);
   rowType->assignIds(0);
 
   std::unique_ptr<ColumnReader> reader = buildReader(*rowType, streams);
@@ -1693,7 +1792,7 @@ TEST(TestColumnReader, testMapWithNulls) {
   MockStripeStreams streams;
 
   // set getSelectedColumns()
-  std::vector<bool> selectedColumns = { true, true, true, true };
+  std::vector<bool> selectedColumns(4, true);
   EXPECT_CALL(streams, getSelectedColumns())
       .WillRepeatedly(testing::Return(selectedColumns));
 
@@ -1705,75 +1804,85 @@ TEST(TestColumnReader, testMapWithNulls) {
 
   // set getStream
   EXPECT_CALL(streams, getStreamProxy(0, proto::Stream_Kind_PRESENT))
-      .WillRepeatedly(testing::Return(nullptr));
+      .WillRepeatedly(testing::ReturnNull());
 
   // [0xaa for x in range(2048/8)]
+  unsigned char list1[] = { 0x7f, 0xaa, 0x7b, 0xaa };
   EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_PRESENT))
       .WillRepeatedly(testing::Return(new SeekableArrayInputStream
-      ( { 0x7f, 0xaa, 0x7b, 0xaa })));
+      (list1, sizeof(list1) / sizeof(unsigned char))));
 
   EXPECT_CALL(streams, getStreamProxy(2, proto::Stream_Kind_PRESENT))
-      .WillRepeatedly(testing::Return(nullptr));
+      .WillRepeatedly(testing::ReturnNull());
 
   // [0x55 for x in range(2048/8)]
+  unsigned char list2[] = { 0x7f, 0x55, 0x7b, 0x55 };
   EXPECT_CALL(streams, getStreamProxy(3, proto::Stream_Kind_PRESENT))
       .WillRepeatedly(testing::Return(new SeekableArrayInputStream
-      ( { 0x7f, 0x55, 0x7b, 0x55 })));
+      (list2, sizeof(list2) / sizeof(unsigned char))));
 
   // [1 for x in range(260)] +
   // [4 for x in range(260)] +
   // [0 for x in range(260)] +
   // [3 for x in range(243)] +
   // [19]
+  unsigned char list3[] = {
+      0x7f, 0x00, 0x01,
+      0x7f, 0x00, 0x01,
+      0x7f, 0x00, 0x04,
+      0x7f, 0x00, 0x04,
+      0x7f, 0x00, 0x00,
+      0x7f, 0x00, 0x00,
+      0x7f, 0x00, 0x03,
+      0x6e, 0x00, 0x03,
+      0xff, 0x13 };
   EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_LENGTH))
       .WillRepeatedly(testing::Return(new SeekableArrayInputStream
-      ( { 0x7f, 0x00, 0x01,
-          0x7f, 0x00, 0x01,
-          0x7f, 0x00, 0x04,
-          0x7f, 0x00, 0x04,
-          0x7f, 0x00, 0x00,
-          0x7f, 0x00, 0x00,
-          0x7f, 0x00, 0x03,
-          0x6e, 0x00, 0x03,
-          0xff, 0x13 })));
+      (list3, sizeof(list3) / sizeof(unsigned char))));
 
   // range(2048)
+  unsigned char list4[] =  {
+      0x7f, 0x01, 0x00,
+      0x7f, 0x01, 0x84, 0x02,
+      0x7f, 0x01, 0x88, 0x04,
+      0x7f, 0x01, 0x8c, 0x06,
+      0x7f, 0x01, 0x90, 0x08,
+      0x7f, 0x01, 0x94, 0x0a,
+      0x7f, 0x01, 0x98, 0x0c,
+      0x7f, 0x01, 0x9c, 0x0e,
+      0x7f, 0x01, 0xa0, 0x10,
+      0x7f, 0x01, 0xa4, 0x12,
+      0x7f, 0x01, 0xa8, 0x14,
+      0x7f, 0x01, 0xac, 0x16,
+      0x7f, 0x01, 0xb0, 0x18,
+      0x7f, 0x01, 0xb4, 0x1a,
+      0x7f, 0x01, 0xb8, 0x1c,
+      0x5f, 0x01, 0xbc, 0x1e };
   EXPECT_CALL(streams, getStreamProxy(2, proto::Stream_Kind_DATA))
       .WillRepeatedly(testing::Return(new SeekableArrayInputStream
-      ( { 0x7f, 0x01, 0x00,
-          0x7f, 0x01, 0x84, 0x02,
-          0x7f, 0x01, 0x88, 0x04,
-          0x7f, 0x01, 0x8c, 0x06,
-          0x7f, 0x01, 0x90, 0x08,
-          0x7f, 0x01, 0x94, 0x0a,
-          0x7f, 0x01, 0x98, 0x0c,
-          0x7f, 0x01, 0x9c, 0x0e,
-          0x7f, 0x01, 0xa0, 0x10,
-          0x7f, 0x01, 0xa4, 0x12,
-          0x7f, 0x01, 0xa8, 0x14,
-          0x7f, 0x01, 0xac, 0x16,
-          0x7f, 0x01, 0xb0, 0x18,
-          0x7f, 0x01, 0xb4, 0x1a,
-          0x7f, 0x01, 0xb8, 0x1c,
-          0x5f, 0x01, 0xbc, 0x1e })));
+      (list4, sizeof(list4) / sizeof(unsigned char))));
 
   // range(8, 1032)
+  unsigned char list5[] = {
+      0x7f, 0x01, 0x10,
+      0x7f, 0x01, 0x94, 0x02,
+      0x7f, 0x01, 0x98, 0x04,
+      0x7f, 0x01, 0x9c, 0x06,
+      0x7f, 0x01, 0xa0, 0x08,
+      0x7f, 0x01, 0xa4, 0x0a,
+      0x7f, 0x01, 0xa8, 0x0c,
+      0x6f, 0x01, 0xac, 0x0e };
   EXPECT_CALL(streams, getStreamProxy(3, proto::Stream_Kind_DATA))
       .WillRepeatedly(testing::Return(new SeekableArrayInputStream
-      ( { 0x7f, 0x01, 0x10,
-          0x7f, 0x01, 0x94, 0x02,
-          0x7f, 0x01, 0x98, 0x04,
-          0x7f, 0x01, 0x9c, 0x06,
-          0x7f, 0x01, 0xa0, 0x08,
-          0x7f, 0x01, 0xa4, 0x0a,
-          0x7f, 0x01, 0xa8, 0x0c,
-          0x6f, 0x01, 0xac, 0x0e })));
+      (list5, sizeof(list5) / sizeof(unsigned char))));
 
   // create the row type
-  std::unique_ptr<Type> rowType =
-      createStructType( { createMapType(createPrimitiveType(LONG),
-          createPrimitiveType(LONG)) },
-          { "col0", "col1" });
+  std::vector<Type*> vtypes(1,
+                            createMapType(createPrimitiveType(LONG),
+                                          createPrimitiveType(LONG)).release());
+  std::vector<std::string> vfields(1, "col0");
+  vfields.push_back("col1");
+  std::unique_ptr<Type> rowType = createStructType(vtypes, vfields);
   rowType->assignIds(0);
 
   std::unique_ptr<ColumnReader> reader = buildReader(*rowType, streams);
@@ -1898,7 +2007,7 @@ TEST(TestColumnReader, testMapSkipWithNulls) {
   MockStripeStreams streams;
 
   // set getSelectedColumns()
-  std::vector<bool> selectedColumns = { true, true, true, true };
+  std::vector<bool> selectedColumns(4, true);
   EXPECT_CALL(streams, getSelectedColumns())
       .WillRepeatedly(testing::Return(selectedColumns));
 
@@ -1910,75 +2019,84 @@ TEST(TestColumnReader, testMapSkipWithNulls) {
 
   // set getStream
   EXPECT_CALL(streams, getStreamProxy(testing::_,proto::Stream_Kind_PRESENT))
-      .WillRepeatedly(testing::Return(nullptr));
+      .WillRepeatedly(testing::ReturnNull());
 
   // [0xaa for x in range(2048/8)]
+  unsigned char list1[] = { 0x7f, 0xaa, 0x7b, 0xaa };
   EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_PRESENT))
       .WillRepeatedly(testing::Return(new SeekableArrayInputStream
-      ( { 0x7f, 0xaa, 0x7b, 0xaa })));
+      (list1, sizeof(list1) / sizeof(unsigned char))));
 
   // [1 for x in range(260)] +
   // [4 for x in range(260)] +
   // [0 for x in range(260)] +
   // [3 for x in range(243)] +
   // [19]
+  unsigned char list2[] = {
+      0x7f, 0x00, 0x01,
+      0x7f, 0x00, 0x01,
+      0x7f, 0x00, 0x04,
+      0x7f, 0x00, 0x04,
+      0x7f, 0x00, 0x00,
+      0x7f, 0x00, 0x00,
+      0x7f, 0x00, 0x03,
+      0x6e, 0x00, 0x03,
+      0xff, 0x13 };
   EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_LENGTH))
       .WillRepeatedly(testing::Return(new SeekableArrayInputStream
-      ( { 0x7f, 0x00, 0x01,
-          0x7f, 0x00, 0x01,
-          0x7f, 0x00, 0x04,
-          0x7f, 0x00, 0x04,
-          0x7f, 0x00, 0x00,
-          0x7f, 0x00, 0x00,
-          0x7f, 0x00, 0x03,
-          0x6e, 0x00, 0x03,
-          0xff, 0x13 })));
+      (list2, sizeof(list2) / sizeof(unsigned char))));
 
   // range(2048)
+  unsigned char list3[] = {
+      0x7f, 0x01, 0x00,
+      0x7f, 0x01, 0x84, 0x02,
+      0x7f, 0x01, 0x88, 0x04,
+      0x7f, 0x01, 0x8c, 0x06,
+      0x7f, 0x01, 0x90, 0x08,
+      0x7f, 0x01, 0x94, 0x0a,
+      0x7f, 0x01, 0x98, 0x0c,
+      0x7f, 0x01, 0x9c, 0x0e,
+      0x7f, 0x01, 0xa0, 0x10,
+      0x7f, 0x01, 0xa4, 0x12,
+      0x7f, 0x01, 0xa8, 0x14,
+      0x7f, 0x01, 0xac, 0x16,
+      0x7f, 0x01, 0xb0, 0x18,
+      0x7f, 0x01, 0xb4, 0x1a,
+      0x7f, 0x01, 0xb8, 0x1c,
+      0x5f, 0x01, 0xbc, 0x1e };
   EXPECT_CALL(streams, getStreamProxy(2, proto::Stream_Kind_DATA))
       .WillRepeatedly(testing::Return(new SeekableArrayInputStream
-      ( { 0x7f, 0x01, 0x00,
-          0x7f, 0x01, 0x84, 0x02,
-          0x7f, 0x01, 0x88, 0x04,
-          0x7f, 0x01, 0x8c, 0x06,
-          0x7f, 0x01, 0x90, 0x08,
-          0x7f, 0x01, 0x94, 0x0a,
-          0x7f, 0x01, 0x98, 0x0c,
-          0x7f, 0x01, 0x9c, 0x0e,
-          0x7f, 0x01, 0xa0, 0x10,
-          0x7f, 0x01, 0xa4, 0x12,
-          0x7f, 0x01, 0xa8, 0x14,
-          0x7f, 0x01, 0xac, 0x16,
-          0x7f, 0x01, 0xb0, 0x18,
-          0x7f, 0x01, 0xb4, 0x1a,
-          0x7f, 0x01, 0xb8, 0x1c,
-          0x5f, 0x01, 0xbc, 0x1e })));
+      (list3, sizeof(list3) / sizeof(unsigned char))));
 
   // range(8, 2056)
+  unsigned char list4[] = {
+      0x7f, 0x01, 0x10,
+      0x7f, 0x01, 0x94, 0x02,
+      0x7f, 0x01, 0x98, 0x04,
+      0x7f, 0x01, 0x9c, 0x06,
+      0x7f, 0x01, 0xa0, 0x08,
+      0x7f, 0x01, 0xa4, 0x0a,
+      0x7f, 0x01, 0xa8, 0x0c,
+      0x7f, 0x01, 0xac, 0x0e,
+      0x7f, 0x01, 0xb0, 0x10,
+      0x7f, 0x01, 0xb4, 0x12,
+      0x7f, 0x01, 0xb8, 0x14,
+      0x7f, 0x01, 0xbc, 0x16,
+      0x7f, 0x01, 0xc0, 0x18,
+      0x7f, 0x01, 0xc4, 0x1a,
+      0x7f, 0x01, 0xc8, 0x1c,
+      0x5f, 0x01, 0xcc, 0x1e };
   EXPECT_CALL(streams, getStreamProxy(3, proto::Stream_Kind_DATA))
       .WillRepeatedly(testing::Return(new SeekableArrayInputStream
-      ( { 0x7f, 0x01, 0x10,
-          0x7f, 0x01, 0x94, 0x02,
-          0x7f, 0x01, 0x98, 0x04,
-          0x7f, 0x01, 0x9c, 0x06,
-          0x7f, 0x01, 0xa0, 0x08,
-          0x7f, 0x01, 0xa4, 0x0a,
-          0x7f, 0x01, 0xa8, 0x0c,
-          0x7f, 0x01, 0xac, 0x0e,
-          0x7f, 0x01, 0xb0, 0x10,
-          0x7f, 0x01, 0xb4, 0x12,
-          0x7f, 0x01, 0xb8, 0x14,
-          0x7f, 0x01, 0xbc, 0x16,
-          0x7f, 0x01, 0xc0, 0x18,
-          0x7f, 0x01, 0xc4, 0x1a,
-          0x7f, 0x01, 0xc8, 0x1c,
-          0x5f, 0x01, 0xcc, 0x1e })));
+      (list4, sizeof(list4) / sizeof(unsigned char))));
 
   // create the row type
-  std::unique_ptr<Type> rowType =
-      createStructType( { createMapType(createPrimitiveType(LONG),
-          createPrimitiveType(LONG)) },
-          { "col0", "col1" });
+  std::vector<Type*> vtypes(1,
+                            createMapType(createPrimitiveType(LONG),
+                                          createPrimitiveType(LONG)).release());
+  std::vector<std::string> vfields(1, "col0");
+  vfields.push_back("col1");
+  std::unique_ptr<Type> rowType = createStructType(vtypes, vfields);
   rowType->assignIds(0);
 
   std::unique_ptr<ColumnReader> reader = buildReader(*rowType, streams);
@@ -2043,7 +2161,9 @@ TEST(TestColumnReader, testMapSkipWithNullsNoData) {
   MockStripeStreams streams;
 
   // set getSelectedColumns()
-  std::vector<bool> selectedColumns = { true, true, false, false };
+  std::vector<bool> selectedColumns(2, true);
+  selectedColumns.push_back(false);
+  selectedColumns.push_back(false);
   EXPECT_CALL(streams, getSelectedColumns())
       .WillRepeatedly(testing::Return(selectedColumns));
 
@@ -2055,35 +2175,40 @@ TEST(TestColumnReader, testMapSkipWithNullsNoData) {
 
   // set getStream
   EXPECT_CALL(streams, getStreamProxy(testing::_,proto::Stream_Kind_PRESENT))
-      .WillRepeatedly(testing::Return(nullptr));
+      .WillRepeatedly(testing::ReturnNull());
 
   // [0xaa for x in range(2048/8)]
+  unsigned char list1[] = { 0x7f, 0xaa, 0x7b, 0xaa };
   EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_PRESENT))
       .WillRepeatedly(testing::Return(new SeekableArrayInputStream
-      ( { 0x7f, 0xaa, 0x7b, 0xaa })));
+      (list1, sizeof(list1) / sizeof(unsigned char))));
 
   // [1 for x in range(260)] +
   // [4 for x in range(260)] +
   // [0 for x in range(260)] +
   // [3 for x in range(243)] +
   // [19]
+  unsigned char list2[] = {
+      0x7f, 0x00, 0x01,
+      0x7f, 0x00, 0x01,
+      0x7f, 0x00, 0x04,
+      0x7f, 0x00, 0x04,
+      0x7f, 0x00, 0x00,
+      0x7f, 0x00, 0x00,
+      0x7f, 0x00, 0x03,
+      0x6e, 0x00, 0x03,
+      0xff, 0x13 };
   EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_LENGTH))
       .WillRepeatedly(testing::Return(new SeekableArrayInputStream
-      ( { 0x7f, 0x00, 0x01,
-          0x7f, 0x00, 0x01,
-          0x7f, 0x00, 0x04,
-          0x7f, 0x00, 0x04,
-          0x7f, 0x00, 0x00,
-          0x7f, 0x00, 0x00,
-          0x7f, 0x00, 0x03,
-          0x6e, 0x00, 0x03,
-          0xff, 0x13 })));
+      (list2, sizeof(list2) / sizeof(unsigned char))));
 
   // create the row type
-  std::unique_ptr<Type> rowType =
-      createStructType( { createMapType(createPrimitiveType(LONG),
-          createPrimitiveType(LONG)) },
-          { "col0", "col1" });
+  std::vector<Type*> vtypes(1,
+                            createMapType(createPrimitiveType(LONG),
+                                          createPrimitiveType(LONG)).release());
+  std::vector<std::string> vfields(1, "col0");
+  vfields.push_back("col1");
+  std::unique_ptr<Type> rowType = createStructType(vtypes, vfields);
   rowType->assignIds(0);
 
   std::unique_ptr<ColumnReader> reader = buildReader(*rowType, streams);
@@ -2124,7 +2249,7 @@ TEST(TestColumnReader, testFloatWithNulls) {
   MockStripeStreams streams;
 
   // set getSelectedColumns()
-  std::vector<bool> selectedColumns = { true, true };
+  std::vector<bool> selectedColumns(2, true);
   EXPECT_CALL(streams, getSelectedColumns())
       .WillRepeatedly(testing::Return(selectedColumns));
 
@@ -2136,38 +2261,42 @@ TEST(TestColumnReader, testFloatWithNulls) {
 
   // set getStream
   EXPECT_CALL(streams, getStreamProxy(0, proto::Stream_Kind_PRESENT))
-      .WillRepeatedly(testing::Return(nullptr));
+      .WillRepeatedly(testing::ReturnNull());
 
   // 13 non-nulls followed by 19 nulls
+  unsigned char list1[] = { 0xfc, 0xff, 0xf8, 0x0, 0x0 };
   EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_PRESENT))
       .WillRepeatedly(testing::Return(new SeekableArrayInputStream
-      ( { 0xfc, 0xff, 0xf8, 0x0, 0x0 })));
+      (list1, sizeof(list1) / sizeof(unsigned char))));
 
   float test_vals[] = { 1.0f, 2.5f, -100.125f, 10000.0f, 1.234567E23f,
       -2.3456E-12f,
       std::numeric_limits<float>::infinity(),
       std::numeric_limits<float>::quiet_NaN(),
       -std::numeric_limits<float>::infinity(),
-      3.4028235E38f, -3.4028235E38f, 1.4e-45f, -1.4e-45f };
+      3.4028234663852886E38f, -3.4028234663852886E38f,
+      1.4e-45f, -1.4e-45f };
+  unsigned char list2[] = {
+      0x00, 0x00, 0x80, 0x3f,
+      0x00, 0x00, 0x20, 0x40,
+      0x00, 0x40, 0xc8, 0xc2,
+      0x00, 0x40, 0x1c, 0x46,
+      0xcf, 0x24, 0xd1, 0x65,
+      0x93, 0xe, 0x25, 0xac,
+      0x0, 0x0, 0x80, 0x7f,
+      0x0, 0x0, 0xc0, 0x7f,
+      0x0, 0x0, 0x80, 0xff,
+      0xff, 0xff, 0x7f, 0x7f,
+      0xff, 0xff, 0x7f, 0xff,
+      0x1, 0x0, 0x0, 0x0,
+      0x1, 0x0, 0x0, 0x80};
   EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_DATA))
       .WillRepeatedly(testing::Return(new SeekableArrayInputStream
-      ( { 0x00, 0x00, 0x80, 0x3f,
-          0x00, 0x00, 0x20, 0x40,
-          0x00, 0x40, 0xc8, 0xc2,
-          0x00, 0x40, 0x1c, 0x46,
-          0xcf, 0x24, 0xd1, 0x65,
-          0x93, 0xe, 0x25, 0xac,
-          0x0, 0x0, 0x80, 0x7f,
-          0x0, 0x0, 0xc0, 0x7f,
-          0x0, 0x0, 0x80, 0xff,
-          0xff, 0xff, 0x7f, 0x7f,
-          0xff, 0xff, 0x7f, 0xff,
-          0x1, 0x0, 0x0, 0x0,
-          0x1, 0x0, 0x0, 0x80,
-      })));
+      (list2, sizeof(list2) / sizeof(unsigned char))));
   // create the row type
-  std::unique_ptr<Type> rowType =
-      createStructType( { createPrimitiveType(FLOAT) }, { "myFloat" });
+  std::vector<Type*> vtypes(1, createPrimitiveType(FLOAT).release());
+  std::vector<std::string> vfields(1, "myFloat");
+  std::unique_ptr<Type> rowType = createStructType(vtypes, vfields);
   rowType->assignIds(0);
 
   std::unique_ptr<ColumnReader> reader =
@@ -2199,7 +2328,7 @@ TEST(TestColumnReader, testFloatSkipWithNulls) {
   MockStripeStreams streams;
 
   // set getSelectedColumns()
-  std::vector<bool> selectedColumns = { true, true };
+  std::vector<bool> selectedColumns(2, true);
   EXPECT_CALL(streams, getSelectedColumns())
       .WillRepeatedly(testing::Return(selectedColumns));
 
@@ -2211,24 +2340,27 @@ TEST(TestColumnReader, testFloatSkipWithNulls) {
 
   // set getStream
   EXPECT_CALL(streams, getStreamProxy(0, proto::Stream_Kind_PRESENT))
-      .WillRepeatedly(testing::Return(nullptr));
+      .WillRepeatedly(testing::ReturnNull());
 
   // 2 non-nulls, 2 nulls, 2 non-nulls, 2 nulls
+  unsigned char list1[] = { 0xff, 0xcc };
   EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_PRESENT))
       .WillRepeatedly(testing::Return(new SeekableArrayInputStream
-      ( { 0xff, 0xcc })));
+      (list1, sizeof(list1) / sizeof(unsigned char))));
 
   // 1, 2.5, -100.125, 10000
+  unsigned char list2[] = {
+      0x00, 0x00, 0x80, 0x3f,
+      0x00, 0x00, 0x20, 0x40,
+      0x00, 0x40, 0xc8, 0xc2,
+      0x00, 0x40, 0x1c, 0x46 };
   EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_DATA))
       .WillRepeatedly(testing::Return(new SeekableArrayInputStream
-      ( { 0x00, 0x00, 0x80, 0x3f,
-          0x00, 0x00, 0x20, 0x40,
-          0x00, 0x40, 0xc8, 0xc2,
-          0x00, 0x40, 0x1c, 0x46
-      })));
+      (list2, sizeof(list2) / sizeof(unsigned char))));
   // create the row type
-  std::unique_ptr<Type> rowType =
-      createStructType( { createPrimitiveType(FLOAT) }, { "myFloat" });
+  std::vector<Type*> vtypes(1, createPrimitiveType(FLOAT).release());
+  std::vector<std::string> vfields(1, "myFloat");
+  std::unique_ptr<Type> rowType = createStructType(vtypes, vfields);
   rowType->assignIds(0);
 
   std::unique_ptr<ColumnReader> reader =
@@ -2279,7 +2411,7 @@ TEST(TestColumnReader, testDoubleWithNulls) {
   MockStripeStreams streams;
 
   // set getSelectedColumns()
-  std::vector<bool> selectedColumns = { true, true };
+  std::vector<bool> selectedColumns(2, true);
   EXPECT_CALL(streams, getSelectedColumns())
       .WillRepeatedly(testing::Return(selectedColumns));
 
@@ -2291,12 +2423,13 @@ TEST(TestColumnReader, testDoubleWithNulls) {
 
   // set getStream
   EXPECT_CALL(streams, getStreamProxy(0, proto::Stream_Kind_PRESENT))
-      .WillRepeatedly(testing::Return(nullptr));
+      .WillRepeatedly(testing::ReturnNull());
 
   // 13 non-nulls followed by 19 nulls
+  unsigned char list1[] = { 0xfc, 0xff, 0xf8, 0x0, 0x0 };
   EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_PRESENT))
       .WillRepeatedly(testing::Return(new SeekableArrayInputStream
-      ( { 0xfc, 0xff, 0xf8, 0x0, 0x0 })));
+      (list1, sizeof(list1) / sizeof(unsigned char))));
 
   double test_vals[] = { 1.0, 2.0, -2.0, 100.0, 1.23456789E32,
       -3.42234E-18,
@@ -2305,30 +2438,32 @@ TEST(TestColumnReader, testDoubleWithNulls) {
       -std::numeric_limits<double>::infinity(),
       1.7976931348623157e308, -1.7976931348623157E308,
       4.9e-324, -4.9e-324 };
+  unsigned char list2[] = {
+      0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0xf0, 0x3f,
+      0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x40,
+      0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0xc0,
+      0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x59, 0x40,
+      0xe8, 0x38, 0x65, 0x99, 0xf9, 0x58, 0x98,
+      0x46,
+      0xa1, 0x88, 0x41, 0x98, 0xc5, 0x90, 0x4f,
+      0xbc,
+      0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0xf0, 0x7f,
+      0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0xf8, 0x7f,
+      0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0xf0, 0xff,
+      0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xef,
+      0x7f,
+      0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xef,
+      0xff,
+      0x1, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+      0x1, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x80 };
   EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_DATA))
       .WillRepeatedly(testing::Return(new SeekableArrayInputStream
-      ( { 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0xf0, 0x3f,
-          0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x40,
-          0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0xc0,
-          0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x59, 0x40,
-          0xe8, 0x38, 0x65, 0x99, 0xf9, 0x58, 0x98,
-          0x46,
-          0xa1, 0x88, 0x41, 0x98, 0xc5, 0x90, 0x4f,
-          0xbc,
-          0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0xf0, 0x7f,
-          0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0xf8, 0x7f,
-          0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0xf0, 0xff,
-          0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xef,
-          0x7f,
-          0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xef,
-          0xff,
-          0x1, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
-          0x1, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x80
-      })));
+      (list2, sizeof(list2) / sizeof(unsigned char))));
 
   // create the row type
-  std::unique_ptr<Type> rowType =
-      createStructType( { createPrimitiveType(DOUBLE) }, { "myDouble" });
+  std::vector<Type*> vtypes(1, createPrimitiveType(DOUBLE).release());
+  std::vector<std::string> vfields(1, "myDouble");
+  std::unique_ptr<Type> rowType = createStructType(vtypes, vfields);
   rowType->assignIds(0);
 
   std::unique_ptr<ColumnReader> reader =
@@ -2361,7 +2496,7 @@ TEST(TestColumnReader, testDoubleSkipWithNulls) {
   MockStripeStreams streams;
 
   // set getSelectedColumns()
-  std::vector<bool> selectedColumns = { true, true };
+  std::vector<bool> selectedColumns(2, true);
   EXPECT_CALL(streams, getSelectedColumns())
       .WillRepeatedly(testing::Return(selectedColumns));
 
@@ -2373,25 +2508,28 @@ TEST(TestColumnReader, testDoubleSkipWithNulls) {
 
   // set getStream
   EXPECT_CALL(streams, getStreamProxy(0, proto::Stream_Kind_PRESENT))
-      .WillRepeatedly(testing::Return(nullptr));
+      .WillRepeatedly(testing::ReturnNull());
 
   // 1 non-null, 5 nulls, 2 non-nulls
+  unsigned char list1[] = { 0xff, 0x83 };
   EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_PRESENT))
       .WillRepeatedly(testing::Return(new SeekableArrayInputStream
-      ( { 0xff, 0x83 })));
+      (list1, sizeof(list1) / sizeof(unsigned char))));
 
   // 1, 2, -2
+  unsigned char list2[] = {
+      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xf0, 0x3f,
+      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x40,
+      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xc0 };
   EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_DATA))
       .WillRepeatedly(testing::Return
       (new SeekableArrayInputStream
-          ( { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xf0, 0x3f,
-              0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x40,
-              0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xc0
-          })));
+          (list2, sizeof(list2) / sizeof(unsigned char))));
 
   // create the row type
-  std::unique_ptr<Type> rowType =
-      createStructType( { createPrimitiveType(DOUBLE) }, { "myDouble" });
+  std::vector<Type*> vtypes(1, createPrimitiveType(DOUBLE).release());
+  std::vector<std::string> vfields(1, "myDouble");
+  std::unique_ptr<Type> rowType = createStructType(vtypes, vfields);
   rowType->assignIds(0);
 
   std::unique_ptr<ColumnReader> reader =
@@ -2442,7 +2580,7 @@ TEST(TestColumnReader, testTimestampSkipWithNulls) {
   MockStripeStreams streams;
 
   // set getSelectedColumns()
-  std::vector<bool> selectedColumns = { true, true };
+  std::vector<bool> selectedColumns(2, true);
   EXPECT_CALL(streams, getSelectedColumns())
       .WillRepeatedly(testing::Return(selectedColumns));
 
@@ -2454,25 +2592,30 @@ TEST(TestColumnReader, testTimestampSkipWithNulls) {
 
   // set getStream
   EXPECT_CALL(streams, getStreamProxy(0, proto::Stream_Kind_PRESENT))
-      .WillRepeatedly(testing::Return(nullptr));
+      .WillRepeatedly(testing::ReturnNull());
 
   // 2 non-nulls, 2 nulls, 2 non-nulls, 2 nulls
+  unsigned char list1[] = { 0xff, 0xcc };
   EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_PRESENT))
       .WillRepeatedly(testing::Return(new SeekableArrayInputStream
-      ( { 0xff, 0xcc })));
+      (list1, sizeof(list1) / sizeof(unsigned char))));
 
+  unsigned char list2[] = {
+      0xfc, 0xbb, 0xb5, 0xbe, 0x31, 0xa1, 0xee, 0xe2, 0x10, 0xf8,
+      0x92, 0xee, 0xf, 0x92, 0xa0, 0xd4, 0x30 };
   EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_DATA))
       .WillRepeatedly(testing::Return(new SeekableArrayInputStream
-      ( { 0xfc, 0xbb, 0xb5, 0xbe, 0x31, 0xa1, 0xee, 0xe2, 0x10, 0xf8,
-          0x92, 0xee, 0xf, 0x92, 0xa0, 0xd4, 0x30 })));
+      (list2, sizeof(list2) / sizeof(unsigned char))));
 
+  unsigned char list3[] = { 0x1, 0x8, 0x5e };
   EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_SECONDARY))
       .WillRepeatedly(testing::Return(new SeekableArrayInputStream
-      ( { 0x1, 0x8, 0x5e })));
+      (list3, sizeof(list3) / sizeof(unsigned char))));
 
   // create the row type
-  std::unique_ptr<Type> rowType =
-      createStructType( { createPrimitiveType(TIMESTAMP) }, { "myTimestamp" });
+  std::vector<Type*> vtypes(1, createPrimitiveType(TIMESTAMP).release());
+  std::vector<std::string> vfields(1, "myTimestamp");
+  std::unique_ptr<Type> rowType = createStructType(vtypes, vfields);
   rowType->assignIds(0);
 
   std::unique_ptr<ColumnReader> reader =
@@ -2529,7 +2672,7 @@ TEST(TestColumnReader, testUnimplementedTypes) {
   MockStripeStreams streams;
 
   // set getSelectedColumns()
-  std::vector<bool> selectedColumns = { true, true };
+  std::vector<bool> selectedColumns(2, true);
   EXPECT_CALL(streams, getSelectedColumns())
       .WillRepeatedly(testing::Return(selectedColumns));
 
@@ -2541,16 +2684,20 @@ TEST(TestColumnReader, testUnimplementedTypes) {
 
   // set getStream
   EXPECT_CALL(streams, getStreamProxy(0, proto::Stream_Kind_PRESENT))
-      .WillRepeatedly(testing::Return(nullptr));
+      .WillRepeatedly(testing::ReturnNull());
 
   // create the row type
   std::unique_ptr<Type> rowType;
 
-  rowType = createStructType( { createPrimitiveType(UNION) }, { "col0" });
+  std::vector<Type*> vtypes(1, createPrimitiveType(UNION).release());
+  std::vector<std::string> vfields(1, "col0");
+  rowType = createStructType(vtypes, vfields);
   rowType->assignIds(0);
   EXPECT_THROW(buildReader(*rowType, streams), NotImplementedYet);
 
-  rowType = createStructType( { createPrimitiveType(DECIMAL) }, { "col0" });
+  vtypes.clear();
+  vtypes.push_back(createPrimitiveType(DECIMAL).release());
+  rowType = createStructType(vtypes, vfields);
   rowType->assignIds(0);
   EXPECT_THROW(buildReader(*rowType, streams), NotImplementedYet);
 }

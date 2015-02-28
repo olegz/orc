@@ -31,7 +31,7 @@ const char *exampleDirectory = 0;
 GTEST_API_ int main(int argc, char **argv) {
   GOOGLE_PROTOBUF_VERIFY_VERSION;
   std::cout << "ORC version: " << ORC_VERSION << "\n";
-  if (argc == 2) {
+  if (argc >= 2) {
     exampleDirectory = argv[1];
   } else {
     exampleDirectory = "../examples";

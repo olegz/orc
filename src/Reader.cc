@@ -135,19 +135,19 @@ namespace orc {
 
   public:
 
-    StripeInformationImpl(unsigned long offset,
-                          unsigned long indexLength,
-                          unsigned long dataLength,
-                          unsigned long footerLength,
-                          unsigned long numRows) :
-      offset(offset),
-      indexLength(indexLength),
-      dataLength(dataLength),
-      footerLength(footerLength),
-      numRows(numRows)
+    StripeInformationImpl(unsigned long _offset,
+                          unsigned long _indexLength,
+                          unsigned long _dataLength,
+                          unsigned long _footerLength,
+                          unsigned long _numRows) :
+      offset(_offset),
+      indexLength(_indexLength),
+      dataLength(_dataLength),
+      footerLength(_footerLength),
+      numRows(_numRows)
     {}
 
-    ~StripeInformationImpl() {}
+    ~StripeInformationImpl();
 
     unsigned long getOffset() const override {
       return offset;
@@ -175,6 +175,10 @@ namespace orc {
 
   };
 
+  StripeInformationImpl::~StripeInformationImpl() {
+    // PASS
+  }
+
   Reader::~Reader() {
     // PASS
   }
@@ -196,7 +200,7 @@ namespace orc {
 
     // footer
     proto::Footer footer;
-    std::vector<unsigned long> firstRowOfStripe;
+    std::vector<uint64_t> firstRowOfStripe;
     unsigned long numberOfStripes;
     std::unique_ptr<Type> schema;
 
@@ -271,7 +275,7 @@ namespace orc {
 
     bool next(ColumnVectorBatch& data) override;
 
-    unsigned long getRowNumber() const override;
+    uint64_t getRowNumber() const override;
 
     void seekToRow(unsigned long rowNumber) override;
   };
@@ -301,7 +305,7 @@ namespace orc {
     readPostscript(buffer.data(), readSize);
     readFooter(buffer.data(), readSize, size);
 
-    currentStripe = footer.stripes_size();
+    currentStripe = static_cast<uint64_t>(footer.stripes_size());
     lastStripe = 0;
     currentRowInStripe = 0;
     unsigned long rowTotal = 0;
@@ -324,14 +328,14 @@ namespace orc {
 
     schema = convertType(footer.types(0), footer);
     schema->assignIds(0);
-    previousRow = (std::numeric_limits<unsigned long>::max)();
+    previousRow = (std::numeric_limits<uint64_t>::max)();
 
     selectedColumns.assign(static_cast<size_t>(footer.types_size()), false);
 
     const std::list<int>& included = options.getInclude();
     for(std::list<int>::const_iterator columnId = included.begin();
         columnId != included.end(); ++columnId) {
-      if (*columnId <= (int)(schema->getSubtypeCount())) {
+      if (*columnId <= static_cast<int>(schema->getSubtypeCount())) {
         selectTypeParent(static_cast<size_t>(*columnId));
         selectTypeChildren(static_cast<size_t>(*columnId));
       }
@@ -464,7 +468,7 @@ namespace orc {
     return *(schema.get());
   }
 
-  unsigned long ReaderImpl::getRowNumber() const {
+  uint64_t ReaderImpl::getRowNumber() const {
     return previousRow;
   }
 

@@ -40,19 +40,19 @@ signed char RleDecoderV1::readByte() {
   return *(bufferStart++);
 }
 
-unsigned long RleDecoderV1::readLong() {
-  unsigned long result = 0;
+uint64_t RleDecoderV1::readLong() {
+  uint64_t result = 0;
   int offset = 0;
   signed char ch = readByte();
   if (ch >= 0) {
-    result = static_cast<unsigned long>(ch);
+    result = static_cast<uint64_t>(ch);
   } else {
-    result = static_cast<unsigned long>(ch) & BASE_128_MASK;
+    result = static_cast<uint64_t>(ch) & BASE_128_MASK;
     while ((ch = readByte()) < 0) {
       offset += 7;
-      result |= (static_cast<unsigned long>(ch) & BASE_128_MASK) << offset;
+      result |= (static_cast<uint64_t>(ch) & BASE_128_MASK) << offset;
     }
-    result |= static_cast<unsigned long>(ch) << (offset + 7);
+    result |= static_cast<uint64_t>(ch) << (offset + 7);
   }
   return result;
 }
@@ -76,7 +76,7 @@ void RleDecoderV1::readHeader() {
     delta = readByte();
     value = isSigned
         ? unZigZag(readLong())
-        : static_cast<long>(readLong());
+        : static_cast<int64_t>(readLong());
   }
 }
 

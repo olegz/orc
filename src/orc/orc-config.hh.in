@@ -18,8 +18,14 @@
 #define ORC_VERSION "@ORC_VERSION@"
 
 namespace orc {
-  using uint64 = unsigned long;
-  using int64 = signed long;
+#ifdef _WIN32
+// long in Windows is 4 bytes.
+typedef signed long long int64;
+typedef unsigned long long uint64;
+#else
+typedef signed long int64;
+typedef unsigned long uint64;
+#endif
 }
 
 #endif

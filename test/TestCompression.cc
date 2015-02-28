@@ -27,7 +27,10 @@
 #include <sstream>
 
 #include "zlib.h"
+// Temporary disable snappy for windows.
+#ifndef _WIN32
 #include "snappy.h"
+#endif
 
 namespace orc {
 
@@ -284,13 +287,15 @@ namespace orc {
     EXPECT_EQ(20, len);
     EXPECT_EQ(20, stream.ByteCount());
     {
-      std::list<unsigned long> offsets {100};
+      std::list<unsigned long> offsets;
+      offsets.push_back(100);
       PositionProvider posn(offsets);
       stream.seek(posn);
     }
     EXPECT_EQ(100, stream.ByteCount());
     {
-      std::list<unsigned long> offsets {5};
+      std::list<unsigned long> offsets;
+      offsets.push_back(5);
       PositionProvider posn(offsets);
       stream.seek(posn);
     }
@@ -299,7 +304,8 @@ namespace orc {
     checkBytes(static_cast<const char*>(ptr), len, 5);
     EXPECT_EQ(20, len);
     {
-      std::list<unsigned long> offsets {201};
+      std::list<unsigned long> offsets;
+      offsets.push_back(201);
       PositionProvider posn(offsets);
       EXPECT_THROW(stream.seek(posn), std::logic_error);
       EXPECT_EQ(200, stream.ByteCount());
@@ -325,18 +331,20 @@ namespace orc {
   }
 
   TEST_F(TestCompression, testCreateLzo) {
+    unsigned char *list = NULL;
     EXPECT_THROW(createDecompressor(CompressionKind_LZO,
                              std::unique_ptr<SeekableInputStream>
-                                    (new SeekableArrayInputStream( { } )),
+                                    (new SeekableArrayInputStream(list, 0)),
                              32768), NotImplementedYet);
   }
 
   TEST(Zlib, testCreateZlib) {
+    unsigned char list[] = {0x0b, 0x0, 0x0, 0x0, 0x1, 0x2, 0x3, 0x4};
     std::unique_ptr<SeekableInputStream> result =
       createDecompressor(CompressionKind_ZLIB,
                          std::unique_ptr<SeekableInputStream>
                          (new SeekableArrayInputStream
-                          ({0x0b, 0x0, 0x0, 0x0, 0x1, 0x2, 0x3, 0x4})),
+                          (list, sizeof(list) / sizeof(unsigned char))),
                   32768);
     EXPECT_EQ("zlib(SeekableArrayInputStream 0 of 8)", result->getName());
     const void *ptr;
@@ -358,15 +366,17 @@ namespace orc {
   }
 
   TEST(Zlib, testLiteralBlocks) {
+    unsigned char list[] = {
+        0x19, 0x0, 0x0, 0x0, 0x1,
+        0x2, 0x3, 0x4, 0x5, 0x6,
+        0x7, 0x8, 0x9, 0xa, 0xb,
+        0xb, 0x0, 0x0, 0xc, 0xd,
+        0xe, 0xf, 0x10};
     std::unique_ptr<SeekableInputStream> result =
       createDecompressor(CompressionKind_ZLIB,
                          std::unique_ptr<SeekableInputStream>
                          (new SeekableArrayInputStream
-                          ({0x19, 0x0, 0x0, 0x0, 0x1,
-                              0x2, 0x3, 0x4, 0x5, 0x6,
-                              0x7, 0x8, 0x9, 0xa, 0xb,
-                              0xb, 0x0, 0x0, 0xc, 0xd, 
-                              0xe, 0xf, 0x10}, 5)),
+                          (list, sizeof(list) / sizeof(unsigned char), 5)),
                          5);
     EXPECT_EQ("zlib(SeekableArrayInputStream 0 of 23)", result->getName());
     const void *ptr;
@@ -401,12 +411,14 @@ namespace orc {
   }
 
   TEST(Zlib, testInflate) {
+    unsigned char list[] = {
+        0xe, 0x0, 0x0, 0x63, 0x60, 0x64, 0x62, 0xc0,
+        0x8d, 0x0};
     std::unique_ptr<SeekableInputStream> result =
       createDecompressor(CompressionKind_ZLIB,
                          std::unique_ptr<SeekableInputStream>
                          (new SeekableArrayInputStream
-                          ({0xe, 0x0, 0x0, 0x63, 0x60, 0x64, 0x62, 0xc0,
-                              0x8d, 0x0})), 1000);
+                          (list, sizeof(list) / sizeof(unsigned char))), 1000);
     const void *ptr;
     int length;
     ASSERT_EQ(true, result->Next(&ptr, &length));
@@ -419,14 +431,17 @@ namespace orc {
   }
 
   TEST(Zlib, testInflateSequence) {
+
+    unsigned char list[] = {
+        0xe, 0x0, 0x0, 0x63, 0x60,
+        0x64, 0x62, 0xc0, 0x8d, 0x0,
+        0xe, 0x0, 0x0, 0x63, 0x60,
+        0x64, 0x62, 0xc0, 0x8d, 0x0};
     std::unique_ptr<SeekableInputStream> result =
       createDecompressor(CompressionKind_ZLIB,
                          std::unique_ptr<SeekableInputStream>
                          (new SeekableArrayInputStream
-                          ({0xe, 0x0, 0x0, 0x63, 0x60,
-                              0x64, 0x62, 0xc0, 0x8d, 0x0,
-                              0xe, 0x0, 0x0, 0x63, 0x60,
-                              0x64, 0x62, 0xc0, 0x8d, 0x0}, 3)), 1000);
+                          (list, sizeof(list)/sizeof(unsigned char),3)), 1000);
     const void *ptr;
     int length;
     ASSERT_THROW(result->BackUp(20), std::logic_error);
@@ -454,15 +469,17 @@ namespace orc {
   }
 
   TEST(Zlib, testSkip) {
+    unsigned char list[] = {
+        0x19, 0x0, 0x0, 0x0, 0x1,
+        0x2, 0x3, 0x4, 0x5, 0x6,
+        0x7, 0x8, 0x9, 0xa, 0xb,
+        0xb, 0x0, 0x0, 0xc, 0xd,
+        0xe, 0xf, 0x10};
     std::unique_ptr<SeekableInputStream> result =
       createDecompressor(CompressionKind_ZLIB,
                          std::unique_ptr<SeekableInputStream>
                          (new SeekableArrayInputStream
-                          ({0x19, 0x0, 0x0, 0x0, 0x1,
-                              0x2, 0x3, 0x4, 0x5, 0x6,
-                              0x7, 0x8, 0x9, 0xa, 0xb,
-                              0xb, 0x0, 0x0, 0xc, 0xd, 
-                              0xe, 0xf, 0x10}, 5)),
+                          (list, sizeof(list) / sizeof(unsigned char), 5)),
                          5);
     const void *ptr;
     int length;
@@ -521,6 +538,8 @@ namespace orc {
     }
   };
 
+#ifndef _WIN32
+// Temporary disable snappy
   TEST(Snappy, testBasic) {
     const int N = 1024;
     std::vector<char> buf(N * sizeof(int));
@@ -628,5 +647,6 @@ namespace orc {
       EXPECT_EQ(i % 8, (reinterpret_cast<const int *>(data))[i - N/2]);
     }
   }
+#endif // _WIN32
 
 }

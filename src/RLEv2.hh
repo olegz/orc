@@ -82,7 +82,7 @@ private:
   }
 
   unsigned char readByte();
-  long readLongBE(uint32_t bsz);
+  int64_t readLongBE(uint32_t bsz);
   int64_t readVslong();
   uint64_t readVulong();
   uint64_t readLongs(int64_t *data, uint64_t offset, uint64_t len,
@@ -102,12 +102,12 @@ private:
 
   unsigned char firstByte;
   uint64_t runLength;
-  unsigned long runRead;
+  uint64_t runRead;
   const char *bufferStart;
   const char *bufferEnd;
   long deltaBase; // Used by DELTA
   unsigned int byteSize; // Used by SHORT_REPEAT and PATCHED_BASE
-  long firstValue; // Used by SHORT_REPEAT and DELTA
+  int64_t firstValue; // Used by SHORT_REPEAT and DELTA
   long prevValue; // Used by DELTA
   uint32_t bitSize; // Used by DIRECT, PATCHED_BASE and DELTA
   uint32_t bitsLeft; // Used by anything that uses readLongs

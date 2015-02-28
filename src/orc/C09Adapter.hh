@@ -27,9 +27,13 @@
     #define UINT32_MAX (4294967295U)
   #endif
 
-  #define unique_ptr auto_ptr
+  #ifndef _WIN32
+  // VS10 already has this adapter.
+    #define unique_ptr auto_ptr
+  #endif
   #define nullptr NULL
   #define override
+  #define isnan _isnan  
 
   #ifndef _WIN32
   // VS10 has already had this Adapter.

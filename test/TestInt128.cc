@@ -240,7 +240,7 @@ namespace orc {
     x *= 6432346;
     EXPECT_EQ(6432346 * 5, x.toLong());
 
-    x = (1L << 62) + (3L << 34) + 3L;
+    x = (1LL << 62) + (3LL << 34) + 3LL;
     x *= 96;
     EXPECT_EQ("0x00000000000000180000048000000120", x.toHexString());
 
@@ -411,7 +411,7 @@ namespace orc {
 
   TEST(Int128, testBuildFromArray) {
     Int128 result;
-    uint32_t array[4] {0x12345678, 0x9abcdef0, 0xfedcba98, 0x76543210};
+    uint32_t array[4] = {0x12345678, 0x9abcdef0, 0xfedcba98, 0x76543210};
 
     buildFromArray(result, array, 0);
     EXPECT_EQ(0, result.toLong());
