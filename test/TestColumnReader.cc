@@ -39,6 +39,9 @@ public:
   MOCK_CONST_METHOD1(getEncoding, proto::ColumnEncoding (int));
   MOCK_CONST_METHOD2(getStreamProxy, SeekableInputStream*
       (int, proto::Stream_Kind));
+  MemoryPool& getMemoryPool() const {
+    return *getDefaultPool();
+  }
 };
 
 MockStripeStreams::~MockStripeStreams() {
@@ -85,8 +88,8 @@ TEST(TestColumnReader, testBooleanWithNulls) {
   rowType->assignIds(0);
 
   std::unique_ptr<ColumnReader> reader = buildReader(*rowType, streams);
-  LongVectorBatch *longBatch = new LongVectorBatch(1024);
-  StructVectorBatch batch(1024);
+  LongVectorBatch *longBatch = new LongVectorBatch(1024, *getDefaultPool());
+  StructVectorBatch batch(1024, *getDefaultPool());
   batch.fields.push_back(longBatch);
   reader->next(batch, 512, 0);
   ASSERT_EQ(512, batch.numElements);
@@ -137,8 +140,8 @@ TEST(TestColumnReader, testBooleanSkipsWithNulls) {
   rowType->assignIds(0);
 
   std::unique_ptr<ColumnReader> reader = buildReader(*rowType, streams);
-  LongVectorBatch *longBatch = new LongVectorBatch(1024);
-  StructVectorBatch batch(1024);
+  LongVectorBatch *longBatch = new LongVectorBatch(1024, *getDefaultPool());
+  StructVectorBatch batch(1024, *getDefaultPool());
   batch.fields.push_back(longBatch);
   reader->next(batch, 1, 0);
   ASSERT_EQ(1, batch.numElements);
@@ -202,8 +205,8 @@ TEST(TestColumnReader, testByteWithNulls) {
 
   std::unique_ptr<ColumnReader> reader =
       buildReader(*rowType, streams);
-  LongVectorBatch *longBatch = new LongVectorBatch(1024);
-  StructVectorBatch batch(1024);
+  LongVectorBatch *longBatch = new LongVectorBatch(1024, *getDefaultPool());
+  StructVectorBatch batch(1024, *getDefaultPool());
   batch.fields.push_back(longBatch);
   reader->next(batch, 512, 0);
   ASSERT_EQ(512, batch.numElements);
@@ -265,8 +268,8 @@ TEST(TestColumnReader, testByteSkipsWithNulls) {
 
   std::unique_ptr<ColumnReader> reader =
       buildReader(*rowType, streams);
-  LongVectorBatch *longBatch = new LongVectorBatch(1024);
-  StructVectorBatch batch(1024);
+  LongVectorBatch *longBatch = new LongVectorBatch(1024, *getDefaultPool());
+  StructVectorBatch batch(1024, *getDefaultPool());
   batch.fields.push_back(longBatch);
   reader->next(batch, 1, 0);
   ASSERT_EQ(1, batch.numElements);
@@ -318,8 +321,8 @@ TEST(TestColumnReader, testIntegerWithNulls) {
 
   std::unique_ptr<ColumnReader> reader =
       buildReader(*rowType, streams);
-  LongVectorBatch *longBatch = new LongVectorBatch(1024);
-  StructVectorBatch batch(1024);
+  LongVectorBatch *longBatch = new LongVectorBatch(1024, *getDefaultPool());
+  StructVectorBatch batch(1024, *getDefaultPool());
   batch.fields.push_back(longBatch);
   reader->next(batch, 200, 0);
   ASSERT_EQ(200, batch.numElements);
@@ -381,8 +384,9 @@ TEST(TestColumnReader, testDictionaryWithNulls) {
 
   std::unique_ptr<ColumnReader> reader =
       buildReader(*rowType, streams);
-  StringVectorBatch *stringBatch = new StringVectorBatch(1024);
-  StructVectorBatch batch(1024);
+  StringVectorBatch *stringBatch = new StringVectorBatch(1024,
+                                                         *getDefaultPool());
+  StructVectorBatch batch(1024, *getDefaultPool());
   batch.fields.push_back(stringBatch);
   reader->next(batch, 200, 0);
   ASSERT_EQ(200, batch.numElements);
@@ -473,9 +477,11 @@ TEST(TestColumnReader, testVarcharDictionaryWithNulls) {
 
   std::unique_ptr<ColumnReader> reader =
       buildReader(*rowType, streams);
-  StructVectorBatch batch(1024);
-  StringVectorBatch *stringBatch = new StringVectorBatch(1024);
-  StringVectorBatch *nullBatch = new StringVectorBatch(1024);
+  StructVectorBatch batch(1024, *getDefaultPool());
+  StringVectorBatch *stringBatch = new StringVectorBatch(1024,
+                                                         *getDefaultPool());
+  StringVectorBatch *nullBatch = new StringVectorBatch(1024,
+                                                       *getDefaultPool());
   batch.fields.push_back(stringBatch);
   batch.fields.push_back(nullBatch);
   reader->next(batch, 200, 0);
@@ -543,10 +549,10 @@ TEST(TestColumnReader, testSubstructsWithNulls) {
 
   std::unique_ptr<ColumnReader> reader = buildReader(*rowType, streams);
 
-  StructVectorBatch batch(1024);
-  StructVectorBatch *middle = new StructVectorBatch(1024);
-  StructVectorBatch *inner = new StructVectorBatch(1024);
-  LongVectorBatch *longs = new LongVectorBatch(1024);
+  StructVectorBatch batch(1024, *getDefaultPool());
+  StructVectorBatch *middle = new StructVectorBatch(1024, *getDefaultPool());
+  StructVectorBatch *inner = new StructVectorBatch(1024, *getDefaultPool());
+  LongVectorBatch *longs = new LongVectorBatch(1024, *getDefaultPool());
   batch.fields.push_back(middle);
   middle->fields.push_back(inner);
   inner->fields.push_back(longs);
@@ -645,9 +651,10 @@ TEST(TestColumnReader, testSkipWithNulls) {
 
   std::unique_ptr<ColumnReader> reader =
       buildReader(*rowType, streams);
-  StructVectorBatch batch(100);
-  LongVectorBatch *longBatch = new LongVectorBatch(100);
-  StringVectorBatch *stringBatch = new StringVectorBatch(100);
+  StructVectorBatch batch(100, *getDefaultPool());
+  LongVectorBatch *longBatch = new LongVectorBatch(100, *getDefaultPool());
+  StringVectorBatch *stringBatch =
+    new StringVectorBatch(100, *getDefaultPool());
   batch.fields.push_back(longBatch);
   batch.fields.push_back(stringBatch);
   reader->next(batch, 20, 0);
@@ -724,8 +731,8 @@ TEST(TestColumnReader, testBinaryDirect) {
 
   std::unique_ptr<ColumnReader> reader = buildReader(*rowType, streams);
 
-  StructVectorBatch batch(1024);
-  StringVectorBatch *strings = new StringVectorBatch(1024);
+  StructVectorBatch batch(1024, *getDefaultPool());
+  StringVectorBatch *strings = new StringVectorBatch(1024, *getDefaultPool());
   batch.fields.push_back(strings);
   for (size_t i = 0; i < 2; ++i) {
     reader->next(batch, 50, 0);
@@ -785,8 +792,8 @@ TEST(TestColumnReader, testBinaryDirectWithNulls) {
 
   std::unique_ptr<ColumnReader> reader = buildReader(*rowType, streams);
 
-  StructVectorBatch batch(1024);
-  StringVectorBatch *strings = new StringVectorBatch(1024);
+  StructVectorBatch batch(1024, *getDefaultPool());
+  StringVectorBatch *strings = new StringVectorBatch(1024, *getDefaultPool());
   batch.fields.push_back(strings);
   size_t next = 0;
   for (size_t i = 0; i < 2; ++i) {
@@ -844,8 +851,8 @@ TEST(TestColumnReader, testShortBlobError) {
 
   std::unique_ptr<ColumnReader> reader = buildReader(*rowType, streams);
 
-  StructVectorBatch batch(1024);
-  StringVectorBatch *strings = new StringVectorBatch(1024);
+  StructVectorBatch batch(1024, *getDefaultPool());
+  StringVectorBatch *strings = new StringVectorBatch(1024, *getDefaultPool());
   batch.fields.push_back(strings);
   EXPECT_THROW(reader->next(batch, 100, 0), ParseError);
 }
@@ -880,7 +887,7 @@ TEST(TestColumnReader, testStringDirectShortBuffer) {
   }
   EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_DATA))
       .WillRepeatedly(testing::Return(new SeekableArrayInputStream
-      (blob, 200, nullptr, 3)));
+      (blob, 200, 3)));
 
   EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_LENGTH))
       .WillRepeatedly(testing::Return(new SeekableArrayInputStream
@@ -893,8 +900,8 @@ TEST(TestColumnReader, testStringDirectShortBuffer) {
 
   std::unique_ptr<ColumnReader> reader = buildReader(*rowType, streams);
 
-  StructVectorBatch batch(25);
-  StringVectorBatch *strings = new StringVectorBatch(25);
+  StructVectorBatch batch(25, *getDefaultPool());
+  StringVectorBatch *strings = new StringVectorBatch(25, *getDefaultPool());
   batch.fields.push_back(strings);
   for (size_t i = 0; i < 4; ++i) {
     reader->next(batch, 25, 0);
@@ -941,7 +948,7 @@ TEST(TestColumnReader, testStringDirectShortBufferWithNulls) {
   }
   EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_DATA))
       .WillRepeatedly(testing::Return(new SeekableArrayInputStream
-      (blob, 512, nullptr, 30)));
+      (blob, 512, 30)));
 
   EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_LENGTH))
       .WillRepeatedly(testing::Return(new SeekableArrayInputStream
@@ -954,8 +961,8 @@ TEST(TestColumnReader, testStringDirectShortBufferWithNulls) {
 
   std::unique_ptr<ColumnReader> reader = buildReader(*rowType, streams);
 
-  StructVectorBatch batch(64);
-  StringVectorBatch *strings = new StringVectorBatch(64);
+  StructVectorBatch batch(64, *getDefaultPool());
+  StringVectorBatch *strings = new StringVectorBatch(64, *getDefaultPool());
   batch.fields.push_back(strings);
   size_t next = 0;
   for (size_t i = 0; i < 8; ++i) {
@@ -1008,7 +1015,7 @@ TEST(TestColumnReader, testStringDirectSkip) {
   }
   EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_DATA))
       .WillRepeatedly(testing::Return(new SeekableArrayInputStream
-      (blob, BLOB_SIZE, nullptr, 200)));
+      (blob, BLOB_SIZE, 200)));
 
   // the stream of 0 to 1199
   EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_LENGTH))
@@ -1031,8 +1038,8 @@ TEST(TestColumnReader, testStringDirectSkip) {
 
   std::unique_ptr<ColumnReader> reader = buildReader(*rowType, streams);
 
-  StructVectorBatch batch(2);
-  StringVectorBatch *strings = new StringVectorBatch(2);
+  StructVectorBatch batch(2, *getDefaultPool());
+  StringVectorBatch *strings = new StringVectorBatch(2, *getDefaultPool());
   batch.fields.push_back(strings);
   reader->next(batch, 2, 0);
   ASSERT_EQ(2, batch.numElements);
@@ -1107,7 +1114,7 @@ TEST(TestColumnReader, testStringDirectSkipWithNulls) {
   }
   EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_DATA))
       .WillRepeatedly(testing::Return(new SeekableArrayInputStream
-      (blob, BLOB_SIZE, nullptr, 200)));
+      (blob, BLOB_SIZE, 200)));
 
   // range(1200)
   EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_LENGTH))
@@ -1130,8 +1137,8 @@ TEST(TestColumnReader, testStringDirectSkipWithNulls) {
 
   std::unique_ptr<ColumnReader> reader = buildReader(*rowType, streams);
 
-  StructVectorBatch batch(2);
-  StringVectorBatch *strings = new StringVectorBatch(2);
+  StructVectorBatch batch(2, *getDefaultPool());
+  StringVectorBatch *strings = new StringVectorBatch(2, *getDefaultPool());
   batch.fields.push_back(strings);
   reader->next(batch, 2, 0);
   ASSERT_EQ(2, batch.numElements);
@@ -1217,9 +1224,9 @@ TEST(TestColumnReader, testList) {
 
   std::unique_ptr<ColumnReader> reader = buildReader(*rowType, streams);
 
-  StructVectorBatch batch(512);
-  ListVectorBatch *lists = new ListVectorBatch(512);
-  LongVectorBatch *longs = new LongVectorBatch(512);
+  StructVectorBatch batch(512, *getDefaultPool());
+  ListVectorBatch *lists = new ListVectorBatch(512, *getDefaultPool());
+  LongVectorBatch *longs = new LongVectorBatch(512, *getDefaultPool());
   batch.fields.push_back(lists);
   lists->elements = std::unique_ptr < ColumnVectorBatch > (longs);
   reader->next(batch, 512, 0);
@@ -1308,9 +1315,9 @@ TEST(TestColumnReader, testListWithNulls) {
 
   std::unique_ptr<ColumnReader> reader = buildReader(*rowType, streams);
 
-  StructVectorBatch batch(512);
-  ListVectorBatch *lists = new ListVectorBatch(512);
-  LongVectorBatch *longs = new LongVectorBatch(512);
+  StructVectorBatch batch(512, *getDefaultPool());
+  ListVectorBatch *lists = new ListVectorBatch(512, *getDefaultPool());
+  LongVectorBatch *longs = new LongVectorBatch(512, *getDefaultPool());
   batch.fields.push_back(lists);
   lists->elements = std::unique_ptr < ColumnVectorBatch > (longs);
   reader->next(batch, 512, 0);
@@ -1469,9 +1476,9 @@ TEST(TestColumnReader, testListSkipWithNulls) {
 
   std::unique_ptr<ColumnReader> reader = buildReader(*rowType, streams);
 
-  StructVectorBatch batch(1);
-  ListVectorBatch *lists = new ListVectorBatch(1);
-  LongVectorBatch *longs = new LongVectorBatch(1);
+  StructVectorBatch batch(1, *getDefaultPool());
+  ListVectorBatch *lists = new ListVectorBatch(1, *getDefaultPool());
+  LongVectorBatch *longs = new LongVectorBatch(1, *getDefaultPool());
   batch.fields.push_back(lists);
   lists->elements = std::unique_ptr < ColumnVectorBatch > (longs);
 
@@ -1568,8 +1575,8 @@ TEST(TestColumnReader, testListSkipWithNullsNoData) {
 
   std::unique_ptr<ColumnReader> reader = buildReader(*rowType, streams);
 
-  StructVectorBatch batch(1);
-  ListVectorBatch *lists = new ListVectorBatch(1);
+  StructVectorBatch batch(1, *getDefaultPool());
+  ListVectorBatch *lists = new ListVectorBatch(1, *getDefaultPool());
   batch.fields.push_back(lists);
 
   reader->next(batch, 1, 0);
@@ -1665,10 +1672,10 @@ TEST(TestColumnReader, testMap) {
 
   std::unique_ptr<ColumnReader> reader = buildReader(*rowType, streams);
 
-  StructVectorBatch batch(512);
-  MapVectorBatch *maps = new MapVectorBatch(512);
-  LongVectorBatch *keys = new LongVectorBatch(512);
-  LongVectorBatch *elements = new LongVectorBatch(512);
+  StructVectorBatch batch(512, *getDefaultPool());
+  MapVectorBatch *maps = new MapVectorBatch(512, *getDefaultPool());
+  LongVectorBatch *keys = new LongVectorBatch(512, *getDefaultPool());
+  LongVectorBatch *elements = new LongVectorBatch(512, *getDefaultPool());
   batch.fields.push_back(maps);
   maps->keys = std::unique_ptr < ColumnVectorBatch > (keys);
   maps->elements = std::unique_ptr < ColumnVectorBatch > (elements);
@@ -1779,10 +1786,10 @@ TEST(TestColumnReader, testMapWithNulls) {
 
   std::unique_ptr<ColumnReader> reader = buildReader(*rowType, streams);
 
-  StructVectorBatch batch(512);
-  MapVectorBatch *maps = new MapVectorBatch(512);
-  LongVectorBatch *keys = new LongVectorBatch(512);
-  LongVectorBatch *elements = new LongVectorBatch(512);
+  StructVectorBatch batch(512, *getDefaultPool());
+  MapVectorBatch *maps = new MapVectorBatch(512, *getDefaultPool());
+  LongVectorBatch *keys = new LongVectorBatch(512, *getDefaultPool());
+  LongVectorBatch *elements = new LongVectorBatch(512, *getDefaultPool());
   batch.fields.push_back(maps);
   maps->keys = std::unique_ptr < ColumnVectorBatch > (keys);
   maps->elements = std::unique_ptr < ColumnVectorBatch > (elements);
@@ -1984,10 +1991,10 @@ TEST(TestColumnReader, testMapSkipWithNulls) {
 
   std::unique_ptr<ColumnReader> reader = buildReader(*rowType, streams);
 
-  StructVectorBatch batch(1);
-  MapVectorBatch *maps = new MapVectorBatch(1);
-  LongVectorBatch *keys = new LongVectorBatch(1);
-  LongVectorBatch *elements = new LongVectorBatch(1);
+  StructVectorBatch batch(1, *getDefaultPool());
+  MapVectorBatch *maps = new MapVectorBatch(1, *getDefaultPool());
+  LongVectorBatch *keys = new LongVectorBatch(1, *getDefaultPool());
+  LongVectorBatch *elements = new LongVectorBatch(1, *getDefaultPool());
   batch.fields.push_back(maps);
   maps->keys = std::unique_ptr < ColumnVectorBatch > (keys);
   maps->elements = std::unique_ptr < ColumnVectorBatch > (elements);
@@ -2089,8 +2096,8 @@ TEST(TestColumnReader, testMapSkipWithNullsNoData) {
 
   std::unique_ptr<ColumnReader> reader = buildReader(*rowType, streams);
 
-  StructVectorBatch batch(1);
-  MapVectorBatch *maps = new MapVectorBatch(1);
+  StructVectorBatch batch(1, *getDefaultPool());
+  MapVectorBatch *maps = new MapVectorBatch(1, *getDefaultPool());
   batch.fields.push_back(maps);
 
   reader->next(batch, 1, 0);
@@ -2174,8 +2181,9 @@ TEST(TestColumnReader, testFloatWithNulls) {
   std::unique_ptr<ColumnReader> reader =
       buildReader(*rowType, streams);
 
-  DoubleVectorBatch *doubleBatch = new DoubleVectorBatch(1024);
-  StructVectorBatch batch(1024);
+  DoubleVectorBatch *doubleBatch = new DoubleVectorBatch(1024,
+                                                         *getDefaultPool());
+  StructVectorBatch batch(1024, *getDefaultPool());
   batch.fields.push_back(doubleBatch);
   reader->next(batch, 32, 0);
   ASSERT_EQ(32, batch.numElements);
@@ -2235,8 +2243,9 @@ TEST(TestColumnReader, testFloatSkipWithNulls) {
   std::unique_ptr<ColumnReader> reader =
       buildReader(*rowType, streams);
 
-  DoubleVectorBatch *doubleBatch = new DoubleVectorBatch(1024);
-  StructVectorBatch batch(1024);
+  DoubleVectorBatch *doubleBatch = new DoubleVectorBatch(1024,
+                                                         *getDefaultPool());
+  StructVectorBatch batch(1024, *getDefaultPool());
   batch.fields.push_back(doubleBatch);
 
   float test_vals[] = { 1.0, 2.5, -100.125, 10000.0 };
@@ -2335,8 +2344,9 @@ TEST(TestColumnReader, testDoubleWithNulls) {
   std::unique_ptr<ColumnReader> reader =
       buildReader(*rowType, streams);
 
-  DoubleVectorBatch *doubleBatch = new DoubleVectorBatch(1024);
-  StructVectorBatch batch(1024);
+  DoubleVectorBatch *doubleBatch = new DoubleVectorBatch(1024,
+                                                         *getDefaultPool());
+  StructVectorBatch batch(1024, *getDefaultPool());
   batch.fields.push_back(doubleBatch);
   reader->next(batch, 32, 0);
   ASSERT_EQ(32, batch.numElements);
@@ -2398,8 +2408,9 @@ TEST(TestColumnReader, testDoubleSkipWithNulls) {
   std::unique_ptr<ColumnReader> reader =
       buildReader(*rowType, streams);
 
-  DoubleVectorBatch *doubleBatch = new DoubleVectorBatch(1024);
-  StructVectorBatch batch(1024);
+  DoubleVectorBatch *doubleBatch = new DoubleVectorBatch(1024,
+                                                         *getDefaultPool());
+  StructVectorBatch batch(1024, *getDefaultPool());
   batch.fields.push_back(doubleBatch);
 
   double test_vals[] = { 1.0, 2.0, -2.0 };
@@ -2479,8 +2490,8 @@ TEST(TestColumnReader, testTimestampSkipWithNulls) {
   std::unique_ptr<ColumnReader> reader =
       buildReader(*rowType, streams);
 
-  LongVectorBatch *longBatch = new LongVectorBatch(1024);
-  StructVectorBatch batch(1024);
+  LongVectorBatch *longBatch = new LongVectorBatch(1024, *getDefaultPool());
+  StructVectorBatch batch(1024, *getDefaultPool());
   batch.fields.push_back(longBatch);
 
   // Test values are nanoseconds since 1970-01-01 00:00:00.0
@@ -2559,7 +2570,7 @@ TEST(DecimalColumnReader, testDecimal64) {
   }
   EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_DATA))
     .WillRepeatedly(testing::Return(new SeekableArrayInputStream(numBuffer,
-                                                         65, nullptr, 3)));
+                                                                 65, 3)));
 
   // [0x02] * 65
   EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_SECONDARY))
@@ -2573,8 +2584,9 @@ TEST(DecimalColumnReader, testDecimal64) {
 
   std::unique_ptr<ColumnReader> reader = buildReader(*rowType, streams);
 
-  StructVectorBatch batch(64);
-  Decimal64VectorBatch *decimals = new Decimal64VectorBatch(64);
+  StructVectorBatch batch(64, *getDefaultPool());
+  Decimal64VectorBatch *decimals =
+    new Decimal64VectorBatch(64, *getDefaultPool());
   batch.fields.push_back(decimals);
   reader->next(batch, 64, 0);
   EXPECT_EQ(false, batch.hasNulls);
@@ -2650,8 +2662,9 @@ TEST(DecimalColumnReader, testDecimal64Skip) {
 
   std::unique_ptr<ColumnReader> reader = buildReader(*rowType, streams);
 
-  StructVectorBatch batch(64);
-  Decimal64VectorBatch *decimals = new Decimal64VectorBatch(64);
+  StructVectorBatch batch(64, *getDefaultPool());
+  Decimal64VectorBatch *decimals =
+    new Decimal64VectorBatch(64, *getDefaultPool());
   batch.fields.push_back(decimals);
   reader->next(batch, 6, 0);
   EXPECT_EQ(false, batch.hasNulls);
@@ -2708,7 +2721,7 @@ TEST(DecimalColumnReader, testDecimal128) {
   }
   EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_DATA))
     .WillRepeatedly(testing::Return(new SeekableArrayInputStream(numBuffer,
-                                                         65, nullptr, 3)));
+                                                                 65, 3)));
 
   // [0x02] * 65
   EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_SECONDARY))
@@ -2722,8 +2735,9 @@ TEST(DecimalColumnReader, testDecimal128) {
 
   std::unique_ptr<ColumnReader> reader = buildReader(*rowType, streams);
 
-  StructVectorBatch batch(64);
-  Decimal128VectorBatch *decimals = new Decimal128VectorBatch(64);
+  StructVectorBatch batch(64, *getDefaultPool());
+  Decimal128VectorBatch *decimals =
+    new Decimal128VectorBatch(64, *getDefaultPool());
   batch.fields.push_back(decimals);
   reader->next(batch, 64, 0);
   EXPECT_EQ(false, batch.hasNulls);
@@ -2811,8 +2825,9 @@ TEST(DecimalColumnReader, testDecimal128Skip) {
 
   std::unique_ptr<ColumnReader> reader = buildReader(*rowType, streams);
 
-  StructVectorBatch batch(64);
-  Decimal128VectorBatch *decimals = new Decimal128VectorBatch(64);
+  StructVectorBatch batch(64, *getDefaultPool());
+  Decimal128VectorBatch *decimals =
+    new Decimal128VectorBatch(64, *getDefaultPool());
   batch.fields.push_back(decimals);
   reader->next(batch, 6, 0);
   EXPECT_EQ(false, batch.hasNulls);
@@ -2882,7 +2897,7 @@ TEST(DecimalColumnReader, testDecimalHive11) {
   }
   EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_DATA))
     .WillRepeatedly(testing::Return(new SeekableArrayInputStream(numBuffer,
-                                                         65, nullptr, 3)));
+                                                                 65, 3)));
 
   unsigned char scaleBuffer[] = {0x3e, 0x00, 0x0c};
   EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_SECONDARY))
@@ -2896,8 +2911,9 @@ TEST(DecimalColumnReader, testDecimalHive11) {
 
   std::unique_ptr<ColumnReader> reader = buildReader(*rowType, streams);
 
-  StructVectorBatch batch(64);
-  Decimal128VectorBatch *decimals = new Decimal128VectorBatch(64);
+  StructVectorBatch batch(64, *getDefaultPool());
+  Decimal128VectorBatch *decimals =
+    new Decimal128VectorBatch(64, *getDefaultPool());
   batch.fields.push_back(decimals);
   reader->next(batch, 64, 0);
   EXPECT_EQ(false, batch.hasNulls);
@@ -2992,8 +3008,9 @@ TEST(DecimalColumnReader, testDecimalHive11Skip) {
 
   std::unique_ptr<ColumnReader> reader = buildReader(*rowType, streams);
 
-  StructVectorBatch batch(64);
-  Decimal128VectorBatch *decimals = new Decimal128VectorBatch(64);
+  StructVectorBatch batch(64, *getDefaultPool());
+  Decimal128VectorBatch *decimals =
+    new Decimal128VectorBatch(64, *getDefaultPool());
   batch.fields.push_back(decimals);
   reader->next(batch, 6, 0);
   EXPECT_EQ(false, batch.hasNulls);
@@ -3074,8 +3091,9 @@ TEST(DecimalColumnReader, testDecimalHive11ScaleUp) {
 
   std::unique_ptr<ColumnReader> reader = buildReader(*rowType, streams);
 
-  StructVectorBatch batch(64);
-  Decimal128VectorBatch *decimals = new Decimal128VectorBatch(64);
+  StructVectorBatch batch(64, *getDefaultPool());
+  Decimal128VectorBatch *decimals =
+    new Decimal128VectorBatch(64, *getDefaultPool());
   batch.fields.push_back(decimals);
   reader->next(batch, 21, 0);
   EXPECT_EQ(false, batch.hasNulls);
@@ -3159,8 +3177,9 @@ TEST(DecimalColumnReader, testDecimalHive11ScaleDown) {
 
   std::unique_ptr<ColumnReader> reader = buildReader(*rowType, streams);
 
-  StructVectorBatch batch(64);
-  Decimal128VectorBatch *decimals = new Decimal128VectorBatch(64);
+  StructVectorBatch batch(64, *getDefaultPool());
+  Decimal128VectorBatch *decimals =
+    new Decimal128VectorBatch(64, *getDefaultPool());
   batch.fields.push_back(decimals);
   reader->next(batch, 21, 0);
   EXPECT_EQ(false, batch.hasNulls);
@@ -3225,8 +3244,9 @@ TEST(DecimalColumnReader, testDecimalHive11OverflowException) {
 
   std::unique_ptr<ColumnReader> reader = buildReader(*rowType, streams);
 
-  StructVectorBatch batch(64);
-  Decimal128VectorBatch *decimals = new Decimal128VectorBatch(64);
+  StructVectorBatch batch(64, *getDefaultPool());
+  Decimal128VectorBatch *decimals =
+    new Decimal128VectorBatch(64, *getDefaultPool());
   batch.fields.push_back(decimals);
   EXPECT_THROW(reader->next(batch, 1, 0), ParseError);
 }
@@ -3279,8 +3299,9 @@ TEST(DecimalColumnReader, testDecimalHive11OverflowExceptionNull) {
 
   std::unique_ptr<ColumnReader> reader = buildReader(*rowType, streams);
 
-  StructVectorBatch batch(64);
-  Decimal128VectorBatch *decimals = new Decimal128VectorBatch(64);
+  StructVectorBatch batch(64, *getDefaultPool());
+  Decimal128VectorBatch *decimals =
+    new Decimal128VectorBatch(64, *getDefaultPool());
   batch.fields.push_back(decimals);
   EXPECT_THROW(reader->next(batch, 2, 0), ParseError);
 }
@@ -3342,8 +3363,9 @@ TEST(DecimalColumnReader, testDecimalHive11OverflowNull) {
 
   std::unique_ptr<ColumnReader> reader = buildReader(*rowType, streams);
 
-  StructVectorBatch batch(64);
-  Decimal128VectorBatch *decimals = new Decimal128VectorBatch(64);
+  StructVectorBatch batch(64, *getDefaultPool());
+  Decimal128VectorBatch *decimals =
+    new Decimal128VectorBatch(64, *getDefaultPool());
   batch.fields.push_back(decimals);
 
   reader->next(batch, 3, 0);
@@ -3423,8 +3445,9 @@ TEST(DecimalColumnReader, testDecimalHive11BigBatches) {
 
   std::unique_ptr<ColumnReader> reader = buildReader(*rowType, streams);
 
-  StructVectorBatch batch(2048);
-  Decimal128VectorBatch *decimals = new Decimal128VectorBatch(2048);
+  StructVectorBatch batch(2048, *getDefaultPool());
+  Decimal128VectorBatch *decimals =
+    new Decimal128VectorBatch(2048, *getDefaultPool());
   batch.fields.push_back(decimals);
 
   reader->next(batch, 2048, 0);

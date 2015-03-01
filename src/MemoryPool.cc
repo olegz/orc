@@ -16,35 +16,102 @@
  * limitations under the License.
  */
 
+#include "orc/Int128.hh"
 #include "orc/MemoryPool.hh"
+
 #include <cstdlib>
 #include <iostream>
 
 namespace orc {
 
-  MemoryPool::~MemoryPool() {}
+  MemoryPool::~MemoryPool() {
+    // PASS
+  }
 
   class MemoryPoolImpl: public MemoryPool {
   public:
-    void* malloc(uint64_t size) override ;
-    void free(void* p) override ;
+    virtual ~MemoryPoolImpl();
 
-    MemoryPoolImpl();
-    ~MemoryPoolImpl();
+    char* malloc(uint64_t size) override;
+    void free(char* p) override;
   };
 
-  void* MemoryPoolImpl::malloc(uint64_t size) {
-    return std::malloc(size);
+  char* MemoryPoolImpl::malloc(uint64_t size) {
+    return static_cast<char*>(std::malloc(size));
   }
 
-  void MemoryPoolImpl::free(void* p) {
+  void MemoryPoolImpl::free(char* p) {
     std::free(p);
   }
 
-  MemoryPoolImpl::MemoryPoolImpl() {}
-  MemoryPoolImpl::~MemoryPoolImpl() {}
-
-  std::unique_ptr<MemoryPool> createDefaultMemoryPool() {
-    return std::unique_ptr<MemoryPool>(new MemoryPoolImpl());
+  MemoryPoolImpl::~MemoryPoolImpl() {
+    // PASS
   }
+
+  template <class T>
+  DataBuffer<T>::DataBuffer(MemoryPool& pool,
+                            uint64_t newSize
+                            ): memoryPool(pool),
+                               buf(nullptr),
+                               currentSize(0),
+                               currentCapacity(0) {
+    resize(newSize);
+  }
+
+  template <class T>
+  DataBuffer<T>::~DataBuffer(){
+    for(uint64_t i=currentSize; i > 0; --i) {
+      (buf + i - 1)->~T();
+    }
+    if (buf) {
+      memoryPool.free(reinterpret_cast<char*>(buf));
+    }
+  }
+
+  template <class T>
+  void DataBuffer<T>::resize(uint64_t newSize) {
+    reserve(newSize);
+    if (currentSize > newSize) {
+      for(uint64_t i=currentSize; i > newSize; --i) {
+        (buf + i - 1)->~T();
+      }
+    } else if (newSize > currentSize) {
+      for(uint64_t i=currentSize; i < newSize; ++i) {
+        new (buf + i) T();
+      }
+    }
+    currentSize = newSize;
+  }
+
+  template <class T>
+  void DataBuffer<T>::reserve(uint64_t newCapacity){
+    if (newCapacity > currentCapacity) {
+      if (buf) {
+        T* buf_old = buf;
+        buf = reinterpret_cast<T*>(memoryPool.malloc(sizeof(T) * newCapacity));
+        std::memcpy(buf, buf_old, sizeof(T) * currentSize);
+        memoryPool.free(reinterpret_cast<char*>(buf_old));
+      } else {
+        buf = reinterpret_cast<T*>(memoryPool.malloc(sizeof(T) * newCapacity));
+      }
+      currentCapacity = newCapacity;
+    }
+  }
+
+  #pragma clang diagnostic ignored "-Wexit-time-destructors"
+
+  MemoryPool* getDefaultPool() {
+    static MemoryPoolImpl internal;
+    return &internal;
+  }
+
+  #pragma clang diagnostic ignored "-Wweak-template-vtables"
+
+  template class DataBuffer<char>;
+  template class DataBuffer<char*>;
+  template class DataBuffer<double>;
+  template class DataBuffer<Int128>;
+  template class DataBuffer<int64_t>;
+  template class DataBuffer<uint64_t>;
+
 } // namespace orc

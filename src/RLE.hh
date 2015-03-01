@@ -65,11 +65,13 @@ namespace orc {
    * @param input the input stream to read from
    * @param isSigned true if the number sequence is signed
    * @param version version of RLE decoding to do
+   * @param pool memory pool to use for allocation
    */
-  std::unique_ptr<RleDecoder> createRleDecoder(
-    std::unique_ptr<SeekableInputStream> input,
-    bool isSigned,
-    RleVersion version);
+  std::unique_ptr<RleDecoder> createRleDecoder
+                      (std::unique_ptr<SeekableInputStream> input,
+                       bool isSigned,
+                       RleVersion version,
+                       MemoryPool& pool);
 
 }  // namespace orc
 

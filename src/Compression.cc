@@ -63,15 +63,6 @@ namespace orc {
     return result;
   }
 
-  SeekableInputStream::SeekableInputStream(MemoryPool* pool):
-      memoryPool(pool) {
-    // PASS
-  }
-
-  MemoryPool* SeekableInputStream::getMemoryPool() {
-    return memoryPool;
-  }
-
   SeekableInputStream::~SeekableInputStream() {
     // PASS
   }
@@ -83,11 +74,9 @@ namespace orc {
   #if __cplusplus >= 201103L
     SeekableArrayInputStream::SeekableArrayInputStream
        (std::initializer_list<unsigned char> values,
-        long blkSize,
-        MemoryPool* pool):
-        SeekableInputStream(pool),
-        ownedData(new DataBuffer<char>(values.size(), pool)),
-        data(0) {
+        long blkSize
+        ):ownedData(new DataBuffer<char>(*getDefaultPool(), values.size())),
+          data(0) {
       length = values.size();
       memcpy(ownedData->data(), values.begin(), values.size());
       position = 0;
@@ -96,29 +85,19 @@ namespace orc {
   #endif // __cplusplus
 
   SeekableArrayInputStream::SeekableArrayInputStream
-     (const unsigned char* values,
-      unsigned long size,
-      MemoryPool* pool,
-      long blkSize):
-      SeekableInputStream(pool),
-      ownedData(new DataBuffer<char>(size, pool)),
-      data(0) {
+               (const unsigned char* values,
+                unsigned long size,
+                long blkSize
+                ): data(reinterpret_cast<const char*>(values)) {
     length = size;
-    char *ptr = ownedData->data();
-    for(unsigned long i = 0; i < size; ++i) {
-      ptr[i] = static_cast<char>(values[i]);
-    }
     position = 0;
     blockSize = blkSize == -1 ? length : static_cast<unsigned long>(blkSize);
   }
 
   SeekableArrayInputStream::SeekableArrayInputStream(const char* values,
                                                      unsigned long size,
-                                                     MemoryPool* pool,
-                                                     long blkSize):
-                       SeekableInputStream(pool),
-                       ownedData(new DataBuffer<char>(0, pool)),
-                       data(values) {
+                                                     long blkSize
+                                                     ): data(values) {
     length = size;
     position = 0;
     blockSize = blkSize == -1 ? length : static_cast<unsigned long>(blkSize);
@@ -174,77 +153,76 @@ namespace orc {
     return result.str();
   }
 
-  SeekableFileInputStream::SeekableFileInputStream(InputStream* _input,
-                                                   unsigned long _offset,
-                                                   unsigned long _length,
-                                                   MemoryPool* pool,
-                                                   long _blockSize):
-                                                   SeekableInputStream(pool) {
-    input = _input;
-    offset = _offset;
-    length = _length;
+  static uint64_t computeBlock(long request, uint64_t length) {
+    return std::min(length,
+                    static_cast<uint64_t>(request < 0 ?
+                                          256 * 1024 : request));
+  }
+
+  SeekableFileInputStream::SeekableFileInputStream(InputStream* stream,
+                                                   unsigned long offset,
+                                                   unsigned long byteCount,
+                                                   long _blockSize
+                                                   ): input(stream),
+                                                      start(offset),
+                                                      length(byteCount),
+                                                      blockSize(computeBlock
+                                                                (_blockSize,
+                                                                 length)) {
     position = 0;
-    blockSize = std::min(length,
-                         static_cast<unsigned long>(_blockSize < 0 ?
-                                                    256 * 1024 : _blockSize));
-    buffer.reset(new DataBuffer<char>(blockSize, pool));
-    remainder = 0;
+    buffer = nullptr;
+    pushBack = 0;
   }
 
   SeekableFileInputStream::~SeekableFileInputStream() {
-    // PASS
+    delete buffer;
   }
 
   bool SeekableFileInputStream::Next(const void** data, int*size) {
-    unsigned long bytesRead = std::min(length - position, blockSize);
-    if (bytesRead > 0) {
-      *data = buffer->data();
-      // read from the file, skipping over the remainder
-      input->read(buffer->data() + remainder, offset + position + remainder,
-                  bytesRead - remainder);
-      position += bytesRead;
-      remainder = 0;
+    uint64_t bytesRead;
+    if (pushBack != 0) {
+      *data = buffer->getStart() + (buffer->getLength() - pushBack);
+      bytesRead = pushBack;
+    } else {
+      bytesRead = std::min(length - position, blockSize);
+      if (bytesRead > 0) {
+        buffer = input->read(start + position, bytesRead, buffer);
+        *data = static_cast<void*>(buffer->getStart());
+      }
     }
+    position += bytesRead;
+    pushBack = 0;
     *size = static_cast<int>(bytesRead);
     return bytesRead != 0;
   }
 
-  void SeekableFileInputStream::BackUp(int count) {
-    if (position == 0 || remainder > 0) {
+  void SeekableFileInputStream::BackUp(int signedCount) {
+    if (signedCount < 0) {
+      throw std::logic_error("can't backup negative distances");
+    }
+    uint64_t count = static_cast<uint64_t>(signedCount);
+    if (pushBack > 0) {
       throw std::logic_error("can't backup unless we just called Next");
     }
-    if (static_cast<unsigned long>(count) > blockSize) {
+    if (count > blockSize || count > position) {
       throw std::logic_error("can't backup that far");
     }
-    remainder = static_cast<unsigned long>(count);
-    position -= remainder;
-    memmove(buffer->data(),
-            buffer->data() + blockSize - static_cast<size_t>(count),
-            static_cast<size_t>(count));
+    pushBack = static_cast<uint64_t>(count);
+    position -= pushBack;
   }
 
-  bool SeekableFileInputStream::Skip(int _count) {
-    if (_count < 0) {
+  bool SeekableFileInputStream::Skip(int signedCount) {
+    if (signedCount < 0) {
       return false;
     }
-    unsigned long count = static_cast<unsigned long>(_count);
-    position += count;
-    if (position > length) {
-      position = length;
-      remainder = 0;
-      return false;
-    }
-    if (remainder > count) {
-      remainder -= count;
-      memmove(buffer->data(), buffer->data() + count, remainder);
-    } else {
-      remainder = 0;
-    }
-    return true;
+    uint64_t count = static_cast<uint64_t>(signedCount);
+    position = std::min(position + count, length);
+    pushBack = 0;
+    return position < length;
   }
 
-  google::protobuf::int64 SeekableFileInputStream::ByteCount() const {
-    return static_cast<google::protobuf::int64>(position);
+  int64_t SeekableFileInputStream::ByteCount() const {
+    return static_cast<int64_t>(position);
   }
 
   void SeekableFileInputStream::seek(PositionProvider& location) {
@@ -253,12 +231,12 @@ namespace orc {
       position = length;
       throw std::logic_error("seek too far");
     }
-    remainder = 0;
+    pushBack = 0;
   }
 
   std::string SeekableFileInputStream::getName() const {
     std::ostringstream result;
-    result << input->getName() << " from " << offset << " for "
+    result << input->getName() << " from " << start << " for "
            << length;
     return result.str();
   }
@@ -272,10 +250,8 @@ namespace orc {
   class ZlibDecompressionStream: public SeekableInputStream {
   public:
     ZlibDecompressionStream(std::unique_ptr<SeekableInputStream> inStream,
-                            size_t blockSize);
-//    ZlibDecompressionStream(const ZlibDecompressionStream&) = delete;
-//    ZlibDecompressionStream& operator=(const ZlibDecompressionStream&)
-//      = delete;
+                            size_t blockSize,
+                            MemoryPool& pool);
     virtual ~ZlibDecompressionStream();
     virtual bool Next(const void** data, int*size) override;
     virtual void BackUp(int count) override;
@@ -327,11 +303,11 @@ namespace orc {
       }
     }
 
+    MemoryPool& pool;
     const size_t blockSize;
     std::unique_ptr<SeekableInputStream> input;
     z_stream zstream;
-//    std::vector<char> buffer;
-    std::unique_ptr<DataBuffer<char> > buffer;
+    DataBuffer<char> buffer;
 
     // the current state
     DecompressState state;
@@ -358,17 +334,18 @@ namespace orc {
 
   ZlibDecompressionStream::ZlibDecompressionStream
                    (std::unique_ptr<SeekableInputStream> inStream,
-                    size_t _blockSize
-                    ): SeekableInputStream(inStream->getMemoryPool()),
+                    size_t _blockSize,
+                    MemoryPool& _pool
+                    ): pool(_pool),
                        blockSize(_blockSize),
-                       buffer(new DataBuffer<char>(_blockSize, memoryPool)) {
+                       buffer(pool, _blockSize) {
     input.reset(inStream.release());
     zstream.next_in = Z_NULL;
     zstream.avail_in = 0;
     zstream.zalloc = Z_NULL;
     zstream.zfree = Z_NULL;
     zstream.opaque = Z_NULL;
-    zstream.next_out = reinterpret_cast<Bytef*>(buffer->data());
+    zstream.next_out = reinterpret_cast<Bytef*>(buffer.data());
     zstream.avail_out = static_cast<uInt>(blockSize);
     int result = inflateInit2(&zstream, -15);
     switch (result) {
@@ -423,9 +400,6 @@ namespace orc {
     size_t availSize =
       std::min(static_cast<size_t>(inputBufferEnd - inputBuffer),
                remainingLength);
-    // std::cout << "State: " << state << " remaining = " << remainingLength
-    //          << " Buffer = " << (inputBufferEnd - inputBuffer)
-    //          << " Avail = " << availSize << " on " << getName() << "\n";
     if (state == DECOMPRESS_ORIGINAL) {
       *data = inputBuffer;
       *size = static_cast<int>(availSize);
@@ -435,7 +409,7 @@ namespace orc {
       zstream.next_in =
         reinterpret_cast<Bytef*>(const_cast<char*>(inputBuffer));
       zstream.avail_in = static_cast<uInt>(availSize);
-      outputBuffer = buffer->data();
+      outputBuffer = buffer.data();
       zstream.next_out =
         reinterpret_cast<Bytef*>(const_cast<char*>(outputBuffer));
       zstream.avail_out = static_cast<uInt>(blockSize);
@@ -541,7 +515,8 @@ namespace orc {
   class SnappyDecompressionStream: public SeekableInputStream {
   public:
     SnappyDecompressionStream(std::unique_ptr<SeekableInputStream> inStream,
-                              size_t blockSize);
+                              size_t blockSize,
+                              MemoryPool& pool);
 
     virtual ~SnappyDecompressionStream() {}
     virtual bool Next(const void** data, int*size) override;
@@ -594,15 +569,14 @@ namespace orc {
     }
 
     std::unique_ptr<SeekableInputStream> input;
+    MemoryPool& pool;
 
     // may need to stitch together multiple input buffers;
     // to give snappy a contiguous block
-//    std::vector<char> inputBuffer;
-    std::unique_ptr<DataBuffer<char> > inputBuffer;
+    DataBuffer<char> inputBuffer;
 
     // uncompressed output
-//    std::vector<char> outputBuffer;
-    std::unique_ptr<DataBuffer<char> > outputBuffer;
+    DataBuffer<char> outputBuffer;
 
     // the current state
     DecompressState state;
@@ -623,19 +597,20 @@ namespace orc {
     off_t bytesReturned;
   };
 
-  SnappyDecompressionStream::SnappyDecompressionStream(
-                    std::unique_ptr<SeekableInputStream> inStream,
-                    size_t blockSize) :
-      SeekableInputStream(inStream->getMemoryPool()),
-      inputBuffer(new DataBuffer<char>(0, memoryPool)),
-      outputBuffer(new DataBuffer<char>(blockSize, memoryPool)),
-      state(DECOMPRESS_HEADER),
-      outputBufferPtr(0),
-      outputBufferLength(0),
-      remainingLength(0),
-      inputBufferPtr(0),
-      inputBufferPtrEnd(0),
-      bytesReturned(0)  {
+  SnappyDecompressionStream::SnappyDecompressionStream
+                   (std::unique_ptr<SeekableInputStream> inStream,
+                    size_t bufferSize,
+                    MemoryPool& _pool
+                    ) : pool(_pool),
+                        inputBuffer(pool, bufferSize),
+                        outputBuffer(pool, bufferSize),
+                        state(DECOMPRESS_HEADER),
+                        outputBufferPtr(0),
+                        outputBufferLength(0),
+                        remainingLength(0),
+                        inputBufferPtr(0),
+                        inputBufferPtrEnd(0),
+                        bytesReturned(0) {
     input.reset(inStream.release());
   }
 
@@ -676,19 +651,19 @@ namespace orc {
           inputBufferPtr += availSize;
       } else {
         // Did not read enough from input.
-        if (inputBuffer->capacity() < remainingLength) {
-          inputBuffer->resize(remainingLength);
+        if (inputBuffer.capacity() < remainingLength) {
+          inputBuffer.resize(remainingLength);
         }
-        ::memcpy(inputBuffer->data(), inputBufferPtr, availSize);
+        ::memcpy(inputBuffer.data(), inputBufferPtr, availSize);
         inputBufferPtr += availSize;
-        compressed = inputBuffer->data();
+        compressed = inputBuffer.data();
 
         for (size_t pos = availSize; pos < remainingLength; ) {
           readBuffer(true);
           size_t avail =
               std::min(static_cast<size_t>(inputBufferPtrEnd - inputBufferPtr),
                        remainingLength - pos);
-          ::memcpy(inputBuffer->data() + pos, inputBufferPtr, avail);
+          ::memcpy(inputBuffer.data() + pos, inputBufferPtr, avail);
           pos += avail;
           inputBufferPtr += avail;
         }
@@ -699,20 +674,20 @@ namespace orc {
         throw ParseError("SnappyDecompressionStream choked on corrupt input");
       }
 
-      if (outputBufferLength > outputBuffer->capacity()) {
+      if (outputBufferLength > outputBuffer.capacity()) {
         throw std::logic_error("uncompressed length exceeds block size");
       }
 
       if (!snappy::RawUncompress(compressed, remainingLength,
-                                 outputBuffer->data())) {
+                                 outputBuffer.data())) {
         throw ParseError("SnappyDecompressionStream choked on corrupt input");
       }
 
       remainingLength = 0;
       state = DECOMPRESS_HEADER;
-      *data = outputBuffer->data();
+      *data = outputBuffer.data();
       *size = static_cast<int>(outputBufferLength);
-      outputBufferPtr = outputBuffer->data() + outputBufferLength;
+      outputBufferPtr = outputBuffer.data() + outputBufferLength;
       outputBufferLength = 0;
     }
 
@@ -767,21 +742,23 @@ namespace orc {
     return result.str();
   }
 #endif // _WIN32
+
   std::unique_ptr<SeekableInputStream>
      createDecompressor(CompressionKind kind,
                         std::unique_ptr<SeekableInputStream> input,
-                        unsigned long blockSize) {
+                        unsigned long blockSize,
+                        MemoryPool& pool) {
     switch (static_cast<int>(kind)) {
     case CompressionKind_NONE:
       return std::move(input);
     case CompressionKind_ZLIB:
       return std::unique_ptr<SeekableInputStream>
-        (new ZlibDecompressionStream(std::move(input), blockSize));
-#ifndef _WIN32
+        (new ZlibDecompressionStream(std::move(input), blockSize, pool));
+    #ifndef _WIN32
     case CompressionKind_SNAPPY:
       return std::unique_ptr<SeekableInputStream>
-        (new SnappyDecompressionStream(std::move(input), blockSize));
-#endif // _WIN32
+        (new SnappyDecompressionStream(std::move(input), blockSize, pool));
+    #endif // _WIN32
     case CompressionKind_LZO:
     default:
       throw NotImplementedYet("compression codec");

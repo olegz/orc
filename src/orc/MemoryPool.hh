@@ -26,13 +26,55 @@ namespace orc {
 
   class MemoryPool {
   public:
-    virtual void* malloc(uint64_t size) = 0;
-    virtual void free(void* p) = 0;
-
     virtual ~MemoryPool();
+
+    virtual char* malloc(uint64_t size) = 0;
+    virtual void free(char* p) = 0;
+  };
+  MemoryPool* getDefaultPool();
+
+  template <class T>
+  class DataBuffer {
+  private:
+    MemoryPool& memoryPool;
+    T* buf;
+    // current size
+    uint64_t currentSize;
+    // maximal capacity (actual allocated memory)
+    uint64_t currentCapacity;
+
+    // not implemented
+    DataBuffer(DataBuffer& buffer);
+    DataBuffer& operator=(DataBuffer& buffer);
+
+  public:
+    DataBuffer(MemoryPool& pool, uint64_t _size = 0);
+    virtual ~DataBuffer();
+
+    T* data() { 
+      return buf;
+    }
+
+    const T* data() const {
+      return buf;
+    }
+
+    uint64_t size() {
+      return currentSize;
+    }
+
+    uint64_t capacity() {
+      return currentCapacity;
+    }
+
+    T& operator[](uint64_t i) {
+      return buf[i];
+    }
+
+    void reserve(uint64_t _size);
+    void resize(uint64_t _size);
   };
 
-  std::unique_ptr<MemoryPool> createDefaultMemoryPool();
 } // namespace orc
 
 

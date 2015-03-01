@@ -28,7 +28,7 @@ namespace orc {
     std::unique_ptr<Type> type = createPrimitiveType(BOOLEAN);
     std::unique_ptr<ColumnPrinter> printer =
       createColumnPrinter(buffer, *type);
-    LongVectorBatch batch(1024);
+    LongVectorBatch batch(1024, *getDefaultPool());
     batch.numElements = 3;
     batch.hasNulls = false;
     batch.data[0] = 1;
@@ -61,7 +61,7 @@ namespace orc {
     std::unique_ptr<Type> type = createPrimitiveType(LONG);
     std::unique_ptr<ColumnPrinter> printer =
       createColumnPrinter(buffer, *type);
-    LongVectorBatch batch(1024);
+    LongVectorBatch batch(1024, *getDefaultPool());
     batch.numElements = 2;
     batch.hasNulls = false;
     batch.data[0] = 9223372036854775807LL;
@@ -94,7 +94,7 @@ namespace orc {
     std::unique_ptr<Type> type = createPrimitiveType(DOUBLE);
     std::unique_ptr<ColumnPrinter> printer =
       createColumnPrinter(buffer, *type);
-    DoubleVectorBatch batch(1024);
+    DoubleVectorBatch batch(1024, *getDefaultPool());
     batch.numElements = 2;
     batch.hasNulls = false;
     batch.data[0] = 1234.5;
@@ -127,7 +127,7 @@ namespace orc {
     std::unique_ptr<Type> type = createPrimitiveType(TIMESTAMP);
     std::unique_ptr<ColumnPrinter> printer =
       createColumnPrinter(buffer, *type);
-    LongVectorBatch batch(1024);
+    LongVectorBatch batch(1024, *getDefaultPool());
     batch.numElements = 12;
     batch.hasNulls = false;
     batch.data[0]  = 1420070400000000000;
@@ -181,7 +181,7 @@ namespace orc {
     std::unique_ptr<Type> type = createPrimitiveType(DATE);
     std::unique_ptr<ColumnPrinter> printer =
       createColumnPrinter(buffer, *type);
-    LongVectorBatch batch(1024);
+    LongVectorBatch batch(1024, *getDefaultPool());
     batch.numElements = 10;
     batch.hasNulls = false;
     batch.data[0]  = 0;
@@ -231,7 +231,7 @@ namespace orc {
     std::unique_ptr<Type> type = createDecimalType(16, 5);
     std::unique_ptr<ColumnPrinter> printer =
       createColumnPrinter(buffer, *type);
-    Decimal64VectorBatch batch(1024);
+    Decimal64VectorBatch batch(1024, *getDefaultPool());
     batch.numElements = 10;
     batch.hasNulls = false;
     batch.scale = 5;
@@ -282,7 +282,7 @@ namespace orc {
     std::unique_ptr<Type> type = createDecimalType(30, 5);
     std::unique_ptr<ColumnPrinter> printer =
       createColumnPrinter(buffer, *type);
-    Decimal128VectorBatch batch(1024);
+    Decimal128VectorBatch batch(1024, *getDefaultPool());
     batch.numElements = 10;
     batch.hasNulls = false;
     batch.scale = 5;
@@ -333,7 +333,7 @@ namespace orc {
     std::unique_ptr<Type> type = createPrimitiveType(STRING);
     std::unique_ptr<ColumnPrinter> printer =
       createColumnPrinter(buffer, *type);
-    StringVectorBatch batch(1024);
+    StringVectorBatch batch(1024, *getDefaultPool());
     const char *blob= "thisisatest\b\f\n\r\t\\\"'";
     batch.numElements = 5;
     batch.hasNulls = false;
@@ -376,7 +376,7 @@ namespace orc {
     std::unique_ptr<Type> type = createPrimitiveType(BINARY);
     std::unique_ptr<ColumnPrinter> printer =
       createColumnPrinter(buffer, *type);
-    StringVectorBatch batch(1024);
+    StringVectorBatch batch(1024, *getDefaultPool());
     char blob[45];
     for(size_t i=0; i < sizeof(blob); ++i) {
       blob[i] = static_cast<char>(i);
@@ -426,8 +426,8 @@ namespace orc {
     std::unique_ptr<Type> type = createListType(createPrimitiveType(LONG));
     std::unique_ptr<ColumnPrinter> printer =
       createColumnPrinter(buffer, *type);
-    ListVectorBatch batch(1024);
-    LongVectorBatch* longBatch = new LongVectorBatch(1024);
+    ListVectorBatch batch(1024, *getDefaultPool());
+    LongVectorBatch* longBatch = new LongVectorBatch(1024, *getDefaultPool());
     batch.elements = std::unique_ptr<ColumnVectorBatch>(longBatch);
     batch.numElements = 10;
     batch.hasNulls = false;
@@ -478,9 +478,9 @@ namespace orc {
                                                createPrimitiveType(LONG));
     std::unique_ptr<ColumnPrinter> printer =
       createColumnPrinter(buffer, *type);
-    MapVectorBatch batch(1024);
-    LongVectorBatch* keyBatch = new LongVectorBatch(1024);
-    LongVectorBatch* valueBatch = new LongVectorBatch(1024);
+    MapVectorBatch batch(1024, *getDefaultPool());
+    LongVectorBatch* keyBatch = new LongVectorBatch(1024, *getDefaultPool());
+    LongVectorBatch* valueBatch = new LongVectorBatch(1024, *getDefaultPool());
     batch.keys = std::unique_ptr<ColumnVectorBatch>(keyBatch);
     batch.elements = std::unique_ptr<ColumnVectorBatch>(valueBatch);
     batch.numElements = 4;
@@ -537,9 +537,10 @@ namespace orc {
     std::unique_ptr<Type> type = createStructType(subtypes, fieldNames);
     std::unique_ptr<ColumnPrinter> printer =
       createColumnPrinter(buffer, *type);
-    StructVectorBatch batch(1024);
-    LongVectorBatch* firstBatch = new LongVectorBatch(1024);
-    LongVectorBatch* secondBatch = new LongVectorBatch(1024);
+    StructVectorBatch batch(1024, *getDefaultPool());
+    LongVectorBatch* firstBatch = new LongVectorBatch(1024, *getDefaultPool());
+    LongVectorBatch* secondBatch =
+      new LongVectorBatch(1024, *getDefaultPool());
     batch.fields.push_back(firstBatch);
     batch.fields.push_back(secondBatch);
     batch.numElements = 10;

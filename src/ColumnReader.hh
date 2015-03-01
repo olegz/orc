@@ -53,6 +53,11 @@ namespace orc {
     virtual std::unique_ptr<SeekableInputStream> 
                     getStream(int columnId,
                               proto::Stream_Kind kind) const = 0;
+
+    /**
+     * Get the memory pool for this reader.
+     */
+    virtual MemoryPool& getMemoryPool() const = 0;
   };
 
   /**
@@ -62,10 +67,10 @@ namespace orc {
   protected:
     std::unique_ptr<ByteRleDecoder> notNullDecoder;
     int columnId;
-    MemoryPool* memoryPool;
+    MemoryPool& memoryPool;
 
   public:
-    ColumnReader(const Type& type, StripeStreams& stipe, MemoryPool* pool);
+    ColumnReader(const Type& type, StripeStreams& stipe);
 
     virtual ~ColumnReader();
 
@@ -93,8 +98,7 @@ namespace orc {
    * Create a reader for the given stripe.
    */
   std::unique_ptr<ColumnReader> buildReader(const Type& type,
-                                            StripeStreams& stripe,
-                                            MemoryPool* pool = nullptr);
+                                            StripeStreams& stripe);
 }
 
 #endif

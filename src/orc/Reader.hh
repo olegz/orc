@@ -474,6 +474,11 @@ namespace orc {
     ReaderOptions& setErrorStream(std::ostream& stream);
 
     /**
+     * Set the memory allocator.
+     */
+    ReaderOptions& setMemoryPool(MemoryPool& pool);
+
+    /**
      * Get the list of selected columns to read. All children of the selected
      * columns are also selected.
      */
@@ -513,6 +518,11 @@ namespace orc {
      * Get the stream to write warnings or errors to.
      */
     std::ostream* getErrorStream() const;
+
+    /**
+     * Get the memory allocator.
+     */
+    MemoryPool* getMemoryPool() const;
   };
 
   /**
