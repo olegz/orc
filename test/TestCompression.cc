@@ -216,16 +216,16 @@ namespace orc {
     EXPECT_EQ(20, len);
     checkBytes(static_cast<const char*>(ptr), len, 20);
     stream.BackUp(10);
-    for(unsigned int i=0; i < 8; ++i) {
-      EXPECT_EQ(true, stream.Next(&ptr, &len));
-      unsigned int consumedBytes = 30 + 20 * i;
-      EXPECT_EQ(consumedBytes + 20, stream.ByteCount());
-      EXPECT_EQ(20, len);
-      checkBytes(static_cast<const char*>(ptr), len, consumedBytes);
-    }
+    EXPECT_EQ(30, stream.ByteCount());
     EXPECT_EQ(true, stream.Next(&ptr, &len));
     EXPECT_EQ(10, len);
-    checkBytes(static_cast<const char*>(ptr), len, 190);
+    checkBytes(static_cast<const char*>(ptr), len, 30);
+    for(unsigned int i=0; i < 8; ++i) {
+      EXPECT_EQ(20 * i + 40, stream.ByteCount());
+      EXPECT_EQ(true, stream.Next(&ptr, &len));
+      EXPECT_EQ(20, len);
+      checkBytes(static_cast<const char*>(ptr), len, 20 * i + 40);
+    }
     EXPECT_EQ(false, stream.Next(&ptr, &len));
     EXPECT_EQ(0, len);
     ASSERT_THROW(stream.BackUp(30), std::logic_error);
@@ -246,7 +246,7 @@ namespace orc {
     ASSERT_EQ(true, stream.Next(&ptr, &len));
     checkBytes(static_cast<const char*>(ptr), len, 100);
     EXPECT_EQ(20, len);
-    ASSERT_EQ(true, stream.Skip(80));
+    ASSERT_EQ(false, stream.Skip(80));
     ASSERT_EQ(false, stream.Next(&ptr, &len));
     ASSERT_EQ(false, stream.Skip(181));
     EXPECT_EQ("simple-file.binary from 0 for 200", stream.getName());

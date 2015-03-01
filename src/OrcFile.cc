@@ -26,11 +26,41 @@
 
 namespace orc {
 
+  Buffer::~Buffer() {
+    // PASS
+  }
+
+  class HeapBuffer: public Buffer {
+  private:
+    char* start;
+    uint64_t length;
+
+  public:
+    HeapBuffer(uint64_t size) {
+      start = new char[size];
+      length = size;
+    }
+
+    virtual ~HeapBuffer();
+
+    virtual char *getStart() const override {
+      return start;
+    }
+
+    virtual uint64_t getLength() const override {
+      return length;
+    }
+  };
+
+  HeapBuffer::~HeapBuffer() {
+    delete[] start;
+  }
+
   class FileInputStream : public InputStream {
   private:
     std::string filename ;
     int file;
-    off_t totalLength;
+    uint64_t totalLength;
 
   public:
     FileInputStream(std::string _filename) {
@@ -43,18 +73,25 @@ namespace orc {
       if (fstat(file, &fileStat) == -1) {
         throw ParseError("Can't stat " + filename);
       }
-      totalLength = fileStat.st_size;
+      totalLength = static_cast<uint64_t>(fileStat.st_size);
     }
 
     ~FileInputStream();
 
-    long getLength() const {
+    uint64_t getLength() const {
       return totalLength;
     }
 
-    void read(void* buffer, unsigned long offset,
-              unsigned long length) override {
-      ssize_t bytesRead = pread(file, buffer, length,
+    Buffer* read(uint64_t offset,
+                 uint64_t length,
+                 Buffer* buffer) override {
+      if (buffer == nullptr) {
+        buffer = new HeapBuffer(length);
+      } else if (buffer->getLength() < length) {
+        delete buffer;
+        buffer = new HeapBuffer(length);
+      }
+      ssize_t bytesRead = pread(file, buffer->getStart(), length,
                                 static_cast<off_t>(offset));
       if (bytesRead == -1) {
         throw ParseError("Bad read of " + filename);
@@ -62,6 +99,7 @@ namespace orc {
       if (static_cast<unsigned long>(bytesRead) != length) {
         throw ParseError("Short read of " + filename);
       }
+      return buffer;
     }
 
     const std::string& getName() const override { 

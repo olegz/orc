@@ -91,25 +91,25 @@ namespace orc {
    */
   class SeekableFileInputStream: public SeekableInputStream {
   private:
-    InputStream* input;
-    std::vector<char> buffer;
-    unsigned long offset;
-    unsigned long length;
-    unsigned long position;
-    unsigned long blockSize;
-    unsigned long remainder;
+    InputStream* const input;
+    const uint64_t start;
+    const uint64_t length;
+    const uint64_t blockSize;
+    Buffer* buffer;
+    uint64_t position;
+    uint64_t pushBack;
 
   public:
     SeekableFileInputStream(InputStream* input,
                             unsigned long offset,
-                            unsigned long length,
+                            unsigned long byteCount,
                             long blockSize = -1);
     virtual ~SeekableFileInputStream();
 
     virtual bool Next(const void** data, int*size) override;
     virtual void BackUp(int count) override;
     virtual bool Skip(int count) override;
-    virtual google::protobuf::int64 ByteCount() const override;
+    virtual int64_t ByteCount() const override;
     virtual void seek(PositionProvider& position) override;
     virtual std::string getName() const override;
   };
