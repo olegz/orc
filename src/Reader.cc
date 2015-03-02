@@ -845,7 +845,8 @@ namespace orc {
 
     // footer
     proto::Footer footer;
-    std::vector<unsigned long> firstRowOfStripe;
+//    std::vector<unsigned long> firstRowOfStripe;
+    std::unique_ptr<DataBuffer<unsigned long> > firstRowOfStripe;
     unsigned long numberOfStripes;
     std::unique_ptr<Type> schema;
 
@@ -862,6 +863,9 @@ namespace orc {
     proto::StripeInformation currentStripeInfo;
     proto::StripeFooter currentStripeFooter;
     std::unique_ptr<ColumnReader> reader;
+
+    // custom memory pool
+    MemoryPool* memoryPool;
 
     // internal methods
     void readPostscript(char * buffer, unsigned long length);
@@ -886,7 +890,8 @@ namespace orc {
      * @param options options for reading
      */
     ReaderImpl(std::unique_ptr<InputStream> stream,
-               const ReaderOptions& options);
+               const ReaderOptions& options,
+               MemoryPool* pool);
 
     const ReaderOptions& getReaderOptions() const;
     CompressionKind getCompression() const override;
@@ -933,16 +938,18 @@ namespace orc {
     unsigned long getRowNumber() const override;
 
     void seekToRow(unsigned long rowNumber) override;
+
+    MemoryPool* getMemoryPool() const ;
   };
 
   InputStream::~InputStream() {
     // PASS
   };
 
-
   ReaderImpl::ReaderImpl(std::unique_ptr<InputStream> input,
-                         const ReaderOptions& opts
-                         ): stream(std::move(input)), options(opts) {
+                           const ReaderOptions& opts,
+                           MemoryPool* pool):
+                               stream(std::move(input)), options(opts), memoryPool(pool) {
     isMetadataLoaded = false;
     // figure out the size of the file using the option or filesystem
     unsigned long size = std::min(options.getTailLocation(),
@@ -956,13 +963,14 @@ namespace orc {
       throw ParseError("File size too small");
     }
 
-    std::vector<char> buffer(readSize);
+    DataBuffer<char> buffer(readSize, memoryPool);
     stream->read(buffer.data(), size - readSize, readSize);
     readPostscript(buffer.data(), readSize);
     readFooter(buffer.data(), readSize, size);
 
     // read metadata
-    unsigned long position = size - 1 - postscript.footerlength() - postscriptLength - postscript.metadatalength();
+    unsigned long position = size - 1 - postscript.footerlength()
+        - postscriptLength - postscript.metadatalength();
     buffer.resize(postscript.metadatalength());
     stream->read(buffer.data(), position, postscript.metadatalength());
 
@@ -972,9 +980,13 @@ namespace orc {
     lastStripe = 0;
     currentRowInStripe = 0;
     unsigned long rowTotal = 0;
-    firstRowOfStripe.resize(static_cast<size_t>(footer.stripes_size()));
+
+    // firstRowOfStripe.resize(static_cast<size_t>(footer.stripes_size()));
+    firstRowOfStripe.reset(new DataBuffer<unsigned long>(
+        static_cast<size_t>(footer.stripes_size()), memoryPool));
+
     for(size_t i=0; i < static_cast<size_t>(footer.stripes_size()); ++i) {
-      firstRowOfStripe[i] = rowTotal;
+      (*firstRowOfStripe)[i] = rowTotal;
       proto::StripeInformation stripeInfo = footer.stripes(static_cast<int>(i));
       rowTotal += stripeInfo.numberofrows();
       bool isStripeInRange = stripeInfo.offset() >= opts.getOffset() &&
@@ -1119,7 +1131,7 @@ namespace orc {
     // Look for the magic string at the end of the postscript.
     if (memcmp(buffer+readSize-1-postscriptLength, MAGIC.c_str(), MAGIC.length()) != 0) {
       // if there is no magic string at the end, check the beginning of the file
-      std::vector<char> frontBuffer(MAGIC.length());
+      DataBuffer<char> frontBuffer(MAGIC.length(), memoryPool);
       stream->read(frontBuffer.data(), 0, MAGIC.length());
       if (memcmp(frontBuffer.data(), MAGIC.c_str(), MAGIC.length()) != 0) {
         throw ParseError("Not an ORC file");
@@ -1168,6 +1180,10 @@ namespace orc {
     throw NotImplementedYet("seekToRow");
   }
 
+  MemoryPool* ReaderImpl::getMemoryPool() const {
+    return memoryPool;
+  }
+
   void ReaderImpl::readPostscript(char *buffer, unsigned long readSize) {
     postscriptLength = buffer[readSize - 1] & 0xff;
 
@@ -1195,29 +1211,26 @@ namespace orc {
     unsigned long tailSize = 1 + postscriptLength + footerSize;
 
     char* pBuffer = buffer + (readSize - tailSize);
-    char* extraBuffer = nullptr;
+    DataBuffer<char> extraBuffer(0,memoryPool);
 
     if (tailSize > readSize) {
       // Read the rest of the footer
       unsigned long extra = tailSize - readSize;
 
-      extraBuffer = new char[footerSize];
-      stream->read(extraBuffer, fileLength - tailSize, extra);
-      memcpy(extraBuffer+extra,buffer,readSize-1-postscriptLength);
-      pBuffer = extraBuffer;
+      extraBuffer.resize(footerSize);
+      stream->read(extraBuffer.data(), fileLength - tailSize, extra);
+      memcpy(extraBuffer.data()+extra,buffer,readSize-1-postscriptLength);
+      pBuffer = extraBuffer.data();
     }
     std::unique_ptr<SeekableInputStream> pbStream =
       createDecompressor(compression,
                          std::unique_ptr<SeekableInputStream>
-                         (new SeekableArrayInputStream(pBuffer, footerSize)),
+                         (new SeekableArrayInputStream(pBuffer, footerSize, memoryPool)),
                          blockSize);
     // TODO: do not SeekableArrayInputStream, rather use an array
     //    if (!footer.ParseFromArray(buffer+readSize-tailSize, footerSize)) {
     if (!footer.ParseFromZeroCopyStream(pbStream.get())) {
       throw ParseError("Failed to parse the footer");
-    }
-    if(extraBuffer) {
-      delete[] extraBuffer ;
     }
 
     numberOfStripes = static_cast<unsigned long>(footer.stripes_size());
@@ -1234,6 +1247,7 @@ namespace orc {
                          (new SeekableFileInputStream(stream.get(),
                                                       footerStart,
                                                       footerLength,
+                                                      memoryPool,
                                                       static_cast<long>
                                                       (blockSize)
                                                       )),
@@ -1259,7 +1273,7 @@ namespace orc {
       createDecompressor(compression,
                          std::unique_ptr<SeekableInputStream>
                          (new SeekableArrayInputStream(buffer+(readSize - tailSize),
-                                                       metadataSize)),
+                                                       metadataSize,memoryPool)),
                          blockSize);
 
     if (!metadata.ParseFromZeroCopyStream(pbStream.get())) {
@@ -1335,6 +1349,7 @@ namespace orc {
                                    (&input,
                                     offset,
                                     stream.length(),
+                                    static_cast<MemoryPool*>(reader.getMemoryPool()),
                                     static_cast<long>
                                     (reader.getCompressionSize()))),
                                   reader.getCompressionSize());
@@ -1351,7 +1366,7 @@ namespace orc {
     StripeStreamsImpl stripeStreams(*this, currentStripeFooter,
                                     currentStripeInfo.offset(),
                                     *(stream.get()));
-    reader = buildReader(*(schema.get()), stripeStreams);
+    reader = buildReader(*(schema.get()), stripeStreams, memoryPool);
   }
 
   void ReaderImpl::checkOrcVersion() {
@@ -1361,7 +1376,7 @@ namespace orc {
   bool ReaderImpl::next(ColumnVectorBatch& data) {
     if (currentStripe > lastStripe) {
       data.numElements = 0;
-      previousRow = firstRowOfStripe[lastStripe] +
+      previousRow = (*firstRowOfStripe)[lastStripe] +
         footer.stripes(static_cast<int>(lastStripe)).numberofrows();
       return false;
     }
@@ -1374,7 +1389,7 @@ namespace orc {
     data.numElements = rowsToRead;
     reader->next(data, rowsToRead, 0);
     // update row number
-    previousRow = firstRowOfStripe[currentStripe] + currentRowInStripe;
+    previousRow = (*firstRowOfStripe)[currentStripe] + currentRowInStripe;
     currentRowInStripe += rowsToRead;
     if (currentRowInStripe >= rowsInCurrentStripe) {
       currentStripe += 1;
@@ -1395,20 +1410,20 @@ namespace orc {
     case LONG:
     case TIMESTAMP:
     case DATE:
-      result = new LongVectorBatch(capacity);
+      result = new LongVectorBatch(capacity, memoryPool);
       break;
     case FLOAT:
     case DOUBLE:
-      result = new DoubleVectorBatch(capacity);
+      result = new DoubleVectorBatch(capacity, memoryPool);
       break;
     case STRING:
     case BINARY:
     case CHAR:
     case VARCHAR:
-      result = new StringVectorBatch(capacity);
+      result = new StringVectorBatch(capacity, memoryPool);
       break;
     case STRUCT:
-      result = new StructVectorBatch(capacity);
+      result = new StructVectorBatch(capacity, memoryPool);
       for(unsigned int i=0; i < type.getSubtypeCount(); ++i) {
         subtype = &(type.getSubtype(i));
         if (selectedColumns[static_cast<size_t>(subtype->getColumnId())]) {
@@ -1418,7 +1433,7 @@ namespace orc {
       }
       break;
     case LIST:
-      result = new ListVectorBatch(capacity);
+      result = new ListVectorBatch(capacity, memoryPool);
       subtype = &(type.getSubtype(0));
       if (selectedColumns[static_cast<size_t>(subtype->getColumnId())]) {
         dynamic_cast<ListVectorBatch*>(result)->elements =
@@ -1426,7 +1441,7 @@ namespace orc {
       }
       break;
     case MAP:
-      result = new MapVectorBatch(capacity);
+      result = new MapVectorBatch(capacity, memoryPool);
       subtype = &(type.getSubtype(0));
       if (selectedColumns[static_cast<size_t>(subtype->getColumnId())]) {
         dynamic_cast<MapVectorBatch*>(result)->keys =
@@ -1440,9 +1455,9 @@ namespace orc {
       break;
     case DECIMAL:
       if (type.getPrecision() == 0 || type.getPrecision() > 18) {
-        result = new Decimal128VectorBatch(capacity);
+        result = new Decimal128VectorBatch(capacity, memoryPool);
       } else {
-        result = new Decimal64VectorBatch(capacity);
+        result = new Decimal64VectorBatch(capacity, memoryPool);
       }
       break;
     case UNION:
@@ -1458,8 +1473,9 @@ namespace orc {
   }
 
   std::unique_ptr<Reader> createReader(std::unique_ptr<InputStream> stream,
-                                       const ReaderOptions& options) {
-    return std::unique_ptr<Reader>(new ReaderImpl(std::move(stream), options));
+                                       const ReaderOptions& options,
+                                       MemoryPool* pool) {
+    return std::unique_ptr<Reader>(new ReaderImpl(std::move(stream), options, pool));
   }
 
   ColumnStatistics::~ColumnStatistics() {

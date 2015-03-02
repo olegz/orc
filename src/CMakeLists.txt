@@ -35,6 +35,7 @@ add_library (orc STATIC
   Compression.cc
   Exceptions.cc
   Int128.cc
+  MemoryPool.cc
   OrcFile.cc
   Reader.cc
   RLEv1.cc

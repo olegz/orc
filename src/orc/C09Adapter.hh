@@ -47,7 +47,7 @@
 
 
 
-  /* Containers of unique_ptr<T> are replaced with std::vector<T*>
+  /* Containers of unique_ptr<T> are replaced with DataBuffer<T> or std::vector<T>
    * unique_ptr to arrays are replaced with std::vector
    * Unsupported containers (e.g. initializer_list) are replaced with std::vector
    * Rvalue references && are replaced by &
