@@ -941,7 +941,7 @@ namespace orc {
 
     MemoryPool* getMemoryPool() const ;
     
-    bool hasCorrectStatatistics() const override;
+    bool hasCorrectStatistics() const override;
   };
 
   InputStream::~InputStream() {
@@ -1187,7 +1187,7 @@ namespace orc {
   }
 
   bool ReaderImpl::hasCorrectStatistics() const {
-      return postscript.has_writerversion() && postscript.writerversion();
+    return postscript.has_writerversion() && postscript.writerversion();
   }
 
   void ReaderImpl::readPostscript(char *buffer, unsigned long readSize) {

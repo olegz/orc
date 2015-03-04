@@ -658,7 +658,7 @@ namespace orc {
     /**
      * check file has correct column statistics
      */
-    virtual bool hasCorrectStatatistics() const = 0;
+    virtual bool hasCorrectStatistics() const = 0;
   };
 }
 
