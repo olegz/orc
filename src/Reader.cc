@@ -166,7 +166,7 @@ namespace orc {
     uint64_t valueCount;
 
   public:
-    ColumnStatisticsImpl(const proto::ColumnStatistics& stats, bool correctStats);
+    ColumnStatisticsImpl(const proto::ColumnStatistics& stats);
     virtual ~ColumnStatisticsImpl();
 
     uint64_t getNumberOfValues() const override {
@@ -417,7 +417,7 @@ namespace orc {
     double sum;
 
   public:
-    DoubleColumnStatisticsImpl(const proto::ColumnStatistics& stats, bool correctStats);
+    DoubleColumnStatisticsImpl(const proto::ColumnStatistics& stats);
     virtual ~DoubleColumnStatisticsImpl();
 
     bool hasMinimum() const override {
@@ -496,7 +496,7 @@ namespace orc {
     int64_t sum;
 
   public:
-    IntegerColumnStatisticsImpl(const proto::ColumnStatistics& stats, bool correctStats);
+    IntegerColumnStatisticsImpl(const proto::ColumnStatistics& stats);
     virtual ~IntegerColumnStatisticsImpl();
 
     bool hasMinimum() const override {
@@ -751,9 +751,9 @@ namespace orc {
 
   ColumnStatistics* convertColumnStatistics(const proto::ColumnStatistics& s, bool correctStats) {
     if (s.has_intstatistics()) {
-      return new IntegerColumnStatisticsImpl(s, correctStats);
+      return new IntegerColumnStatisticsImpl(s);
     } else if (s.has_doublestatistics()) {
-      return new DoubleColumnStatisticsImpl(s, correctStats);
+      return new DoubleColumnStatisticsImpl(s);
     } else if (s.has_stringstatistics()) {
       return new StringColumnStatisticsImpl(s, correctStats);
     } else if (s.has_bucketstatistics()) {
@@ -767,7 +767,7 @@ namespace orc {
     } else if (s.has_binarystatistics()) {
       return new BinaryColumnStatisticsImpl(s, correctStats);
     } else {
-      return new ColumnStatisticsImpl(s, correctStats);
+      return new ColumnStatisticsImpl(s);
     }
   }
 
@@ -1557,7 +1557,7 @@ namespace orc {
   }
 
   ColumnStatisticsImpl::ColumnStatisticsImpl
-  (const proto::ColumnStatistics& pb, bool correctStats) {
+  (const proto::ColumnStatistics& pb) {
     valueCount = pb.numberofvalues();
   }
 
@@ -1617,7 +1617,7 @@ namespace orc {
   }
 
   DoubleColumnStatisticsImpl::DoubleColumnStatisticsImpl
-  (const proto::ColumnStatistics& pb, bool correctStats){
+  (const proto::ColumnStatistics& pb){
     valueCount = pb.numberofvalues();
     if (!pb.has_doublestatistics()) {
       _hasMinimum = false;
@@ -1636,7 +1636,7 @@ namespace orc {
   }
 
   IntegerColumnStatisticsImpl::IntegerColumnStatisticsImpl
-  (const proto::ColumnStatistics& pb, bool correctStats){
+  (const proto::ColumnStatistics& pb){
     valueCount = pb.numberofvalues();
     if (!pb.has_intstatistics()) {
       _hasMinimum = false;
