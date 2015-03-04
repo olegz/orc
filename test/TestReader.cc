@@ -459,6 +459,8 @@ TEST(Reader, corruptStatistics) {
   std::unique_ptr<orc::Reader> reader =
     orc::createReader(orc::readLocalFile(filename.str()), opts);
 
+  EXPECT_EQ(false, reader->hasCorrectStats());
+
   // 2nd real column, string
   std::unique_ptr<orc::ColumnStatistics> col_2 =
     reader->getColumnStatistics(2);

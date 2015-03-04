@@ -941,7 +941,7 @@ namespace orc {
 
     MemoryPool* getMemoryPool() const ;
     
-    bool hasCorrectStats() const override;
+    bool hasCorrectStatatistics() const override;
   };
 
   InputStream::~InputStream() {
@@ -1154,7 +1154,7 @@ namespace orc {
   }
 
   std::unique_ptr<Statistics> ReaderImpl::getStatistics() const {
-    return std::unique_ptr<Statistics>(new StatisticsImpl(footer, hasCorrectStats()));
+    return std::unique_ptr<Statistics>(new StatisticsImpl(footer, hasCorrectStatistics()));
   }
 
   std::unique_ptr<ColumnStatistics>
@@ -1164,7 +1164,7 @@ namespace orc {
     }
     proto::ColumnStatistics col = footer.statistics(static_cast<int>(index));
     return std::unique_ptr<ColumnStatistics> (convertColumnStatistics
-                                              (col, hasCorrectStats()));
+                                              (col, hasCorrectStatistics()));
   }
 
   std::unique_ptr<Statistics>
@@ -1174,7 +1174,7 @@ namespace orc {
     }
     return std::unique_ptr<Statistics>
       (new StatisticsImpl(metadata.stripestats
-                          (static_cast<int>(stripeIndex)), hasCorrectStats()));
+                          (static_cast<int>(stripeIndex)), hasCorrectStatistics()));
   }
 
 
@@ -1186,7 +1186,7 @@ namespace orc {
     return memoryPool;
   }
 
-  bool ReaderImpl::hasCorrectStats() const {
+  bool ReaderImpl::hasCorrectStatistics() const {
       return postscript.has_writerversion() && postscript.writerversion();
   }
 
