@@ -654,6 +654,11 @@ namespace orc {
      * Get the name of the input stream.
      */
     virtual const std::string& getStreamName() const = 0;
+
+    /**
+     * check file has correct column statistics
+     */
+    virtual bool hasCorrectStats() const = 0;
   };
 }
 

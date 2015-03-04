@@ -166,7 +166,7 @@ namespace orc {
     uint64_t valueCount;
 
   public:
-    ColumnStatisticsImpl(const proto::ColumnStatistics& stats);
+    ColumnStatisticsImpl(const proto::ColumnStatistics& stats, bool correctStats);
     virtual ~ColumnStatisticsImpl();
 
     uint64_t getNumberOfValues() const override {
@@ -187,7 +187,7 @@ namespace orc {
     uint64_t totalLength;
 
   public:
-    BinaryColumnStatisticsImpl(const proto::ColumnStatistics& stats);
+    BinaryColumnStatisticsImpl(const proto::ColumnStatistics& stats, bool correctStats);
     virtual ~BinaryColumnStatisticsImpl();
 
     bool hasTotalLength() const override {
@@ -225,7 +225,7 @@ namespace orc {
     uint64_t trueCount;
 
   public:
-    BooleanColumnStatisticsImpl(const proto::ColumnStatistics& stats);
+    BooleanColumnStatisticsImpl(const proto::ColumnStatistics& stats, bool correctStats);
     virtual ~BooleanColumnStatisticsImpl();
 
     bool hasCount() const override {
@@ -276,7 +276,7 @@ namespace orc {
     int32_t maximum;
 
   public:
-    DateColumnStatisticsImpl(const proto::ColumnStatistics& stats);
+    DateColumnStatisticsImpl(const proto::ColumnStatistics& stats, bool correctStats);
     virtual ~DateColumnStatisticsImpl();
 
     bool hasMinimum() const override {
@@ -337,7 +337,7 @@ namespace orc {
     std::string sum;
 
   public:
-    DecimalColumnStatisticsImpl(const proto::ColumnStatistics& stats);
+    DecimalColumnStatisticsImpl(const proto::ColumnStatistics& stats, bool correctStats);
     virtual ~DecimalColumnStatisticsImpl();
 
     bool hasMinimum() const override {
@@ -417,7 +417,7 @@ namespace orc {
     double sum;
 
   public:
-    DoubleColumnStatisticsImpl(const proto::ColumnStatistics& stats);
+    DoubleColumnStatisticsImpl(const proto::ColumnStatistics& stats, bool correctStats);
     virtual ~DoubleColumnStatisticsImpl();
 
     bool hasMinimum() const override {
@@ -496,7 +496,7 @@ namespace orc {
     int64_t sum;
 
   public:
-    IntegerColumnStatisticsImpl(const proto::ColumnStatistics& stats);
+    IntegerColumnStatisticsImpl(const proto::ColumnStatistics& stats, bool correctStats);
     virtual ~IntegerColumnStatisticsImpl();
 
     bool hasMinimum() const override {
@@ -575,7 +575,7 @@ namespace orc {
     uint64_t totalLength;
 
   public:
-    StringColumnStatisticsImpl(const proto::ColumnStatistics& stats);
+    StringColumnStatisticsImpl(const proto::ColumnStatistics& stats, bool correctStats);
     virtual ~StringColumnStatisticsImpl();
 
     bool hasMinimum() const override {
@@ -652,7 +652,7 @@ namespace orc {
     int64_t maximum;
 
   public:
-    TimestampColumnStatisticsImpl(const proto::ColumnStatistics& stats);
+    TimestampColumnStatisticsImpl(const proto::ColumnStatistics& stats, bool correctStats);
     virtual ~TimestampColumnStatisticsImpl();
 
     bool hasMinimum() const override {
@@ -749,25 +749,25 @@ namespace orc {
     }
   };
 
-  ColumnStatistics* convertColumnStatistics(const proto::ColumnStatistics& s) {
+  ColumnStatistics* convertColumnStatistics(const proto::ColumnStatistics& s, bool correctStats) {
     if (s.has_intstatistics()) {
-      return new IntegerColumnStatisticsImpl(s);
+      return new IntegerColumnStatisticsImpl(s, correctStats);
     } else if (s.has_doublestatistics()) {
-      return new DoubleColumnStatisticsImpl(s);
+      return new DoubleColumnStatisticsImpl(s, correctStats);
     } else if (s.has_stringstatistics()) {
-      return new StringColumnStatisticsImpl(s);
+      return new StringColumnStatisticsImpl(s, correctStats);
     } else if (s.has_bucketstatistics()) {
-      return new BooleanColumnStatisticsImpl(s);
+      return new BooleanColumnStatisticsImpl(s, correctStats);
     } else if (s.has_decimalstatistics()) {
-      return new DecimalColumnStatisticsImpl(s);
+      return new DecimalColumnStatisticsImpl(s, correctStats);
     } else if (s.has_timestampstatistics()) {
-      return new TimestampColumnStatisticsImpl(s);
+      return new TimestampColumnStatisticsImpl(s, correctStats);
     } else if (s.has_datestatistics()) {
-      return new DateColumnStatisticsImpl(s);
+      return new DateColumnStatisticsImpl(s, correctStats);
     } else if (s.has_binarystatistics()) {
-      return new BinaryColumnStatisticsImpl(s);
+      return new BinaryColumnStatisticsImpl(s, correctStats);
     } else {
-      return new ColumnStatisticsImpl(s);
+      return new ColumnStatisticsImpl(s, correctStats);
     }
   }
 
@@ -784,17 +784,17 @@ namespace orc {
     StatisticsImpl& operator=(const StatisticsImpl&);
 
   public:
-    StatisticsImpl(const proto::StripeStatistics& stripeStats) {
+    StatisticsImpl(const proto::StripeStatistics& stripeStats, bool correctStats) {
       for(int i = 0; i < stripeStats.colstats_size(); i++) {
         colStats.push_back(convertColumnStatistics
-                           (stripeStats.colstats(i)));
+                           (stripeStats.colstats(i), correctStats));
       }
     }
 
-    StatisticsImpl(const proto::Footer& footer) {
+    StatisticsImpl(const proto::Footer& footer, bool correctStats) {
       for(int i = 0; i < footer.statistics_size(); i++) {
         colStats.push_back(convertColumnStatistics
-                           (footer.statistics(i)));
+                           (footer.statistics(i), correctStats));
       }
     }
 
@@ -940,6 +940,8 @@ namespace orc {
     void seekToRow(unsigned long rowNumber) override;
 
     MemoryPool* getMemoryPool() const ;
+    
+    bool hasCorrectStats() const override;
   };
 
   InputStream::~InputStream() {
@@ -967,7 +969,7 @@ namespace orc {
     stream->read(buffer.data(), size - readSize, readSize);
     readPostscript(buffer.data(), readSize);
     readFooter(buffer.data(), readSize, size);
-
+    
     // read metadata
     unsigned long position = size - 1 - postscript.footerlength()
         - postscriptLength - postscript.metadatalength();
@@ -1152,7 +1154,7 @@ namespace orc {
   }
 
   std::unique_ptr<Statistics> ReaderImpl::getStatistics() const {
-    return std::unique_ptr<Statistics>(new StatisticsImpl(footer));
+    return std::unique_ptr<Statistics>(new StatisticsImpl(footer, hasCorrectStats()));
   }
 
   std::unique_ptr<ColumnStatistics>
@@ -1162,7 +1164,7 @@ namespace orc {
     }
     proto::ColumnStatistics col = footer.statistics(static_cast<int>(index));
     return std::unique_ptr<ColumnStatistics> (convertColumnStatistics
-                                              (col));
+                                              (col, hasCorrectStats()));
   }
 
   std::unique_ptr<Statistics>
@@ -1172,7 +1174,7 @@ namespace orc {
     }
     return std::unique_ptr<Statistics>
       (new StatisticsImpl(metadata.stripestats
-			  (static_cast<int>(stripeIndex))));
+                          (static_cast<int>(stripeIndex)), hasCorrectStats()));
   }
 
 
@@ -1182,6 +1184,10 @@ namespace orc {
 
   MemoryPool* ReaderImpl::getMemoryPool() const {
     return memoryPool;
+  }
+
+  bool ReaderImpl::hasCorrectStats() const {
+      return postscript.has_writerversion() && postscript.writerversion();
   }
 
   void ReaderImpl::readPostscript(char *buffer, unsigned long readSize) {
@@ -1551,14 +1557,14 @@ namespace orc {
   }
 
   ColumnStatisticsImpl::ColumnStatisticsImpl
-  (const proto::ColumnStatistics& pb) {
+  (const proto::ColumnStatistics& pb, bool correctStats) {
     valueCount = pb.numberofvalues();
   }
 
   BinaryColumnStatisticsImpl::BinaryColumnStatisticsImpl
-  (const proto::ColumnStatistics& pb){
+  (const proto::ColumnStatistics& pb, bool correctStats){
     valueCount = pb.numberofvalues();
-    if (!pb.has_binarystatistics()) {
+    if (!pb.has_binarystatistics() || !correctStats) {
       _hasTotalLength = false;
     }else{
       _hasTotalLength = pb.binarystatistics().has_sum();
@@ -1567,9 +1573,9 @@ namespace orc {
   }
 
   BooleanColumnStatisticsImpl::BooleanColumnStatisticsImpl
-  (const proto::ColumnStatistics& pb){
+  (const proto::ColumnStatistics& pb, bool correctStats){
     valueCount = pb.numberofvalues();
-    if (!pb.has_bucketstatistics()) {
+    if (!pb.has_bucketstatistics() || !correctStats) {
       _hasCount = false;
     }else{
       _hasCount = true;
@@ -1578,9 +1584,9 @@ namespace orc {
   }
 
   DateColumnStatisticsImpl::DateColumnStatisticsImpl
-  (const proto::ColumnStatistics& pb){
+  (const proto::ColumnStatistics& pb, bool correctStats){
     valueCount = pb.numberofvalues();
-    if (!pb.has_datestatistics()) {
+    if (!pb.has_datestatistics() || !correctStats) {
       _hasMinimum = false;
       _hasMaximum = false;
     }else{
@@ -1592,9 +1598,9 @@ namespace orc {
   }
 
   DecimalColumnStatisticsImpl::DecimalColumnStatisticsImpl
-  (const proto::ColumnStatistics& pb){
+  (const proto::ColumnStatistics& pb, bool correctStats){
     valueCount = pb.numberofvalues();
-    if (!pb.has_decimalstatistics()) {
+    if (!pb.has_decimalstatistics() || !correctStats) {
       _hasMinimum = false;
       _hasMaximum = false;
       _hasSum = false;
@@ -1611,7 +1617,7 @@ namespace orc {
   }
 
   DoubleColumnStatisticsImpl::DoubleColumnStatisticsImpl
-  (const proto::ColumnStatistics& pb){
+  (const proto::ColumnStatistics& pb, bool correctStats){
     valueCount = pb.numberofvalues();
     if (!pb.has_doublestatistics()) {
       _hasMinimum = false;
@@ -1630,7 +1636,7 @@ namespace orc {
   }
 
   IntegerColumnStatisticsImpl::IntegerColumnStatisticsImpl
-  (const proto::ColumnStatistics& pb){
+  (const proto::ColumnStatistics& pb, bool correctStats){
     valueCount = pb.numberofvalues();
     if (!pb.has_intstatistics()) {
       _hasMinimum = false;
@@ -1649,9 +1655,9 @@ namespace orc {
   }
 
   StringColumnStatisticsImpl::StringColumnStatisticsImpl
-  (const proto::ColumnStatistics& pb){
+  (const proto::ColumnStatistics& pb, bool correctStats){
     valueCount = pb.numberofvalues();
-    if (!pb.has_stringstatistics()) {
+    if (!pb.has_stringstatistics() || !correctStats) {
       _hasMinimum = false;
       _hasMaximum = false;
       _hasTotalLength = false;
@@ -1668,9 +1674,9 @@ namespace orc {
   }
 
   TimestampColumnStatisticsImpl::TimestampColumnStatisticsImpl
-  (const proto::ColumnStatistics& pb){
+  (const proto::ColumnStatistics& pb, bool correctStats){
     valueCount = pb.numberofvalues();
-    if (!pb.has_timestampstatistics()) {
+    if (!pb.has_timestampstatistics() || !correctStats) {
       _hasMinimum = false;
       _hasMaximum = false;
     }else{
