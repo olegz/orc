@@ -399,23 +399,26 @@ TEST(Reader, columnStatistics) {
   std::unique_ptr<orc::Reader> reader =
     orc::createReader(orc::readLocalFile(filename.str()), opts);
 
+  // corrupt stats test
+  EXPECT_EQ(true, reader->hasCorrectStatistics());
+
   // test column statistics
   std::unique_ptr<orc::Statistics> stats = reader->getStatistics();
   EXPECT_EQ(10, stats->getNumberOfColumns());
 
-  // column[5]
-  std::unique_ptr<orc::ColumnStatistics> col_5 =
+  // 6th real column, start from 1
+  std::unique_ptr<orc::ColumnStatistics> col_6 =
     reader->getColumnStatistics(6);
   const orc::StringColumnStatistics& strStats =
-    dynamic_cast<const orc::StringColumnStatistics&> (*(col_5.get()));
+    dynamic_cast<const orc::StringColumnStatistics&> (*(col_6.get()));
   EXPECT_EQ("Good", strStats.getMinimum());
   EXPECT_EQ("Unknown", strStats.getMaximum());
 
-  // column[6]
-  std::unique_ptr<orc::ColumnStatistics> col_6 =
+  // 7th real column
+  std::unique_ptr<orc::ColumnStatistics> col_7 =
     reader->getColumnStatistics(7);
   const orc::IntegerColumnStatistics& intStats =
-    dynamic_cast<const orc::IntegerColumnStatistics&> (*(col_6.get()));
+    dynamic_cast<const orc::IntegerColumnStatistics&> (*(col_7.get()));
   EXPECT_EQ(0, intStats.getMinimum());
   EXPECT_EQ(6, intStats.getMaximum());
   EXPECT_EQ(5762400, intStats.getSum());
@@ -429,26 +432,70 @@ TEST(Reader, stripeStatistics) {
     orc::createReader(orc::readLocalFile(filename.str()), opts);
 
   // test stripe statistics
-  // stripe[60]
-  unsigned long stripeIdx = 60;
+  EXPECT_EQ(385, reader->getNumberOfStripeStatistics());
+
+  // stripe[384]: 385th stripe, last stripe
+  unsigned long stripeIdx = 384;
   std::unique_ptr<orc::Statistics> stripeStats =
     reader->getStripeStatistics(stripeIdx);
   EXPECT_EQ(10, stripeStats->getNumberOfColumns());
 
-  // column[5]
-  const StringColumnStatistics* col_5 =
-    dynamic_cast<const StringColumnStatistics*>
+  // 6th real column
+  const orc::StringColumnStatistics* col_6 =
+    dynamic_cast<const orc::StringColumnStatistics*>
     (stripeStats->getColumnStatistics(6));
-  EXPECT_EQ("Good", col_5->getMinimum());
-  EXPECT_EQ("Unknown", col_5->getMaximum());
+  EXPECT_EQ("Unknown", col_6->getMinimum());
+  EXPECT_EQ("Unknown", col_6->getMaximum());
 
-  // column[6]
-  const IntegerColumnStatistics* col_6 =
-    dynamic_cast<const IntegerColumnStatistics*>
+  // 7th real column
+  const orc::IntegerColumnStatistics* col_7 =
+    dynamic_cast<const orc::IntegerColumnStatistics*>
     (stripeStats->getColumnStatistics(7));
-  EXPECT_EQ(4, col_6->getMinimum());
-  EXPECT_EQ(5, col_6->getMaximum());
-  EXPECT_EQ(22600, col_6->getSum());
+  EXPECT_EQ(6, col_7->getMinimum());
+  EXPECT_EQ(6, col_7->getMaximum());
+  EXPECT_EQ(4800, col_7->getSum());
+}
+
+TEST(Reader, corruptStatistics) {
+  orc::ReaderOptions opts;
+  std::ostringstream filename;
+  // read the file has corrupt statistics
+  filename << exampleDirectory << "/orc_split_elim.orc";
+  std::unique_ptr<orc::Reader> reader =
+    orc::createReader(orc::readLocalFile(filename.str()), opts);
+
+  EXPECT_EQ(false, reader->hasCorrectStatistics());
+
+  // 2nd real column, string
+  std::unique_ptr<orc::ColumnStatistics> col_2 =
+    reader->getColumnStatistics(2);
+  const orc::StringColumnStatistics& strStats =
+    dynamic_cast<const orc::StringColumnStatistics&> (*(col_2.get()));
+  EXPECT_EQ(false, strStats.hasMinimum());
+  EXPECT_EQ(false, strStats.hasMaximum());
+  
+  // stripe statistics
+  unsigned long stripeIdx = 1;
+  std::unique_ptr<orc::Statistics> stripeStats =
+    reader->getStripeStatistics(stripeIdx);
+
+  // 4th real column, Decimal
+  const orc::DecimalColumnStatistics* col_4 =
+    dynamic_cast<const orc::DecimalColumnStatistics*>
+    (stripeStats->getColumnStatistics(4));
+  EXPECT_EQ(false, col_4->hasMinimum());
+  EXPECT_EQ(false, col_4->hasMaximum());
+}
+
+TEST(Reader, noStripeStatistics) {
+  orc::ReaderOptions opts;
+  std::ostringstream filename;
+  // read the file has no stripe statistics
+  filename << exampleDirectory << "/orc-file-11-format.orc";
+  std::unique_ptr<orc::Reader> reader =
+    orc::createReader(orc::readLocalFile(filename.str()), opts);
+
+  EXPECT_EQ(0, reader->getNumberOfStripeStatistics());  
 }
 
 }  // namespace

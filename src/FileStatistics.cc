@@ -56,16 +56,20 @@ int main(int argc, char* argv[]) {
   std::unique_ptr<orc::Statistics> stripeStats;
   std::cout << "File " << argv[1] << " has " << reader->getNumberOfStripes()
             << " stripes"  << std::endl;
-  for (unsigned int j = 0; j < reader->getNumberOfStripes(); j++) {
-    stripeStats = reader->getStripeStatistics(j);
-    std::cout << "*** Stripe " << j << " ***" << std::endl << std::endl ;
+  if(reader->getNumberOfStripeStatistics() == 0){
+    std::cout << "File " << argv[1] << " doesn't have stripe statistics"  << std::endl;
+  }else{
+    for (unsigned int j = 0; j < reader->getNumberOfStripeStatistics(); j++) {
+      stripeStats = reader->getStripeStatistics(j);
+      std::cout << "*** Stripe " << j << " ***" << std::endl << std::endl ;
 
-    for(unsigned int k = 0; k < stripeStats->getNumberOfColumns(); ++k) {
-      std::cout << "--- Column " << k << " ---" << std::endl;
-      std::cout << stripeStats->getColumnStatistics(k)->toString()
-                << std::endl;
-   }
- }
+      for(unsigned int k = 0; k < stripeStats->getNumberOfColumns(); ++k) {
+        std::cout << "--- Column " << k << " ---" << std::endl;
+        std::cout << stripeStats->getColumnStatistics(k)->toString()
+                  << std::endl;
+      }
+    }
+  }
 
   return 0;
 }
