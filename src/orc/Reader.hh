@@ -28,7 +28,6 @@
 namespace orc {
 
   // classes that hold data members so we can maintain binary compatibility
-  class ColumnStatisticsPrivate;
   struct ReaderOptionsPrivate;
 
   enum CompressionKind {
@@ -42,11 +41,7 @@ namespace orc {
    * Statistics that are available for all types of columns.
    */
   class ColumnStatistics {
-  private:
-    std::unique_ptr<ColumnStatisticsPrivate> privateBits;
-
   public:
-    ColumnStatistics(std::unique_ptr<ColumnStatisticsPrivate> data);
     virtual ~ColumnStatistics();
 
     /**
@@ -54,7 +49,12 @@ namespace orc {
      * of rows because of NULL values and repeated values.
      * @return the number of values
      */
-    long getNumberOfValues() const;
+    virtual uint64_t getNumberOfValues() const = 0;
+
+    /**
+     * print out statistics of column if any
+     */
+    virtual std::string toString() const = 0;
   };
 
   /**
@@ -62,10 +62,15 @@ namespace orc {
    */
   class BinaryColumnStatistics: public ColumnStatistics {
   public:
-    BinaryColumnStatistics(std::unique_ptr<ColumnStatisticsPrivate> data);
     virtual ~BinaryColumnStatistics();
 
-    long getTotalLength() const;
+    /**
+     * check whether column has total length
+     * @return true if has total length
+     */
+    virtual bool hasTotalLength() const = 0;
+    
+    virtual uint64_t getTotalLength() const = 0;
   };
 
   /**
@@ -73,11 +78,16 @@ namespace orc {
    */
   class BooleanColumnStatistics: public ColumnStatistics {
   public:
-    BooleanColumnStatistics(std::unique_ptr<ColumnStatisticsPrivate> data);
     virtual ~BooleanColumnStatistics();
 
-    long getFalseCount() const;
-    long getTrueCount() const;
+    /**
+     * check whether column has true/false count
+     * @return true if has true/false count
+     */
+    virtual bool hasCount() const = 0;
+
+    virtual uint64_t getFalseCount() const = 0;
+    virtual uint64_t getTrueCount() const = 0;
   };
 
   /**
@@ -85,20 +95,31 @@ namespace orc {
    */
   class DateColumnStatistics: public ColumnStatistics {
   public:
-    DateColumnStatistics(std::unique_ptr<ColumnStatisticsPrivate> data);
     virtual ~DateColumnStatistics();
+
+    /**
+     * check whether column has minimum
+     * @return true if has minimum
+     */
+    virtual bool hasMinimum() const = 0;
+      
+    /**
+     * check whether column has maximum
+     * @return true if has maximum
+     */
+    virtual bool hasMaximum() const = 0;
 
     /**
      * Get the minimum value for the column.
      * @return minimum value
      */
-    long getMinimum() const;
+    virtual int32_t getMinimum() const = 0;
 
     /**
      * Get the maximum value for the column.
      * @return maximum value
      */
-    long getMaximum() const;
+    virtual int32_t getMaximum() const = 0;
   };
 
   /**
@@ -106,26 +127,43 @@ namespace orc {
    */
   class DecimalColumnStatistics: public ColumnStatistics {
   public:
-    DecimalColumnStatistics(std::unique_ptr<ColumnStatisticsPrivate> data);
     virtual ~DecimalColumnStatistics();
+
+    /**
+     * check whether column has minimum
+     * @return true if has minimum
+     */
+    virtual bool hasMinimum() const = 0;
+      
+    /**
+     * check whether column has maximum
+     * @return true if has maximum
+     */
+    virtual bool hasMaximum() const = 0;
+
+    /**
+     * check whether column has sum
+     * @return true if has sum
+     */
+    virtual bool hasSum() const = 0;
 
     /**
      * Get the minimum value for the column.
      * @return minimum value
      */
-    Decimal getMinimum() const;
+    virtual Decimal getMinimum() const = 0;
 
     /**
      * Get the maximum value for the column.
      * @return maximum value
      */
-    Decimal getMaximum() const;
+    virtual Decimal getMaximum() const = 0;
 
     /**
      * Get the sum for the column.
      * @return sum of all the values
      */
-    Decimal getSum() const;
+    virtual Decimal getSum() const = 0;
   };
 
   /**
@@ -133,28 +171,45 @@ namespace orc {
    */
   class DoubleColumnStatistics: public ColumnStatistics {
   public:
-    DoubleColumnStatistics(std::unique_ptr<ColumnStatisticsPrivate> data);
     virtual ~DoubleColumnStatistics();
+
+    /**
+     * check whether column has minimum
+     * @return true if has minimum
+     */
+    virtual bool hasMinimum() const = 0;
+      
+    /**
+     * check whether column has maximum
+     * @return true if has maximum
+     */
+    virtual bool hasMaximum() const = 0;
+
+    /**
+     * check whether column has sum
+     * @return true if has sum
+     */
+    virtual bool hasSum() const = 0;
 
     /**
      * Get the smallest value in the column. Only defined if getNumberOfValues
      * is non-zero.
      * @return the minimum
      */
-    double getMinimum() const;
+    virtual double getMinimum() const = 0;
 
     /**
      * Get the largest value in the column. Only defined if getNumberOfValues
      * is non-zero.
      * @return the maximum
      */
-    double getMaximum() const;
+    virtual double getMaximum() const = 0;
 
     /**
      * Get the sum of the values in the column.
      * @return the sum
      */
-    double getSum() const;
+    virtual double getSum() const = 0;
   };
 
   /**
@@ -163,35 +218,45 @@ namespace orc {
    */
   class IntegerColumnStatistics: public ColumnStatistics {
   public:
-    IntegerColumnStatistics(std::unique_ptr<ColumnStatisticsPrivate> data);
     virtual ~IntegerColumnStatistics();
+
+    /**
+     * check whether column has minimum
+     * @return true if has minimum
+     */
+    virtual bool hasMinimum() const = 0;
+      
+    /**
+     * check whether column has maximum
+     * @return true if has maximum
+     */
+    virtual bool hasMaximum() const = 0;
+
+    /**
+     * check whether column has sum
+     * @return true if has sum
+     */
+    virtual bool hasSum() const = 0;
 
     /**
      * Get the smallest value in the column. Only defined if getNumberOfValues
      * is non-zero.
      * @return the minimum
      */
-    long getMinimum() const;
-
-     /**
-      * Get the largest value in the column. Only defined if getNumberOfValues
-      * is non-zero.
-      * @return the maximum
-      */
-    long getMaximum() const;
+    virtual int64_t getMinimum() const = 0;
 
     /**
-     * Is the sum defined? If the sum overflowed the counter this will be
-     * false.
-     * @return is the sum available
+     * Get the largest value in the column. Only defined if getNumberOfValues
+     * is non-zero.
+     * @return the maximum
      */
-    bool isSumDefined() const;
+    virtual int64_t getMaximum() const = 0;
 
     /**
      * Get the sum of the column. Only valid if isSumDefined returns true.
      * @return the sum of the column
      */
-    long getSum() const;
+    virtual int64_t getSum() const = 0;
   };
 
   /**
@@ -199,47 +264,75 @@ namespace orc {
    */
   class StringColumnStatistics: public ColumnStatistics {
   public:
-    StringColumnStatistics(std::unique_ptr<ColumnStatisticsPrivate> data);
     virtual ~StringColumnStatistics();
+
+    /**
+     * check whether column has minimum
+     * @return true if has minimum
+     */
+    virtual bool hasMinimum() const = 0;
+      
+    /**
+     * check whether column has maximum
+     * @return true if has maximum
+     */
+    virtual bool hasMaximum() const = 0;
+
+    /**
+     * check whether column 
+     * @return true if has maximum
+     */
+    virtual bool hasTotalLength() const = 0;
 
     /**
      * Get the minimum value for the column.
      * @return minimum value
      */
-    std::string getMinimum() const;
+    virtual std::string getMinimum() const = 0;
 
     /**
      * Get the maximum value for the column.
      * @return maximum value
      */
-    std::string getMaximum() const;
+    virtual std::string getMaximum() const = 0;
 
     /**
      * Get the total length of all values.
      * @return total length of all the values
      */
-    long getTotalLength() const;
+    virtual uint64_t getTotalLength() const = 0;
   };
 
   /**
-   * Statistics for stamp columns.
+   * Statistics for timestamp columns.
    */
   class TimestampColumnStatistics: public ColumnStatistics {
   public:
-    TimestampColumnStatistics(std::unique_ptr<ColumnStatisticsPrivate> data);
     virtual ~TimestampColumnStatistics();
+
+    /**
+     * check whether column minimum
+     * @return true if has minimum
+     */
+    virtual bool hasMinimum() const = 0;
+      
+    /**
+     * check whether column maximum
+     * @return true if has maximum
+     */
+    virtual bool hasMaximum() const = 0;
 
     /**
      * Get the minimum value for the column.
      * @return minimum value
      */
-    long getMinimum() const;
+    virtual int64_t getMinimum() const = 0;
 
     /**
      * Get the maximum value for the column.
      * @return maximum value
      */
-    long getMaximum() const;
+    virtual int64_t getMaximum() const = 0;
   };
 
   class StripeInformation {
@@ -283,6 +376,25 @@ namespace orc {
     virtual unsigned long getNumberOfRows() const = 0;
   };
 
+  class Statistics {
+  public:
+    virtual ~Statistics();
+
+    /**
+     * Get the statistics of colId column.
+     * @return one column's statistics
+     */
+    virtual const ColumnStatistics* getColumnStatistics(uint32_t colId
+							) const = 0;
+
+    /**
+     * Get the number of columns
+     * @return the number of columns
+     */
+    virtual uint32_t getNumberOfColumns() const = 0;
+  };
+
+
   /**
    * Options for creating a Reader.
    */
@@ -324,10 +436,42 @@ namespace orc {
     ReaderOptions& range(unsigned long offset, unsigned long length);
 
     /**
+     * For Hive 0.11 (and 0.12) decimals, the precision was unlimited
+     * and thus may overflow the 38 digits that is supported. If one
+     * of the Hive 0.11 decimals is too large, the reader may either convert
+     * the value to NULL or throw an exception. That choice is controlled
+     * by this setting.
+     *
+     * Defaults to true.
+     *
+     * @param shouldThrow should the reader throw a ParseError?
+     * @return returns *this
+     */
+    ReaderOptions& throwOnHive11DecimalOverflow(bool shouldThrow);
+
+    /**
+     * For Hive 0.11 (and 0.12) written decimals, which have unlimited
+     * scale and precision, the reader forces the scale to a consistent
+     * number that is configured. This setting changes the scale that is
+     * forced upon these old decimals. See also throwOnHive11DecimalOverflow.
+     *
+     * Defaults to 6.
+     *
+     * @param forcedScale the scale that will be forced on Hive 0.11 decimals
+     * @return returns *this
+     */
+    ReaderOptions& forcedScaleOnHive11Decimal(int32_t forcedScale);
+
+    /**
      * Set the location of the tail as defined by the logical length of the
      * file.
      */
     ReaderOptions& setTailLocation(unsigned long offset);
+
+    /**
+     * Set the stream to use for printing warning or error messages.
+     */
+    ReaderOptions& setErrorStream(std::ostream& stream);
 
     /**
      * Get the list of selected columns to read. All children of the selected
@@ -352,6 +496,23 @@ namespace orc {
      * @return if not set, return the maximum long.
      */
     unsigned long getTailLocation() const;
+
+    /**
+     * Should the reader throw a ParseError when a Hive 0.11 decimal is
+     * larger than the supported 38 digits of precision? Otherwise, the
+     * data item is replaced by a NULL.
+     */
+    bool getThrowOnHive11DecimalOverflow() const;
+
+    /**
+     * What scale should all Hive 0.11 decimals be normalized to?
+     */
+    int32_t getForcedScaleOnHive11Decimal() const;
+
+    /**
+     * Get the stream to write warnings or errors to.
+     */
+    std::ostream* getErrorStream() const;
   };
 
   /**
@@ -418,8 +579,16 @@ namespace orc {
      * @param stripeIndex the stripe 0 to N-1 to get information about
      * @return the information about that stripe
      */
-    virtual std::unique_ptr<StripeInformation> 
-      getStripe(unsigned long stripeIndex) const = 0;
+    virtual std::unique_ptr<StripeInformation>
+    getStripe(unsigned long stripeIndex) const = 0;
+
+    /**
+     * Get the statistics about a stripe.
+     * @param stripeIndex the stripe 0 to N-1 to get statistics about
+     * @return the statistics about that stripe
+     */
+    virtual std::unique_ptr<Statistics>
+    getStripeStatistics(unsigned long stripeIndex) const = 0;
 
     /**
      * Get the length of the file.
@@ -431,7 +600,14 @@ namespace orc {
      * Get the statistics about the columns in the file.
      * @return the information about the column
      */
-    virtual std::list<ColumnStatistics*> getStatistics() const = 0;
+    virtual std::unique_ptr<Statistics> getStatistics() const = 0;
+
+    /**
+     * Get the statistics about a single column in the file.
+     * @return the information about the column
+     */
+    virtual std::unique_ptr<ColumnStatistics>
+    getColumnStatistics(uint32_t columnId) const = 0;
 
     /**
      * Get the type of the rows in the file. The top level is always a struct.
@@ -450,7 +626,7 @@ namespace orc {
      * @return a new ColumnVectorBatch to read into
      */
     virtual std::unique_ptr<ColumnVectorBatch> createRowBatch
-      (unsigned long size) const = 0;
+    (unsigned long size) const = 0;
 
     /**
      * Read the next row batch from the current position.

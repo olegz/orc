@@ -50,7 +50,7 @@ TEST(ByteRle, skipLiteralBufferUnderflowTest) {
       createByteRleDecoder(
         std::unique_ptr<SeekableInputStream>(
           new SeekableArrayInputStream(
-            list, sizeof(list) / sizeof(unsigned char), 4)));
+            list, sizeof(list) / sizeof(unsigned char), nullptr, 4)));
   std::vector<char> data(8);
   rle->next(data.data(), 3, nullptr);
   EXPECT_EQ(0x0, data[0]);
@@ -92,7 +92,7 @@ TEST(ByteRle, splitHeader) {
       createByteRleDecoder(
         std::unique_ptr<orc::SeekableInputStream>(
           new SeekableArrayInputStream(
-            list, sizeof(list) / sizeof(unsigned char), 1)));
+            list, sizeof(list) / sizeof(unsigned char), nullptr, 1)));
   std::vector<char> data(35);
   rle->next(data.data(), data.size(), nullptr);
   for (size_t i = 0; i < 3; ++i) {
@@ -147,7 +147,7 @@ TEST(ByteRle, testNulls) {
       createByteRleDecoder(
         std::unique_ptr<orc::SeekableInputStream>(
           new SeekableArrayInputStream(
-            list, sizeof(list) / sizeof(unsigned char), 3)));
+            list, sizeof(list) / sizeof(unsigned char), nullptr, 3)));
   std::vector<char> data(16, -1);
   std::vector<char> notNull(data.size());
   for (size_t i = 0; i < data.size(); ++i) {

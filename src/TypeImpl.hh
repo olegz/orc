@@ -86,6 +86,8 @@ namespace orc {
     unsigned int getPrecision() const override;
 
     unsigned int getScale() const override;
+
+    std::string toString() const override;
   };
 
   std::unique_ptr<Type> convertType(const proto::Type& type,

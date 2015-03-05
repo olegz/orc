@@ -66,7 +66,7 @@ namespace orc {
     /**
      * Parse the number from a base 10 string representation.
      */
-    Int128(const std::string&);
+    explicit Int128(const std::string&);
 
     /**
      * Maximum positive value allowed by the type.
@@ -152,20 +152,44 @@ namespace orc {
     Int128 divide(const Int128 &right, Int128& remainder) const;
 
     /**
+     * Logical or between two Int128.
+     * @param right the number to or in
+     * @return *this
+     */
+    Int128& operator|=(const Int128 &right) {
+      lowbits |= right.lowbits;
+      highbits |= right.highbits;
+      return *this;
+    }
+
+    /**
+     * Logical and between two Int128.
+     * @param right the number to and in
+     * @return *this
+     */
+    Int128& operator&=(const Int128 &right) {
+      lowbits &= right.lowbits;
+      highbits &= right.highbits;
+      return *this;
+    }
+
+    /**
      * Shift left by the given number of bits.
      * Values larger than 2**127 will shift into the sign bit.
      */
     Int128& operator<<=(uint32_t bits) {
-      if (bits < 64) {
-        highbits <<= bits;
-        highbits |= (lowbits >> (64 - bits));
-        lowbits <<= bits;
-      } else if (bits < 128) {
-        highbits = static_cast<int64_t>(lowbits) << (bits - 64);
-        lowbits = 0;
-      } else {
-        highbits = 0;
-        lowbits = 0;
+      if (bits != 0) {
+        if (bits < 64) {
+          highbits <<= bits;
+          highbits |= (lowbits >> (64 - bits));
+          lowbits <<= bits;
+        } else if (bits < 128) {
+          highbits = static_cast<int64_t>(lowbits) << (bits - 64);
+          lowbits = 0;
+        } else {
+          highbits = 0;
+          lowbits = 0;
+        }
       }
       return *this;
     }
@@ -175,16 +199,19 @@ namespace orc {
      * sign extend and fill with one bits.
      */
     Int128& operator>>=(uint32_t bits) {
-      if (bits < 64) {
-        lowbits >>= bits;
-        lowbits |= static_cast<uint64_t>(highbits << (64 - bits));
-        highbits >>= bits;
-      } else if (bits < 128) {
-        lowbits = static_cast<uint64_t>(highbits >> (bits - 64));
-        highbits = highbits >= 0 ? 0 : -1l;
-      } else {
-        highbits = highbits >= 0 ? 0 : -1l;
-        lowbits = static_cast<uint64_t>(highbits);
+      if (bits != 0) {
+        if (bits < 64) {
+          lowbits >>= bits;
+          lowbits |= static_cast<uint64_t>(highbits << (64 - bits));
+          highbits = static_cast<int64_t>
+            (static_cast<uint64_t>(highbits) >> bits);
+        } else if (bits < 128) {
+          lowbits = static_cast<uint64_t>(highbits >> (bits - 64));
+          highbits = highbits >= 0 ? 0 : -1l;
+        } else {
+          highbits = highbits >= 0 ? 0 : -1l;
+          lowbits = static_cast<uint64_t>(highbits);
+        }
       }
       return *this;
     }
@@ -269,7 +296,7 @@ namespace orc {
      * Return the base 10 string representation with a decimal point,
      * the given number of places after the decimal.
      */
-    std::string toDecimalString(size_t scale=0) const;
+    std::string toDecimalString(int32_t scale=0) const;
 
     /**
      * Return the base 16 string representation of the two's complement with

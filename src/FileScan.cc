@@ -28,6 +28,7 @@ int main(int argc, char* argv[]) {
   if (argc < 2) {
     std::cout << "Usage: file-scan <filename>\n";
   }
+
   orc::ReaderOptions opts;
   std::list<int> cols;
   cols.push_back(0);
@@ -49,7 +50,7 @@ int main(int argc, char* argv[]) {
     batches += 1;
     rows += batch->numElements;
   }
-  std::cout << "Rows: " << rows << "\n";
-  std::cout << "Batches: " << batches << "\n";
+  std::cout << "Rows: " << rows << std::endl;
+  std::cout << "Batches: " << batches << std::endl;
   return 0;
 }

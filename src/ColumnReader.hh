@@ -31,6 +31,11 @@ namespace orc {
     virtual ~StripeStreams();
 
     /**
+     * Get the reader options.
+     */
+    virtual const ReaderOptions& getReaderOptions() const = 0;
+
+    /**
      * Get the array of booleans for which columns are selected.
      * @return the address of an array which contains true at the index of
      *    each columnId is selected.
@@ -57,9 +62,10 @@ namespace orc {
   protected:
     std::unique_ptr<ByteRleDecoder> notNullDecoder;
     int columnId;
+    MemoryPool* memoryPool;
 
   public:
-    ColumnReader(const Type& type, StripeStreams& stipe);
+    ColumnReader(const Type& type, StripeStreams& stipe, MemoryPool* pool);
 
     virtual ~ColumnReader();
 
@@ -87,7 +93,8 @@ namespace orc {
    * Create a reader for the given stripe.
    */
   std::unique_ptr<ColumnReader> buildReader(const Type& type,
-                                            StripeStreams& stripe);
+                                            StripeStreams& stripe,
+                                            MemoryPool* pool = nullptr);
 }
 
 #endif

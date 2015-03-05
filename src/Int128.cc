@@ -32,6 +32,30 @@ namespace orc {
     return Int128(static_cast<int64_t>(0x8000000000000000), 0x0);
   }
 
+  Int128::Int128(const std::string& str) {
+    lowbits = 0;
+    highbits = 0;
+    size_t length = str.length();
+    if (length > 0) {
+      bool isNegative = str[0] == '-';
+      size_t posn = isNegative ? 1 : 0;
+      while (posn < length) {
+        size_t group = std::min(18ul, length - posn);
+        int64_t chunk = std::stoll(str.substr(posn, group));
+        int64_t multiple = 1;
+        for(size_t i=0; i < group; ++i) {
+          multiple *= 10;
+        }
+        *this *= multiple;
+        *this += chunk;
+        posn += group;
+      }
+      if (isNegative) {
+        negate();
+      }
+    }
+  }
+
   Int128& Int128::operator*=(const Int128 &right) {
     const uint64_t INT_MASK = 0xffffffff;
     const uint64_t CARRY_BIT = 1ll << 32;
@@ -347,7 +371,7 @@ namespace orc {
     // now get anything above 10**18 and print it
     Int128 tail;
     top = remainder.divide(tenTo18, tail);
-    if (top != 0) {
+    if (needFill || top != 0) {
       if (needFill) {
         buf << std::setw(18) << std::setfill('0');
       } else {
@@ -365,34 +389,36 @@ namespace orc {
     return buf.str();
   }
 
-  std::string Int128::toDecimalString(size_t scale) const {
+  std::string Int128::toDecimalString(int32_t scale) const {
     std::string str = toString();
     if (scale == 0) {
       return str;
     } else if (*this < 0) {
-      size_t len = str.length();
+      int32_t len = static_cast<int32_t>(str.length());
       if (len - 1 > scale) {
-        return str.substr(0, len - scale) + "." +
-          str.substr(len - scale, scale);
+        return str.substr(0, static_cast<size_t>(len - scale)) + "." +
+          str.substr(static_cast<size_t>(len - scale),
+                     static_cast<size_t>(scale));
       } else if (len - 1 == scale) {
         return "-0." + str.substr(1, std::string::npos);
       } else {
         std::string result = "-0.";
-        for(size_t i=0; i < scale - len + 1; ++i) {
+        for(int32_t i=0; i < scale - len + 1; ++i) {
           result += "0";
         }
         return result + str.substr(1, std::string::npos);
       }
     } else {
-      size_t len = str.length();
+      int32_t len = static_cast<int32_t>(str.length());
       if (len > scale) {
-        return str.substr(0, len - scale) + "." +
-          str.substr(len - scale, scale);
+        return str.substr(0, static_cast<size_t>(len - scale)) + "." +
+          str.substr(static_cast<size_t>(len - scale),
+                     static_cast<size_t>(scale));
       } else if (len == scale) {
         return "0." + str;
       } else {
         std::string result = "0.";
-        for(size_t i=0; i < scale - len; ++i) {
+        for(int32_t i=0; i < scale - len; ++i) {
           result += "0";
         }
         return result + str;

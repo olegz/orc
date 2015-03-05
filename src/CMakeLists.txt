@@ -30,10 +30,12 @@ add_library (orc STATIC
   ${PROTO_HDRS}
   wrap/orc-proto-wrapper.cc
   ByteRLE.cc
+  C09Adapter.cc
   ColumnReader.cc
   Compression.cc
   Exceptions.cc
   Int128.cc
+  MemoryPool.cc
   OrcFile.cc
   Reader.cc
   RLEv1.cc
@@ -80,3 +82,12 @@ target_link_libraries (file-metadata
   orc
   ${PROTOBUF_LIBRARIES}
   )
+  
+ add_executable (file-statistics
+  FileStatistics.cc
+  )
+
+target_link_libraries (file-statistics
+  orc
+  ${PROTOBUF_LIBRARIES}
+  ) 

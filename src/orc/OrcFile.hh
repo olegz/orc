@@ -70,7 +70,8 @@ namespace orc {
    * @param options the options for reading the file
    */
   std::unique_ptr<Reader> createReader(std::unique_ptr<InputStream> stream,
-                                       const ReaderOptions& options);
+                                       const ReaderOptions& options,
+                                       MemoryPool* pool = nullptr);
 }
 
 #endif
