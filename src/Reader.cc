@@ -1296,7 +1296,7 @@ namespace orc {
       throw ParseError("bad metadata parse");
     }
 
-    numberOfStripeStatistics = metadata.stripestats_size();
+    numberOfStripeStatistics = static_cast<unsigned long>(metadata.stripestats_size());
   }
 
 
