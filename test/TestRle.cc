@@ -148,10 +148,11 @@ TEST(RLEv2, basicDelta4) {
 };
 
 TEST(RLEv2, delta0Width) {
+  unsigned char list1[] = {0x4e, 0x2, 0x0, 0x1, 0x2, 0xc0, 0x2, 0x42, 0x0};
   std::unique_ptr<RleDecoder> decoder =
     createRleDecoder(std::unique_ptr<SeekableInputStream>
                      (new SeekableArrayInputStream
-                      ({0x4e, 0x2, 0x0, 0x1, 0x2, 0xc0, 0x2, 0x42, 0x0})),
+                      (list1, sizeof(list1) / sizeof(unsigned char))),
                      false, RleVersion_2);
   int64_t values[6];
   decoder->next(values, 6, 0);

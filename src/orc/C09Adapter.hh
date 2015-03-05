@@ -44,10 +44,13 @@
     } // std
   #endif
 
+  #ifndef _WIN32
+  //#VS10 already has this.
   namespace std {
     // A poor man's stoll that converts str to a long long int base 10
     long long stoll(std::string str);
   } // namespace std
+  #endif
 
   /* Containers of unique_ptr<T> are replaced with DataBuffer<T> or std::vector<T>
    * unique_ptr to arrays are replaced with std::vector

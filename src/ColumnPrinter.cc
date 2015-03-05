@@ -24,6 +24,12 @@
 #include <time.h>
 #include <typeinfo>
 
+#ifdef _WIN32
+// TODO: put this adapter somewhere.
+#define localtime_r(timeValue, tmValue) _localtime64_s((tmValue), (timeValue))
+#define gmtime_r(timeValue, tmValue) _gmtime64_s((tmValue), (timeValue))
+#endif
+
 namespace orc {
 
   class BooleanColumnPrinter: public ColumnPrinter {

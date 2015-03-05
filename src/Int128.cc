@@ -21,6 +21,12 @@
 #include <iomanip>
 #include <iostream>
 #include <sstream>
+#include <stdio.h>
+#include <stdlib.h>
+#ifdef _WIN32
+// TODO: Put this adapter somewhere cleaner.
+#define atoll _atoi64
+#endif
 
 namespace orc {
 
@@ -40,7 +46,7 @@ namespace orc {
       bool isNegative = str[0] == '-';
       size_t posn = isNegative ? 1 : 0;
       while (posn < length) {
-        size_t group = std::min(18ul, length - posn);
+        size_t group = std::min(static_cast<size_t>(18ul), length - posn);
         int64_t chunk = std::stoll(str.substr(posn, group));
         int64_t multiple = 1;
         for(size_t i=0; i < group; ++i) {

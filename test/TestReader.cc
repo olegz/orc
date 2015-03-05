@@ -119,7 +119,7 @@ namespace orc {
     orc::ReaderOptions opts;
     std::unique_ptr<Reader> reader =
       createReader(readLocalFile(getFilename()), opts);
-    unsigned long rowCount = 0;
+    uint64_t rowCount = 0;
     std::unique_ptr<ColumnVectorBatch> batch = reader->createRowBatch(1024);
     GzipTextReader expected(getJsonFilename());
     std::string expectedLine;
@@ -233,7 +233,8 @@ namespace orc {
 
   TEST(Reader, columnSelectionTest) {
     ReaderOptions opts;
-    std::list<int> includes = {1,3,5,7,9};
+    int myints[] = {1,3,5,7,9};
+    std::list<int> includes(myints, myints + sizeof(myints) / sizeof(int));
     opts.include(includes);
     std::ostringstream filename;
     filename << exampleDirectory << "/demo-11-none.orc";
@@ -284,7 +285,7 @@ namespace orc {
       EXPECT_EQ(i%2==1?true:false, selected[i]) << "fail on " << i;
     }
 
-    unsigned long rowCount = 0;
+    uint64_t rowCount = 0;
     std::unique_ptr<ColumnVectorBatch> batch = reader->createRowBatch(1024);
     LongVectorBatch* longVector =
       dynamic_cast<LongVectorBatch*>

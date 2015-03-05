@@ -981,7 +981,7 @@ namespace orc {
     unsigned long rowTotal = 0;
 
     // firstRowOfStripe.resize(static_cast<size_t>(footer.stripes_size()));
-    firstRowOfStripe.reset(new DataBuffer<unsigned long>(
+    firstRowOfStripe.reset(new DataBuffer<uint64_t>(
         static_cast<size_t>(footer.stripes_size()), memoryPool));
 
     for(size_t i=0; i < static_cast<size_t>(footer.stripes_size()); ++i) {

@@ -16,7 +16,7 @@
 * limitations under the License.
 */
 
-#if __cplusplus < 201103L
+#if __cplusplus < 201103L && !defined(_WIN32)
 
   #include "orc/C09Adapter.hh"
   #include <sstream>

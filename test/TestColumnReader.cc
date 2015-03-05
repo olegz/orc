@@ -2673,7 +2673,7 @@ TEST(DecimalColumnReader, testDecimal64) {
   MockStripeStreams streams;
 
   // set getSelectedColumns()
-  std::vector<bool> selectedColumns = { true, true};
+  std::vector<bool> selectedColumns(2, true);
   EXPECT_CALL(streams, getSelectedColumns())
       .WillRepeatedly(testing::Return(selectedColumns));
 
@@ -2685,12 +2685,13 @@ TEST(DecimalColumnReader, testDecimal64) {
 
   // set getStream
   EXPECT_CALL(streams, getStreamProxy(testing::_, proto::Stream_Kind_PRESENT))
-      .WillRepeatedly(testing::Return(nullptr));
+      .WillRepeatedly(testing::ReturnNull());
 
   // [0xff] * (64/8) + [0x00] * (56/8) + [0x01]
+  unsigned char list1[] = { 0x05, 0xff, 0x04, 0x00, 0xff, 0x01 };
   EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_PRESENT))
       .WillRepeatedly(testing::Return(new SeekableArrayInputStream
-                       ( { 0x05, 0xff, 0x04, 0x00, 0xff, 0x01 })));
+                       (list1, sizeof(list1) / sizeof(unsigned char))));
 
   char numBuffer[65];
   for(int i=0; i < 65; ++i) {
@@ -2705,13 +2706,15 @@ TEST(DecimalColumnReader, testDecimal64) {
                                                          65, nullptr, 3)));
 
   // [0x02] * 65
+  unsigned char list2[] = { 0x3e, 0x00, 0x04 };
   EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_SECONDARY))
       .WillRepeatedly(testing::Return(new SeekableArrayInputStream
-                       ( { 0x3e, 0x00, 0x04 })));
+                       (list2, sizeof(list2) / sizeof(unsigned char))));
 
   // create the row type
-  std::unique_ptr<Type> rowType =
-    createStructType( { createDecimalType(12, 2) }, { "col0" });
+  std::vector<Type*> vtypes(1, createDecimalType(12, 2).release());
+  std::vector<std::string> vfields(1, "col0");
+  std::unique_ptr<Type> rowType = createStructType(vtypes, vfields);
   rowType->assignIds(0);
 
   std::unique_ptr<ColumnReader> reader = buildReader(*rowType, streams);
@@ -2745,7 +2748,7 @@ TEST(DecimalColumnReader, testDecimal64Skip) {
   MockStripeStreams streams;
 
   // set getSelectedColumns()
-  std::vector<bool> selectedColumns = { true, true};
+  std::vector<bool> selectedColumns(2, true);
   EXPECT_CALL(streams, getSelectedColumns())
       .WillRepeatedly(testing::Return(selectedColumns));
 
@@ -2757,7 +2760,7 @@ TEST(DecimalColumnReader, testDecimal64Skip) {
 
   // set getStream
   EXPECT_CALL(streams, getStreamProxy(testing::_, proto::Stream_Kind_PRESENT))
-      .WillRepeatedly(testing::Return(nullptr));
+      .WillRepeatedly(testing::ReturnNull());
 
   // [0xff]
   unsigned char presentBuffer[] = {0xfe, 0xff, 0x80};
@@ -2782,13 +2785,15 @@ TEST(DecimalColumnReader, testDecimal64Skip) {
                                                                  45)));
 
   // [0x0a] * 9
+  unsigned char list1[] = { 0x06, 0x00, 0x14 };
   EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_SECONDARY))
       .WillRepeatedly(testing::Return(new SeekableArrayInputStream
-                       ( { 0x06, 0x00, 0x14 })));
+                       (list1, sizeof(list1) / sizeof(unsigned char))));
 
   // create the row type
-  std::unique_ptr<Type> rowType =
-    createStructType( { createDecimalType(12, 10) }, { "col0" });
+  std::vector<Type*> vtypes(1, createDecimalType(12, 10).release());
+  std::vector<std::string> vfields(1, "col0");
+  std::unique_ptr<Type> rowType = createStructType(vtypes, vfields);
   rowType->assignIds(0);
 
   std::unique_ptr<ColumnReader> reader = buildReader(*rowType, streams);
@@ -2822,7 +2827,7 @@ TEST(DecimalColumnReader, testDecimal128) {
   MockStripeStreams streams;
 
   // set getSelectedColumns()
-  std::vector<bool> selectedColumns = { true, true};
+  std::vector<bool> selectedColumns(2, true);
   EXPECT_CALL(streams, getSelectedColumns())
       .WillRepeatedly(testing::Return(selectedColumns));
 
@@ -2834,12 +2839,13 @@ TEST(DecimalColumnReader, testDecimal128) {
 
   // set getStream
   EXPECT_CALL(streams, getStreamProxy(testing::_, proto::Stream_Kind_PRESENT))
-      .WillRepeatedly(testing::Return(nullptr));
+      .WillRepeatedly(testing::ReturnNull());
 
   // [0xff] * (64/8) + [0x00] * (56/8) + [0x01]
+  unsigned char list1[] = { 0x05, 0xff, 0x04, 0x00, 0xff, 0x01 };
   EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_PRESENT))
       .WillRepeatedly(testing::Return(new SeekableArrayInputStream
-                       ( { 0x05, 0xff, 0x04, 0x00, 0xff, 0x01 })));
+                       (list1, sizeof(list1) / sizeof(unsigned char))));
 
   char numBuffer[65];
   for(int i=0; i < 65; ++i) {
@@ -2854,13 +2860,15 @@ TEST(DecimalColumnReader, testDecimal128) {
                                                          65, nullptr, 3)));
 
   // [0x02] * 65
+  unsigned char list2[] = { 0x3e, 0x00, 0x04 };
   EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_SECONDARY))
       .WillRepeatedly(testing::Return(new SeekableArrayInputStream
-                       ( { 0x3e, 0x00, 0x04 })));
+                       (list2, 3)));
 
   // create the row type
-  std::unique_ptr<Type> rowType =
-    createStructType( { createDecimalType(32, 2) }, { "col0" });
+  std::vector<Type*> vtypes(1, createDecimalType(32, 2).release());
+  std::vector<std::string> vfields(1, "col0");
+  std::unique_ptr<Type> rowType = createStructType(vtypes, vfields);
   rowType->assignIds(0);
 
   std::unique_ptr<ColumnReader> reader = buildReader(*rowType, streams);
@@ -2894,7 +2902,7 @@ TEST(DecimalColumnReader, testDecimal128Skip) {
   MockStripeStreams streams;
 
   // set getSelectedColumns()
-  std::vector<bool> selectedColumns = { true, true};
+  std::vector<bool> selectedColumns (2, true);
   EXPECT_CALL(streams, getSelectedColumns())
       .WillRepeatedly(testing::Return(selectedColumns));
 
@@ -2906,7 +2914,7 @@ TEST(DecimalColumnReader, testDecimal128Skip) {
 
   // set getStream
   EXPECT_CALL(streams, getStreamProxy(testing::_, proto::Stream_Kind_PRESENT))
-      .WillRepeatedly(testing::Return(nullptr));
+      .WillRepeatedly(testing::ReturnNull());
 
   // [0xff, 0xf8]
   unsigned char presentBuffer[] = {0xfe, 0xff, 0xf8};
@@ -2943,13 +2951,15 @@ TEST(DecimalColumnReader, testDecimal128Skip) {
     .WillRepeatedly(testing::Return(new SeekableArrayInputStream(numBuffer,
                                                                  119)));
   // [0x02] * 13
+  unsigned char list1[] =  { 0x0a, 0x00, 0x4a };
   EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_SECONDARY))
       .WillRepeatedly(testing::Return(new SeekableArrayInputStream
-                       ( { 0x0a, 0x00, 0x4a })));
+                       (list1, sizeof(list1) / sizeof(unsigned char))));
 
   // create the row type
-  std::unique_ptr<Type> rowType =
-    createStructType( { createDecimalType(38, 37) }, { "col0" });
+  std::vector<Type*> vtypes(1, createDecimalType(38, 37).release());
+  std::vector<std::string> vfields(1, "col0");
+  std::unique_ptr<Type> rowType = createStructType(vtypes, vfields);
   rowType->assignIds(0);
 
   std::unique_ptr<ColumnReader> reader = buildReader(*rowType, streams);
@@ -2996,7 +3006,7 @@ TEST(DecimalColumnReader, testDecimalHive11) {
     .WillRepeatedly(testing::ReturnRef(readerOptions));
 
   // set getSelectedColumns()
-  std::vector<bool> selectedColumns = { true, true};
+  std::vector<bool> selectedColumns(2, true);
   EXPECT_CALL(streams, getSelectedColumns())
       .WillRepeatedly(testing::Return(selectedColumns));
 
@@ -3008,12 +3018,13 @@ TEST(DecimalColumnReader, testDecimalHive11) {
 
   // set getStream
   EXPECT_CALL(streams, getStreamProxy(testing::_, proto::Stream_Kind_PRESENT))
-      .WillRepeatedly(testing::Return(nullptr));
+      .WillRepeatedly(testing::ReturnNull());
 
   // [0xff] * (64/8) + [0x00] * (56/8) + [0x01]
+  unsigned char list1[] = { 0x05, 0xff, 0x04, 0x00, 0xff, 0x01 };
   EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_PRESENT))
       .WillRepeatedly(testing::Return(new SeekableArrayInputStream
-                       ( { 0x05, 0xff, 0x04, 0x00, 0xff, 0x01 })));
+                       (list1, sizeof(list1) / sizeof(unsigned char))));
 
   char numBuffer[65];
   for(int i=0; i < 65; ++i) {
@@ -3033,8 +3044,9 @@ TEST(DecimalColumnReader, testDecimalHive11) {
                                                                  3)));
 
   // create the row type
-  std::unique_ptr<Type> rowType =
-    createStructType( { createDecimalType(0, 0) }, { "col0" });
+  std::vector<Type*> vtypes(1, createDecimalType(0, 0).release());
+  std::vector<std::string> vfields(1, "col0");
+  std::unique_ptr<Type> rowType = createStructType(vtypes, vfields);
   rowType->assignIds(0);
 
   std::unique_ptr<ColumnReader> reader = buildReader(*rowType, streams);
@@ -3075,7 +3087,7 @@ TEST(DecimalColumnReader, testDecimalHive11Skip) {
       .WillRepeatedly(testing::ReturnRef(readerOptions));
 
   // set getSelectedColumns()
-  std::vector<bool> selectedColumns = { true, true};
+  std::vector<bool> selectedColumns(2, true);
   EXPECT_CALL(streams, getSelectedColumns())
       .WillRepeatedly(testing::Return(selectedColumns));
 
@@ -3087,7 +3099,7 @@ TEST(DecimalColumnReader, testDecimalHive11Skip) {
 
   // set getStream
   EXPECT_CALL(streams, getStreamProxy(testing::_, proto::Stream_Kind_PRESENT))
-      .WillRepeatedly(testing::Return(nullptr));
+      .WillRepeatedly(testing::ReturnNull());
 
   // [0xff, 0xf8]
   unsigned char presentBuffer[] = {0xfe, 0xff, 0xf8};
@@ -3129,8 +3141,9 @@ TEST(DecimalColumnReader, testDecimalHive11Skip) {
                                                                  3)));
 
   // create the row type
-  std::unique_ptr<Type> rowType =
-    createStructType( { createDecimalType(0, 0) }, { "col0" });
+  std::vector<Type*> vtypes(1, createDecimalType(0, 0).release());
+  std::vector<std::string> vfields(1, "col0");
+  std::unique_ptr<Type> rowType = createStructType(vtypes, vfields);
   rowType->assignIds(0);
 
   std::unique_ptr<ColumnReader> reader = buildReader(*rowType, streams);
@@ -3178,7 +3191,7 @@ TEST(DecimalColumnReader, testDecimalHive11ScaleUp) {
       .WillRepeatedly(testing::ReturnRef(readerOptions));
 
   // set getSelectedColumns()
-  std::vector<bool> selectedColumns = { true, true};
+  std::vector<bool> selectedColumns(2, true);
   EXPECT_CALL(streams, getSelectedColumns())
       .WillRepeatedly(testing::Return(selectedColumns));
 
@@ -3190,7 +3203,7 @@ TEST(DecimalColumnReader, testDecimalHive11ScaleUp) {
 
   // set getStream
   EXPECT_CALL(streams, getStreamProxy(testing::_, proto::Stream_Kind_PRESENT))
-      .WillRepeatedly(testing::Return(nullptr));
+      .WillRepeatedly(testing::ReturnNull());
 
   // [0xff, 0xff, 0xf8]
   unsigned char presentBuffer[] = {0xfd, 0xff, 0xff, 0xf8};
@@ -3211,8 +3224,9 @@ TEST(DecimalColumnReader, testDecimalHive11ScaleUp) {
                                                                  3)));
 
   // create the row type
-  std::unique_ptr<Type> rowType =
-    createStructType( { createDecimalType(0, 0) }, { "col0" });
+  std::vector<Type*> vtypes(1, createDecimalType(0, 0).release());
+  std::vector<std::string> vfields(1, "col0");
+  std::unique_ptr<Type> rowType = createStructType(vtypes, vfields);
   rowType->assignIds(0);
 
   std::unique_ptr<ColumnReader> reader = buildReader(*rowType, streams);
@@ -3244,7 +3258,7 @@ TEST(DecimalColumnReader, testDecimalHive11ScaleDown) {
       .WillRepeatedly(testing::ReturnRef(readerOptions));
 
   // set getSelectedColumns()
-  std::vector<bool> selectedColumns = { true, true};
+  std::vector<bool> selectedColumns(2, true);
   EXPECT_CALL(streams, getSelectedColumns())
       .WillRepeatedly(testing::Return(selectedColumns));
 
@@ -3256,7 +3270,7 @@ TEST(DecimalColumnReader, testDecimalHive11ScaleDown) {
 
   // set getStream
   EXPECT_CALL(streams, getStreamProxy(testing::_, proto::Stream_Kind_PRESENT))
-      .WillRepeatedly(testing::Return(nullptr));
+      .WillRepeatedly(testing::ReturnNull());
 
   // [0xff, 0xff, 0xf8]
   unsigned char presentBuffer[] = {0xfd, 0xff, 0xff, 0xf8};
@@ -3296,8 +3310,9 @@ TEST(DecimalColumnReader, testDecimalHive11ScaleDown) {
                                                                  3)));
 
   // create the row type
-  std::unique_ptr<Type> rowType =
-    createStructType( { createDecimalType(0, 0) }, { "col0" });
+  std::vector<Type*> vtypes(1, createDecimalType(0, 0).release());
+  std::vector<std::string> vfields(1, "col0");
+  std::unique_ptr<Type> rowType = createStructType(vtypes, vfields);
   rowType->assignIds(0);
 
   std::unique_ptr<ColumnReader> reader = buildReader(*rowType, streams);
@@ -3329,7 +3344,7 @@ TEST(DecimalColumnReader, testDecimalHive11OverflowException) {
       .WillRepeatedly(testing::ReturnRef(readerOptions));
 
   // set getSelectedColumns()
-  std::vector<bool> selectedColumns = { true, true};
+  std::vector<bool> selectedColumns(2, true);
   EXPECT_CALL(streams, getSelectedColumns())
       .WillRepeatedly(testing::Return(selectedColumns));
 
@@ -3341,7 +3356,7 @@ TEST(DecimalColumnReader, testDecimalHive11OverflowException) {
 
   // set getStream
   EXPECT_CALL(streams, getStreamProxy(testing::_, proto::Stream_Kind_PRESENT))
-      .WillRepeatedly(testing::Return(nullptr));
+      .WillRepeatedly(testing::ReturnNull());
 
   // [0x80]
   unsigned char presentBuffer[] = {0xff, 0x80};
@@ -3362,8 +3377,9 @@ TEST(DecimalColumnReader, testDecimalHive11OverflowException) {
                                                                  2)));
 
   // create the row type
-  std::unique_ptr<Type> rowType =
-    createStructType( { createDecimalType(0, 0) }, { "col0" });
+  std::vector<Type*> vtypes(1, createDecimalType(0, 0).release());
+  std::vector<std::string> vfields(1, "col0");
+  std::unique_ptr<Type> rowType = createStructType(vtypes, vfields);
   rowType->assignIds(0);
 
   std::unique_ptr<ColumnReader> reader = buildReader(*rowType, streams);
@@ -3383,7 +3399,7 @@ TEST(DecimalColumnReader, testDecimalHive11OverflowExceptionNull) {
       .WillRepeatedly(testing::ReturnRef(readerOptions));
 
   // set getSelectedColumns()
-  std::vector<bool> selectedColumns = { true, true};
+  std::vector<bool> selectedColumns(2, true);
   EXPECT_CALL(streams, getSelectedColumns())
       .WillRepeatedly(testing::Return(selectedColumns));
 
@@ -3395,7 +3411,7 @@ TEST(DecimalColumnReader, testDecimalHive11OverflowExceptionNull) {
 
   // set getStream
   EXPECT_CALL(streams, getStreamProxy(testing::_, proto::Stream_Kind_PRESENT))
-      .WillRepeatedly(testing::Return(nullptr));
+      .WillRepeatedly(testing::ReturnNull());
 
   // [0x40]
   unsigned char presentBuffer[] = {0xff, 0x40};
@@ -3416,8 +3432,9 @@ TEST(DecimalColumnReader, testDecimalHive11OverflowExceptionNull) {
                                                                  2)));
 
   // create the row type
-  std::unique_ptr<Type> rowType =
-    createStructType( { createDecimalType(0, 0) }, { "col0" });
+  std::vector<Type*> vtypes(1, createDecimalType(0, 0).release());
+  std::vector<std::string> vfields(1, "col0");
+  std::unique_ptr<Type> rowType = createStructType(vtypes, vfields);
   rowType->assignIds(0);
 
   std::unique_ptr<ColumnReader> reader = buildReader(*rowType, streams);
@@ -3440,7 +3457,7 @@ TEST(DecimalColumnReader, testDecimalHive11OverflowNull) {
       .WillRepeatedly(testing::ReturnRef(readerOptions));
 
   // set getSelectedColumns()
-  std::vector<bool> selectedColumns = { true, true};
+  std::vector<bool> selectedColumns(2, true);
   EXPECT_CALL(streams, getSelectedColumns())
       .WillRepeatedly(testing::Return(selectedColumns));
 
@@ -3452,7 +3469,7 @@ TEST(DecimalColumnReader, testDecimalHive11OverflowNull) {
 
   // set getStream
   EXPECT_CALL(streams, getStreamProxy(testing::_, proto::Stream_Kind_PRESENT))
-      .WillRepeatedly(testing::Return(nullptr));
+      .WillRepeatedly(testing::ReturnNull());
 
   // [0x78]
   unsigned char presentBuffer[] = {0xff, 0x78};
@@ -3479,8 +3496,9 @@ TEST(DecimalColumnReader, testDecimalHive11OverflowNull) {
                                                                  3)));
 
   // create the row type
-  std::unique_ptr<Type> rowType =
-    createStructType( { createDecimalType(0, 0) }, { "col0" });
+  std::vector<Type*> vtypes(1, createDecimalType(0, 0).release());
+  std::vector<std::string> vfields(1, "col0");
+  std::unique_ptr<Type> rowType = createStructType(vtypes, vfields);
   rowType->assignIds(0);
 
   std::unique_ptr<ColumnReader> reader = buildReader(*rowType, streams);
@@ -3525,7 +3543,7 @@ TEST(DecimalColumnReader, testDecimalHive11BigBatches) {
       .WillRepeatedly(testing::ReturnRef(readerOptions));
 
   // set getSelectedColumns()
-  std::vector<bool> selectedColumns = { true, true};
+  std::vector<bool> selectedColumns(2, true);
   EXPECT_CALL(streams, getSelectedColumns())
       .WillRepeatedly(testing::Return(selectedColumns));
 
@@ -3537,7 +3555,7 @@ TEST(DecimalColumnReader, testDecimalHive11BigBatches) {
 
   // set getStream
   EXPECT_CALL(streams, getStreamProxy(testing::_, proto::Stream_Kind_PRESENT))
-      .WillRepeatedly(testing::Return(nullptr));
+      .WillRepeatedly(testing::ReturnNull());
 
   // range(64) * 32
   unsigned char numBuffer[2048];
@@ -3560,8 +3578,9 @@ TEST(DecimalColumnReader, testDecimalHive11BigBatches) {
                                                                  48)));
 
   // create the row type
-  std::unique_ptr<Type> rowType =
-    createStructType( { createDecimalType(0, 0) }, { "col0" });
+  std::vector<Type*> vtypes(1, createDecimalType(0, 0).release());
+  std::vector<std::string> vfields(1, "col0");
+  std::unique_ptr<Type> rowType = createStructType(vtypes, vfields);
   rowType->assignIds(0);
 
   std::unique_ptr<ColumnReader> reader = buildReader(*rowType, streams);
