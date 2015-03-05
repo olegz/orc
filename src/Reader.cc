@@ -1211,16 +1211,16 @@ namespace orc {
     unsigned long tailSize = 1 + postscriptLength + footerSize;
 
     char* pBuffer = buffer + (readSize - tailSize);
-    DataBuffer<char> extraBuffer("Reader_extraBuffer", 0,memoryPool);
+    std::unique_ptr<DataBuffer<char> > extraBuffer;
 
     if (tailSize > readSize) {
       // Read the rest of the footer
       unsigned long extra = tailSize - readSize;
 
-      extraBuffer.resize(footerSize);
-      stream->read(extraBuffer.data(), fileLength - tailSize, extra);
-      memcpy(extraBuffer.data()+extra,buffer,readSize-1-postscriptLength);
-      pBuffer = extraBuffer.data();
+      extraBuffer.reset(new DataBuffer<char>("Reader_extraBuffer", footerSize, memoryPool));
+      stream->read(extraBuffer->data(), fileLength - tailSize, extra);
+      memcpy(extraBuffer->data()+extra,buffer,readSize-1-postscriptLength);
+      pBuffer = extraBuffer->data();
     }
     std::unique_ptr<SeekableInputStream> pbStream =
       createDecompressor(compression,
@@ -1360,12 +1360,16 @@ namespace orc {
   }
 
   void ReaderImpl::startNextStripe() {
+    std::cout << "Reading the next stripe" << std::endl;
+
     currentStripeInfo = footer.stripes(static_cast<int>(currentStripe));
     currentStripeFooter = getStripeFooter(currentStripeInfo);
     rowsInCurrentStripe = currentStripeInfo.numberofrows();
     StripeStreamsImpl stripeStreams(*this, currentStripeFooter,
                                     currentStripeInfo.offset(),
                                     *(stream.get()));
+
+    std::cout << "Rebuilding the reader" << std::endl;
     reader = buildReader(*(schema.get()), stripeStreams, memoryPool);
   }
 
@@ -1427,8 +1431,8 @@ namespace orc {
       for(unsigned int i=0; i < type.getSubtypeCount(); ++i) {
         subtype = &(type.getSubtype(i));
         if (selectedColumns[static_cast<size_t>(subtype->getColumnId())]) {
-          dynamic_cast<StructVectorBatch*>(result)->fields.push_back
-            (createRowBatch(*subtype, capacity).release());
+          dynamic_cast<StructVectorBatch*>(result)->fields.push_back(
+            (createRowBatch(*subtype, capacity).release()));
         }
       }
       break;
