@@ -31,7 +31,7 @@ int main(int argc, char* argv[]) {
 
   orc::ReaderOptions opts;
   std::list<int> cols;
-  cols.push_back(0);
+  cols.push_back(1);
   opts.include(cols);
 
   std::unique_ptr<orc::Reader> reader;

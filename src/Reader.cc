@@ -963,7 +963,7 @@ namespace orc {
       throw ParseError("File size too small");
     }
 
-    DataBuffer<char> buffer(readSize, memoryPool);
+    DataBuffer<char> buffer("Reader_buffer", readSize, memoryPool);
     stream->read(buffer.data(), size - readSize, readSize);
     readPostscript(buffer.data(), readSize);
     readFooter(buffer.data(), readSize, size);
@@ -982,7 +982,7 @@ namespace orc {
     unsigned long rowTotal = 0;
 
     // firstRowOfStripe.resize(static_cast<size_t>(footer.stripes_size()));
-    firstRowOfStripe.reset(new DataBuffer<unsigned long>(
+    firstRowOfStripe.reset(new DataBuffer<unsigned long>("Reader_firstRowOfStripe",
         static_cast<size_t>(footer.stripes_size()), memoryPool));
 
     for(size_t i=0; i < static_cast<size_t>(footer.stripes_size()); ++i) {
@@ -1131,7 +1131,7 @@ namespace orc {
     // Look for the magic string at the end of the postscript.
     if (memcmp(buffer+readSize-1-postscriptLength, MAGIC.c_str(), MAGIC.length()) != 0) {
       // if there is no magic string at the end, check the beginning of the file
-      DataBuffer<char> frontBuffer(MAGIC.length(), memoryPool);
+      DataBuffer<char> frontBuffer("Reader_frontBuffer", MAGIC.length(), memoryPool);
       stream->read(frontBuffer.data(), 0, MAGIC.length());
       if (memcmp(frontBuffer.data(), MAGIC.c_str(), MAGIC.length()) != 0) {
         throw ParseError("Not an ORC file");
@@ -1211,7 +1211,7 @@ namespace orc {
     unsigned long tailSize = 1 + postscriptLength + footerSize;
 
     char* pBuffer = buffer + (readSize - tailSize);
-    DataBuffer<char> extraBuffer(0,memoryPool);
+    DataBuffer<char> extraBuffer("Reader_extraBuffer", 0,memoryPool);
 
     if (tailSize > readSize) {
       // Read the rest of the footer

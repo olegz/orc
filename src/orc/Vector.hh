@@ -98,6 +98,9 @@ namespace orc {
   std::unique_ptr<Type>
     createUnionType(std::vector<Type*> types);
 
+  extern uint64_t totalMemory ;
+  extern uint64_t maxMemory ;
+
   template <class T>
   class DataBuffer {
   private:
@@ -108,6 +111,8 @@ namespace orc {
     uint64_t _capacity;  // maximal capacity (actual allocated memory)
     DataBuffer(DataBuffer& buffer);
     DataBuffer& operator=(DataBuffer& buffer);
+
+    std::string _name;
 
   public:
     T* data() { return buf; }
@@ -128,7 +133,10 @@ namespace orc {
           buf = (T*)memoryPool->malloc(sizeof(T)*size);
           std::memset(buf, 0, sizeof(T)*size);
         }
+        totalMemory -= sizeof(T)*_capacity ;
         _capacity = size;
+        totalMemory += sizeof(T)*_capacity ;
+        if (totalMemory > maxMemory ) { maxMemory = totalMemory; }
       }
     }
 
@@ -137,8 +145,10 @@ namespace orc {
       _size = size ;
     }
 
-    DataBuffer(uint64_t size = 0, MemoryPool* pool = nullptr) :
+    DataBuffer(std::string name, uint64_t size = 0, MemoryPool* pool = nullptr) :
             buf(nullptr), _size(0), _capacity(0) {
+      _name = name;
+
       if (pool) {
         // if memory pool provided, use it
         memoryPool = pool;
@@ -151,12 +161,22 @@ namespace orc {
       if (size > 0) {
         resize(size);
       }
+      std::cout<< "Created buffer " << _name
+          << " of size " << sizeof(T)*_capacity
+          << "; total memory: " << totalMemory
+          << "; max memory: " << maxMemory << std::endl;
     }
 
     virtual ~DataBuffer(){
       if (buf) {
         memoryPool->free(buf);
+        totalMemory -= sizeof(T)*_capacity ;
       }
+      std::cout<< "Deleted buffer " << _name
+          << " of size " << sizeof(T)*_capacity
+          << "; total memory: " << totalMemory
+          << "; max memory: " << maxMemory << std::endl;
+
     }
   };
 

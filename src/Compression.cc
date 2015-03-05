@@ -101,7 +101,7 @@ namespace orc {
       MemoryPool* pool,
       long blkSize):
       SeekableInputStream(pool),
-      ownedData(new DataBuffer<char>(size, pool)),
+      ownedData(new DataBuffer<char>("SeekableArrayInputStream_ownedData", size, pool)),
       data(0) {
     length = size;
     char *ptr = ownedData->data();
@@ -117,7 +117,7 @@ namespace orc {
                                                      MemoryPool* pool,
                                                      long blkSize):
                        SeekableInputStream(pool),
-                       ownedData(new DataBuffer<char>(0, pool)),
+                       ownedData(new DataBuffer<char>("SeekableArrayInputStream_ownedData", 0, pool)),
                        data(values) {
     length = size;
     position = 0;
@@ -187,7 +187,7 @@ namespace orc {
     blockSize = std::min(length,
                          static_cast<unsigned long>(_blockSize < 0 ?
                                                     256 * 1024 : _blockSize));
-    buffer.reset(new DataBuffer<char>(blockSize, pool));
+    buffer.reset(new DataBuffer<char>("SeekableFileInputStream_buffer", blockSize, pool));
     remainder = 0;
   }
 
@@ -361,7 +361,7 @@ namespace orc {
                     size_t _blockSize
                     ): SeekableInputStream(inStream->getMemoryPool()),
                        blockSize(_blockSize),
-                       buffer(new DataBuffer<char>(_blockSize, memoryPool)) {
+                       buffer(new DataBuffer<char>("ZlibDecompressionStream_buffer", _blockSize, memoryPool)) {
     input.reset(inStream.release());
     zstream.next_in = Z_NULL;
     zstream.avail_in = 0;
@@ -627,8 +627,8 @@ namespace orc {
                     std::unique_ptr<SeekableInputStream> inStream,
                     size_t blockSize) :
       SeekableInputStream(inStream->getMemoryPool()),
-      inputBuffer(new DataBuffer<char>(0, memoryPool)),
-      outputBuffer(new DataBuffer<char>(blockSize, memoryPool)),
+      inputBuffer(new DataBuffer<char>("SnappyDecompressionStream_inputStream", 0, memoryPool)),
+      outputBuffer(new DataBuffer<char>("SnappyDecompressionStream_outputStream", blockSize, memoryPool)),
       state(DECOMPRESS_HEADER),
       outputBufferPtr(0),
       outputBufferLength(0),

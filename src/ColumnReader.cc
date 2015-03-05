@@ -302,8 +302,8 @@ namespace orc {
 
 //    std::vector<int64_t> seconds(rowBatch.capacity);
 //    std::vector<int64_t> nanoseconds(rowBatch.capacity);
-    DataBuffer<int64_t> seconds(rowBatch.capacity, memoryPool);
-    DataBuffer<int64_t> nanoseconds(rowBatch.capacity, memoryPool);
+    DataBuffer<int64_t> seconds("TimestampColumnReader_seconds", rowBatch.capacity, memoryPool);
+    DataBuffer<int64_t> nanoseconds("TimestampColumnReader_nanoseconds", rowBatch.capacity, memoryPool);
 
     rle->next(seconds.data(),
               numValues, rowBatch.hasNulls ? rowBatch.notNull.data() : 0);
@@ -495,7 +495,7 @@ namespace orc {
       createRleDecoder(stripe.getStream(columnId,
                                         proto::Stream_Kind_LENGTH),
                        false, rleVersion);
-    dictionaryOffset.reset(new DataBuffer<int64_t>(dictionaryCount+1, memoryPool));
+    dictionaryOffset.reset(new DataBuffer<int64_t>("StringDictionaryColumnReader_dictionaryOffset", dictionaryCount+1, memoryPool));
     int64_t* lengthArray = dictionaryOffset->data();
     lengthDecoder->next(lengthArray + 1, dictionaryCount, 0);
     lengthArray[0] = 0;
@@ -503,7 +503,7 @@ namespace orc {
       lengthArray[i] += lengthArray[i-1];
     }
     long blobSize = lengthArray[dictionaryCount];
-    dictionaryBlob.reset(new DataBuffer<char>(static_cast<unsigned long>(blobSize), memoryPool));
+    dictionaryBlob.reset(new DataBuffer<char>("StringDictionaryColumnReader_dictionaryBlob", static_cast<unsigned long>(blobSize), memoryPool));
     std::unique_ptr<SeekableInputStream> blobStream =
       stripe.getStream(columnId, proto::Stream_Kind_DICTIONARY_DATA);
     readFully(dictionaryBlob->data(), blobSize, blobStream.get());
@@ -665,7 +665,7 @@ namespace orc {
     // Load data from the blob stream into our buffer until we have enough
     // to get the rest directly out of the stream's buffer.
     size_t bytesBuffered = 0;
-    blobBuffer.reset(new DataBuffer<char>(totalLength, memoryPool));
+    blobBuffer.reset(new DataBuffer<char>("StringDirectColumnReader_blobBuffer", totalLength, memoryPool));
     char *ptr= blobBuffer->data();
     while (bytesBuffered + lastBufferLength < totalLength) {
       blobBuffer->resize(bytesBuffered + lastBufferLength);

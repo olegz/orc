@@ -178,9 +178,9 @@ RleDecoderV2::RleDecoderV2(std::unique_ptr<SeekableInputStream> input,
     curGap(0),
     patchMask(0),
     actualGap(0),
-    unpacked(new DataBuffer<int64_t>(
+    unpacked(new DataBuffer<int64_t>("RleDecoderV2_unpacked",
         0, inputStream->getMemoryPool())),
-    unpackedPatch(new DataBuffer<int64_t>(
+    unpackedPatch(new DataBuffer<int64_t>("RleDecoderV2_unpackedPatch",
         0, inputStream->getMemoryPool())) {}
 
 void RleDecoderV2::seek(PositionProvider& location) {
