@@ -583,6 +583,12 @@ namespace orc {
     getStripe(unsigned long stripeIndex) const = 0;
 
     /**
+     * Get the number of stripe statistics in the file.
+     * @return the number of stripe statistics
+     */
+    virtual unsigned long getNumberOfStripeStatistics() const = 0;
+
+    /**
      * Get the statistics about a stripe.
      * @param stripeIndex the stripe 0 to N-1 to get statistics about
      * @return the statistics about that stripe

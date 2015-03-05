@@ -853,6 +853,7 @@ namespace orc {
     // metadata
     bool isMetadataLoaded;
     proto::Metadata metadata;
+    unsigned long numberOfStripeStatistics;
 
     // reading state
     uint64_t previousRow;
@@ -914,6 +915,8 @@ namespace orc {
 
     std::unique_ptr<StripeInformation> getStripe(unsigned long
                                                  ) const override;
+
+    unsigned long getNumberOfStripeStatistics() const override;
 
     std::unique_ptr<Statistics>
     getStripeStatistics(unsigned long stripeIndex) const override;
@@ -1033,6 +1036,10 @@ namespace orc {
 
   unsigned long ReaderImpl::getNumberOfStripes() const {
     return numberOfStripes;
+  }
+
+  unsigned long ReaderImpl::getNumberOfStripeStatistics() const {
+    return numberOfStripeStatistics;
   }
 
   std::unique_ptr<StripeInformation>
@@ -1169,7 +1176,10 @@ namespace orc {
 
   std::unique_ptr<Statistics>
   ReaderImpl::getStripeStatistics(unsigned long stripeIndex) const {
-    if(stripeIndex >= static_cast<unsigned int>(metadata.stripestats_size())) {
+    if(numberOfStripeStatistics == 0){
+      throw std::logic_error("No stripe statistics in file");
+    }
+    if(stripeIndex >= numberOfStripeStatistics) {
       throw std::logic_error("stripe index out of range");
     }
     return std::unique_ptr<Statistics>
@@ -1285,6 +1295,8 @@ namespace orc {
     if (!metadata.ParseFromZeroCopyStream(pbStream.get())) {
       throw ParseError("bad metadata parse");
     }
+
+    numberOfStripeStatistics = metadata.stripestats_size();
   }
 
 

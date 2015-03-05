@@ -432,6 +432,8 @@ TEST(Reader, stripeStatistics) {
     orc::createReader(orc::readLocalFile(filename.str()), opts);
 
   // test stripe statistics
+  EXPECT_EQ(385, reader->getNumberOfStripeStatistics());
+
   // stripe[384]: 385th stripe, last stripe
   unsigned long stripeIdx = 384;
   std::unique_ptr<orc::Statistics> stripeStats =
@@ -477,11 +479,23 @@ TEST(Reader, corruptStatistics) {
   std::unique_ptr<orc::Statistics> stripeStats =
     reader->getStripeStatistics(stripeIdx);
 
-  // 4th real column, Timestamp
+  // 4th real column, Decimal
   const orc::DecimalColumnStatistics* col_4 =
     dynamic_cast<const orc::DecimalColumnStatistics*>
     (stripeStats->getColumnStatistics(4));
   EXPECT_EQ(false, col_4->hasMinimum());
   EXPECT_EQ(false, col_4->hasMaximum());
 }
+
+TEST(Reader, noStripeStatistics) {
+  orc::ReaderOptions opts;
+  std::ostringstream filename;
+  // read the file has no stripe statistics
+  filename << exampleDirectory << "/orc-file-11-format.orc";
+  std::unique_ptr<orc::Reader> reader =
+    orc::createReader(orc::readLocalFile(filename.str()), opts);
+
+  EXPECT_EQ(0, reader->getNumberOfStripeStatistics());  
+}
+
 }  // namespace
