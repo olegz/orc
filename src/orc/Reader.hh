@@ -654,6 +654,17 @@ namespace orc {
      * Get the name of the input stream.
      */
     virtual const std::string& getStreamName() const = 0;
+
+    /**
+     * Estimate memory usage by the Reader based on the file footer
+     *  - if all columns are read and no compression used,
+     *    the estimate is a lower bound
+     *  - if a subset of columns are read and/or compression is used,
+     *    the estimate can exceed the true memory needs
+     *    (the fewer columns read, the larger potential overestimation)
+     * @return memory estimate
+     */
+    virtual uint64_t memoryEstimate() = 0;
   };
 }
 

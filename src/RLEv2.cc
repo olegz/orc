@@ -177,11 +177,7 @@ RleDecoderV2::RleDecoderV2(std::unique_ptr<SeekableInputStream> input,
     base(0),
     curGap(0),
     patchMask(0),
-    actualGap(0),
-    unpacked(new DataBuffer<int64_t>("RleDecoderV2_unpacked",
-        0, inputStream->getMemoryPool())),
-    unpackedPatch(new DataBuffer<int64_t>("RleDecoderV2_unpackedPatch",
-        0, inputStream->getMemoryPool())) {}
+    actualGap(0) {}
 
 void RleDecoderV2::seek(PositionProvider& location) {
   // move the input stream
@@ -374,14 +370,14 @@ uint64_t RleDecoderV2::nextPatched(int64_t* const data,
     }
 
     // TODO: something more efficient than resize
-    unpacked->resize(runLength);
+    unpacked.resize(runLength);
     unpackedIdx = 0;
-    readLongs(unpacked->data(), 0, runLength, bitSize);
+    readLongs(unpacked.data(), 0, runLength, bitSize);
     // any remaining bits are thrown out
     resetReadLongs();
 
     // TODO: something more efficient than resize
-    unpackedPatch->resize(pl);
+    unpackedPatch.resize(pl);
     patchIdx = 0;
     // TODO: Skip corrupt?
     //    if ((patchBitSize + pgw) > 64 && !skipCorrupt) {
@@ -389,7 +385,7 @@ uint64_t RleDecoderV2::nextPatched(int64_t* const data,
       throw ParseError("Corrupt PATCHED_BASE encoded data (patchBitSize + pgw > 64)!");
     }
     uint32_t cfb = getClosestFixedBits(patchBitSize + pgw);
-    readLongs(unpackedPatch->data(), 0, pl, cfb);
+    readLongs(unpackedPatch.data(), 0, pl, cfb);
     // any remaining bits are thrown out
     resetReadLongs();
 
@@ -408,10 +404,10 @@ uint64_t RleDecoderV2::nextPatched(int64_t* const data,
     }
     if (static_cast<long>(unpackedIdx) != actualGap) {
       // no patching required. add base to unpacked value to get final value
-      data[pos] = base + (*unpacked)[unpackedIdx];
+      data[pos] = base + unpacked[unpackedIdx];
     } else {
       // extract the patch value
-      long patchedVal = (*unpacked)[unpackedIdx] | (curPatch << bitSize);
+      long patchedVal = unpacked[unpackedIdx] | (curPatch << bitSize);
 
       // add base to patched value
       data[pos] = base + patchedVal;
@@ -419,7 +415,7 @@ uint64_t RleDecoderV2::nextPatched(int64_t* const data,
       // increment the patch to point to next entry in patch list
       ++patchIdx;
 
-      if (patchIdx < unpackedPatch->size()) {
+      if (patchIdx < unpackedPatch.size()) {
         adjustGapAndPatch();
 
         // next gap is relative to the current gap

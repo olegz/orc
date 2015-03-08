@@ -846,7 +846,7 @@ namespace orc {
     // footer
     proto::Footer footer;
 //    std::vector<unsigned long> firstRowOfStripe;
-    std::unique_ptr<DataBuffer<unsigned long> > firstRowOfStripe;
+    std::unique_ptr<DataBuffer<uint64_t> > firstRowOfStripe;
     unsigned long numberOfStripes;
     std::unique_ptr<Type> schema;
 
@@ -940,6 +940,8 @@ namespace orc {
     void seekToRow(unsigned long rowNumber) override;
 
     MemoryPool* getMemoryPool() const ;
+
+    virtual uint64_t memoryEstimate() override;
   };
 
   InputStream::~InputStream() {
@@ -982,7 +984,7 @@ namespace orc {
     unsigned long rowTotal = 0;
 
     // firstRowOfStripe.resize(static_cast<size_t>(footer.stripes_size()));
-    firstRowOfStripe.reset(new DataBuffer<unsigned long>("Reader_firstRowOfStripe",
+    firstRowOfStripe.reset(new DataBuffer<uint64_t>("Reader_firstRowOfStripe",
         static_cast<size_t>(footer.stripes_size()), memoryPool));
 
     for(size_t i=0; i < static_cast<size_t>(footer.stripes_size()); ++i) {
@@ -1003,7 +1005,7 @@ namespace orc {
 
     schema = convertType(footer.types(0), footer);
     schema->assignIds(0);
-    previousRow = (std::numeric_limits<unsigned long>::max)();
+    previousRow = (std::numeric_limits<uint64_t>::max)();
 
     selectedColumns.assign(static_cast<size_t>(footer.types_size()), false);
 
@@ -1281,6 +1283,72 @@ namespace orc {
     }
   }
 
+  uint64_t ReaderImpl::memoryEstimate() {
+    // Memory is freed after reading footer, metadata, and each stripe.
+    // Pick the max size needed.
+    uint64_t memory = postscript.footerlength();
+    if (memory < postscript.metadatalength()) {
+      memory =  postscript.metadatalength();
+    }
+
+    uint64_t stripe ;
+    for (int i=0; i < footer.stripes_size(); i++) {
+      stripe = footer.stripes(i).datalength();
+      /* ReaderImpl currently does not read stripe indices.
+       * When we add index support, replace the above line with the following:
+       * stripe = footer.stripes(i).datalength() + footer.stripes(i).indexlength();
+       */
+      if (stripe > memory) {
+        memory = stripe;
+      }
+    }
+
+    // Account for firstRowOfStripe.
+    memory += firstRowOfStripe->capacity() * sizeof(uint64_t);
+
+    // The decompressor needs a buffer for each stream
+    if (compression != CompressionKind_NONE) {
+      for (unsigned int i=0; i < schema->getSubtypeCount(); i++) {
+        if (selectedColumns[i+1]) {
+          memory += blockSize ;
+          switch (static_cast<unsigned int>(schema->getSubtype(i).getKind())) {
+          case INT:
+          case LONG:
+          case SHORT:
+          case FLOAT:
+          case DOUBLE:
+          case BOOLEAN:
+          case BYTE:
+          case DATE:
+          case LIST:
+          case MAP:
+          case UNION: {
+            memory += 2*blockSize ;
+            break;
+          }
+          case CHAR:
+          case STRING:
+          case VARCHAR:
+          case BINARY:
+          case DECIMAL:
+          case TIMESTAMP: {
+            memory += 3*blockSize ;
+            break;
+          }
+          case STRUCT: {
+            memory += blockSize ;
+            break;
+          }
+          default:
+            break;
+          }
+        }
+      }
+    }
+
+    return memory ;
+  }
+
 
   class StripeStreamsImpl: public StripeStreams {
   private:
@@ -1370,6 +1438,11 @@ namespace orc {
                                     *(stream.get()));
 
     std::cout << "Rebuilding the reader" << std::endl;
+
+    // Do not remove the following line!
+    // Deleting the old reader before building a new one
+    // halves the amount of memory used by column readers.
+    reader.reset();
     reader = buildReader(*(schema.get()), stripeStreams, memoryPool);
   }
 

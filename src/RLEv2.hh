@@ -53,9 +53,9 @@ private:
 
   // Used by PATCHED_BASE
   void adjustGapAndPatch() {
-    curGap = static_cast<unsigned long>((*unpackedPatch)[patchIdx]) >>
+    curGap = static_cast<unsigned long>(unpackedPatch[patchIdx]) >>
       patchBitSize;
-    curPatch = (*unpackedPatch)[patchIdx] & patchMask;
+    curPatch = unpackedPatch[patchIdx] & patchMask;
     actualGap = 0;
 
     // special case: gap is >255 then patch value will be 0.
@@ -63,9 +63,9 @@ private:
     while (curGap == 255 && curPatch == 0) {
       actualGap += 255;
       ++patchIdx;
-      curGap = static_cast<unsigned long>((*unpackedPatch)[patchIdx]) >>
+      curGap = static_cast<unsigned long>(unpackedPatch[patchIdx]) >>
         patchBitSize;
-      curPatch = (*unpackedPatch)[patchIdx] & patchMask;
+      curPatch = unpackedPatch[patchIdx] & patchMask;
     }
     // add the left over gap
     actualGap += curGap;
@@ -121,11 +121,8 @@ private:
   long patchMask; // Used by PATCHED_BASE
   long actualGap; // Used by PATCHED_BASE
   // TODO: Allow allocator for buffer.
-//  std::vector<int64_t> unpacked; // Used by PATCHED_BASE
-//  std::vector<int64_t> unpackedPatch; // Used by PATCHED_BASE
-  std::unique_ptr<DataBuffer<int64_t> > unpacked; // Used by PATCHED_BASE
-  std::unique_ptr<DataBuffer<int64_t> > unpackedPatch; // Used by PATCHED_BASE
-
+  std::vector<int64_t> unpacked; // Used by PATCHED_BASE
+  std::vector<int64_t> unpackedPatch; // Used by PATCHED_BASE
 };
 }  // namespace orc
 

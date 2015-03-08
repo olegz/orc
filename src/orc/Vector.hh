@@ -121,7 +121,7 @@ namespace orc {
     uint64_t capacity() { return _capacity; }
     T& operator[](uint64_t i) { return buf[i]; }
 
-    void reserve(uint64_t size){
+    void resize(uint64_t size){
       if (size > _capacity) {  // re-allocate memory only if required
         if (buf) {
           T* buf_old = buf;
@@ -138,11 +138,12 @@ namespace orc {
         totalMemory += sizeof(T)*_capacity ;
         if (totalMemory > maxMemory ) { maxMemory = totalMemory; }
       }
-    }
-
-    void resize(uint64_t size){
-      reserve(size);
       _size = size ;
+
+      std::cout<< "Resized " << _name
+          << " to capacity " << sizeof(T)*_capacity
+          << "; total memory: " << totalMemory
+          << "; max memory: " << maxMemory << std::endl;
     }
 
     DataBuffer(std::string name, uint64_t size = 0, MemoryPool* pool = nullptr) :
@@ -158,13 +159,12 @@ namespace orc {
         memoryPool = createDefaultMemoryPool().release();
         privateMemoryPool.reset(memoryPool);
       }
+
+      std::cout<< "[CREATED] " << _name << std::endl;
+
       if (size > 0) {
         resize(size);
       }
-      std::cout<< "Created buffer " << _name
-          << " of size " << sizeof(T)*_capacity
-          << "; total memory: " << totalMemory
-          << "; max memory: " << maxMemory << std::endl;
     }
 
     virtual ~DataBuffer(){
@@ -172,7 +172,7 @@ namespace orc {
         memoryPool->free(buf);
         totalMemory -= sizeof(T)*_capacity ;
       }
-      std::cout<< "Deleted buffer " << _name
+      std::cout<< "[DELETED] " << _name
           << " of size " << sizeof(T)*_capacity
           << "; total memory: " << totalMemory
           << "; max memory: " << maxMemory << std::endl;
