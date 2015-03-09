@@ -31,7 +31,7 @@ int main(int argc, char* argv[]) {
 
   orc::ReaderOptions opts;
   std::list<int> cols;
-  cols.push_back(1);
+  cols.push_back(0);
   opts.include(cols);
 
   std::unique_ptr<orc::Reader> reader;
@@ -107,14 +107,10 @@ int main(int argc, char* argv[]) {
   while (reader->next(*batch)) {
     batches += 1;
     rows += batch->numElements;
-    std::cout << "Read batch " << batches << std::endl;
   }
   std::cout << "Rows: " << rows << std::endl;
   std::cout << "Batches: " << batches << std::endl;
 
-
-  std::cout << "Memory estimate (w/o batches): " << reader->memoryEstimate() << std::endl;
-  std::cout << "Memory estimate used by the batch: " << memory << std::endl;
   std::cout << "Total memory estimate: " << memory+reader->memoryEstimate() << std::endl;
 
   return 0;

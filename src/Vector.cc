@@ -25,13 +25,10 @@
 
 namespace orc {
 
-  uint64_t totalMemory = 0;
-  uint64_t maxMemory = 0;
-
   ColumnVectorBatch::ColumnVectorBatch(uint64_t cap, MemoryPool* pool
                        ):  capacity(cap),
                            numElements(0),
-                           notNull("ColumnVectorBatch_notNull", cap,pool),
+                           notNull(cap, pool),
                            hasNulls(false),
                            memoryPool(pool) {}
 
@@ -46,8 +43,7 @@ namespace orc {
     }
   }
 
-  ColumnVectorBatch::ColumnVectorBatch(const ColumnVectorBatch&):
-        notNull("ColumnVectorBatch_notNull") {
+  ColumnVectorBatch::ColumnVectorBatch(const ColumnVectorBatch&) {
     throw NotImplementedYet("should not call");
   }
 
@@ -57,7 +53,7 @@ namespace orc {
 
   LongVectorBatch::LongVectorBatch(uint64_t capacity, MemoryPool* pool
                      ): ColumnVectorBatch(capacity, pool),
-                        data("LongVectorBatch_data", capacity, pool) {
+                        data(capacity, pool) {
     // PASS
   }
 
@@ -80,7 +76,7 @@ namespace orc {
 
   DoubleVectorBatch::DoubleVectorBatch(uint64_t capacity, MemoryPool* pool
                    ): ColumnVectorBatch(capacity, pool),
-                       data("DoubleVectorBatch_data", capacity, pool) {
+                       data(capacity, pool) {
     // PASS
   }
 
@@ -103,8 +99,8 @@ namespace orc {
 
   StringVectorBatch::StringVectorBatch(uint64_t capacity, MemoryPool* pool
                ): ColumnVectorBatch(capacity, pool),
-                   data("StringVectorBatch_data", capacity, pool),
-                   length("StringVectorBatch_length", capacity, pool) {
+                   data(capacity, pool),
+                   length(capacity, pool) {
     // PASS
   }
 
@@ -155,7 +151,7 @@ namespace orc {
 
   ListVectorBatch::ListVectorBatch(uint64_t cap, MemoryPool* pool
                    ): ColumnVectorBatch(cap, pool),
-                   offsets("ListVectorBatch_offsets", cap+1, pool) {
+                   offsets(cap+1, pool) {
     // PASS
   }
 
@@ -179,7 +175,7 @@ namespace orc {
 
   MapVectorBatch::MapVectorBatch(uint64_t cap, MemoryPool* pool
                  ): ColumnVectorBatch(cap, pool),
-                     offsets("MapVectorBatch_offsets", cap+1, pool) {
+                     offsets(cap+1, pool) {
     // PASS
   }
 
@@ -204,8 +200,8 @@ namespace orc {
 
   Decimal64VectorBatch::Decimal64VectorBatch(uint64_t cap, MemoryPool* pool
                  ): ColumnVectorBatch(cap, pool),
-                     values("Decimal64VectorBatch_values", cap, pool),
-                     readScales(new DataBuffer<int64_t>("Decimal64VectorBatch_readScales", cap, pool)) {
+                     values(cap, pool),
+                     readScales(new DataBuffer<int64_t>(cap, pool)) {
     // PASS
   }
 
@@ -230,8 +226,8 @@ namespace orc {
 
   Decimal128VectorBatch::Decimal128VectorBatch(uint64_t cap, MemoryPool* pool
                ): ColumnVectorBatch(cap, pool),
-                   values("Decimal128VectorBatch_values", cap, pool),
-                   readScales(new DataBuffer<int64_t>("Decimal128VectorBatch_readScales", cap, pool)) {
+                   values(cap, pool),
+                   readScales(new DataBuffer<int64_t>(cap, pool)) {
     // PASS
   }
 

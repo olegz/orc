@@ -965,7 +965,7 @@ namespace orc {
       throw ParseError("File size too small");
     }
 
-    DataBuffer<char> buffer("Reader_buffer", readSize, memoryPool);
+    DataBuffer<char> buffer(readSize, memoryPool);
     stream->read(buffer.data(), size - readSize, readSize);
     readPostscript(buffer.data(), readSize);
     readFooter(buffer.data(), readSize, size);
@@ -984,7 +984,7 @@ namespace orc {
     unsigned long rowTotal = 0;
 
     // firstRowOfStripe.resize(static_cast<size_t>(footer.stripes_size()));
-    firstRowOfStripe.reset(new DataBuffer<uint64_t>("Reader_firstRowOfStripe",
+    firstRowOfStripe.reset(new DataBuffer<uint64_t>(
         static_cast<size_t>(footer.stripes_size()), memoryPool));
 
     for(size_t i=0; i < static_cast<size_t>(footer.stripes_size()); ++i) {
@@ -1133,7 +1133,7 @@ namespace orc {
     // Look for the magic string at the end of the postscript.
     if (memcmp(buffer+readSize-1-postscriptLength, MAGIC.c_str(), MAGIC.length()) != 0) {
       // if there is no magic string at the end, check the beginning of the file
-      DataBuffer<char> frontBuffer("Reader_frontBuffer", MAGIC.length(), memoryPool);
+      DataBuffer<char> frontBuffer(MAGIC.length(), memoryPool);
       stream->read(frontBuffer.data(), 0, MAGIC.length());
       if (memcmp(frontBuffer.data(), MAGIC.c_str(), MAGIC.length()) != 0) {
         throw ParseError("Not an ORC file");
@@ -1219,7 +1219,7 @@ namespace orc {
       // Read the rest of the footer
       unsigned long extra = tailSize - readSize;
 
-      extraBuffer.reset(new DataBuffer<char>("Reader_extraBuffer", footerSize, memoryPool));
+      extraBuffer.reset(new DataBuffer<char>(footerSize, memoryPool));
       stream->read(extraBuffer->data(), fileLength - tailSize, extra);
       memcpy(extraBuffer->data()+extra,buffer,readSize-1-postscriptLength);
       pBuffer = extraBuffer->data();
@@ -1430,8 +1430,6 @@ namespace orc {
   }
 
   void ReaderImpl::startNextStripe() {
-    std::cout << "Reading the next stripe" << std::endl;
-
     currentStripeInfo = footer.stripes(static_cast<int>(currentStripe));
     currentStripeFooter = getStripeFooter(currentStripeInfo);
     rowsInCurrentStripe = currentStripeInfo.numberofrows();
@@ -1439,11 +1437,8 @@ namespace orc {
                                     currentStripeInfo.offset(),
                                     *(stream.get()));
 
-    std::cout << "Rebuilding the reader" << std::endl;
-
     // Do not remove the following line!
-    // Deleting the old reader before building a new one
-    // halves the amount of memory used by column readers.
+    // It halves the amount of memory used by column readers.
     reader.reset();
     reader = buildReader(*(schema.get()), stripeStreams, memoryPool);
   }

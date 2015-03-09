@@ -302,8 +302,8 @@ namespace orc {
 
 //    std::vector<int64_t> seconds(rowBatch.capacity);
 //    std::vector<int64_t> nanoseconds(rowBatch.capacity);
-    DataBuffer<int64_t> seconds("TimestampColumnReader_seconds", rowBatch.capacity, memoryPool);
-    DataBuffer<int64_t> nanoseconds("TimestampColumnReader_nanoseconds", rowBatch.capacity, memoryPool);
+    DataBuffer<int64_t> seconds(rowBatch.capacity, memoryPool);
+    DataBuffer<int64_t> nanoseconds(rowBatch.capacity, memoryPool);
 
     rle->next(seconds.data(),
               numValues, rowBatch.hasNulls ? rowBatch.notNull.data() : 0);
