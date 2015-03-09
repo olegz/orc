@@ -461,10 +461,8 @@ namespace orc {
 
   class StringDictionaryColumnReader: public ColumnReader {
   private:
-//    std::vector<char> dictionaryBlob;
-//    std::vector<int64_t> dictionaryOffset;
-    std::unique_ptr<DataBuffer<char> > dictionaryBlob;
-    std::unique_ptr<DataBuffer<int64_t> > dictionaryOffset;
+    std::vector<char> dictionaryBlob;
+    std::vector<int64_t> dictionaryOffset;
     std::unique_ptr<RleDecoder> rle;
     unsigned int dictionaryCount;
 
@@ -495,18 +493,18 @@ namespace orc {
       createRleDecoder(stripe.getStream(columnId,
                                         proto::Stream_Kind_LENGTH),
                        false, rleVersion);
-    dictionaryOffset.reset(new DataBuffer<int64_t>("StringDictionaryColumnReader_dictionaryOffset", dictionaryCount+1, memoryPool));
-    int64_t* lengthArray = dictionaryOffset->data();
+    dictionaryOffset.resize(dictionaryCount+1);
+    int64_t* lengthArray = dictionaryOffset.data();
     lengthDecoder->next(lengthArray + 1, dictionaryCount, 0);
     lengthArray[0] = 0;
     for(unsigned int i=1; i < dictionaryCount + 1; ++i) {
       lengthArray[i] += lengthArray[i-1];
     }
     long blobSize = lengthArray[dictionaryCount];
-    dictionaryBlob.reset(new DataBuffer<char>("StringDictionaryColumnReader_dictionaryBlob", static_cast<unsigned long>(blobSize), memoryPool));
+    dictionaryBlob.resize(static_cast<unsigned long>(blobSize));
     std::unique_ptr<SeekableInputStream> blobStream =
       stripe.getStream(columnId, proto::Stream_Kind_DICTIONARY_DATA);
-    readFully(dictionaryBlob->data(), blobSize, blobStream.get());
+    readFully(dictionaryBlob.data(), blobSize, blobStream.get());
   }
 
   StringDictionaryColumnReader::~StringDictionaryColumnReader() {
@@ -526,8 +524,8 @@ namespace orc {
     // update the notNull from the parent class
     notNull = rowBatch.hasNulls ? rowBatch.notNull.data() : 0;
     StringVectorBatch& byteBatch = dynamic_cast<StringVectorBatch&>(rowBatch);
-    char *blob = dictionaryBlob->data();
-    int64_t *dictionaryOffsets = dictionaryOffset->data();
+    char *blob = dictionaryBlob.data();
+    int64_t *dictionaryOffsets = dictionaryOffset.data();
     char **outputStarts = byteBatch.data.data();
     int64_t *outputLengths = byteBatch.length.data();
     rle->next(outputLengths, numValues, notNull);
@@ -552,8 +550,7 @@ namespace orc {
 
   class StringDirectColumnReader: public ColumnReader {
   private:
-//    std::vector<char> blobBuffer;
-    std::unique_ptr<DataBuffer<char> > blobBuffer;
+    std::vector<char> blobBuffer;
     std::unique_ptr<RleDecoder> lengthRle;
     std::unique_ptr<SeekableInputStream> blobStream;
     const char *lastBuffer;
@@ -665,10 +662,10 @@ namespace orc {
     // Load data from the blob stream into our buffer until we have enough
     // to get the rest directly out of the stream's buffer.
     size_t bytesBuffered = 0;
-    blobBuffer.reset(new DataBuffer<char>("StringDirectColumnReader_blobBuffer", totalLength, memoryPool));
-    char *ptr= blobBuffer->data();
+    blobBuffer.resize(totalLength);
+    char *ptr= blobBuffer.data();
     while (bytesBuffered + lastBufferLength < totalLength) {
-      blobBuffer->resize(bytesBuffered + lastBufferLength);
+      blobBuffer.resize(bytesBuffered + lastBufferLength);
       memcpy(ptr + bytesBuffered, lastBuffer, lastBufferLength);
       bytesBuffered += lastBufferLength;
       const void* readBuffer;
@@ -683,7 +680,7 @@ namespace orc {
     // Set up the start pointers for the ones that will come out of the buffer.
     size_t filledSlots = 0;
     size_t usedBytes = 0;
-    ptr = blobBuffer->data();
+    ptr = blobBuffer.data();
     if (notNull) {
       while (filledSlots < numValues &&
              (usedBytes + static_cast<size_t>(lengthPtr[filledSlots]) <=
@@ -708,8 +705,8 @@ namespace orc {
     if (usedBytes < bytesBuffered) {
       size_t moreBytes = static_cast<size_t>(lengthPtr[filledSlots]) -
         (bytesBuffered - usedBytes);
-      blobBuffer->resize(bytesBuffered + moreBytes);
-      ptr = blobBuffer->data();
+      blobBuffer.resize(bytesBuffered + moreBytes);
+      ptr = blobBuffer.data();
       memcpy(ptr + bytesBuffered, lastBuffer, moreBytes);
       lastBuffer += moreBytes;
       lastBufferLength -= moreBytes;

@@ -1310,8 +1310,11 @@ namespace orc {
     if (compression != CompressionKind_NONE) {
       for (unsigned int i=0; i < schema->getSubtypeCount(); i++) {
         if (selectedColumns[i+1]) {
-          memory += blockSize ;
           switch (static_cast<unsigned int>(schema->getSubtype(i).getKind())) {
+          case STRUCT: {
+            memory += blockSize ;
+            break;
+          }
           case INT:
           case LONG:
           case SHORT:
@@ -1326,17 +1329,16 @@ namespace orc {
             memory += 2*blockSize ;
             break;
           }
-          case CHAR:
-          case STRING:
-          case VARCHAR:
           case BINARY:
           case DECIMAL:
           case TIMESTAMP: {
             memory += 3*blockSize ;
             break;
           }
-          case STRUCT: {
-            memory += blockSize ;
+          case CHAR:
+          case STRING:
+          case VARCHAR: {
+            memory += 4*blockSize ;
             break;
           }
           default:
