@@ -590,7 +590,7 @@ namespace orc {
     epochTm.tm_hour = 0;
     epochTm.tm_mday = 1;
     epochTm.tm_mon = 0;
-    epochTm.tm_year = 115;
+    epochTm.tm_year = 70;
     epochTm.tm_isdst = 0;
     epoch = mktime(&epochTm);
   }
