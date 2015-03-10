@@ -313,15 +313,16 @@ namespace orc {
     // Construct the values
     int64_t* pStamp = dynamic_cast<LongVectorBatch&>(rowBatch).data.data();
     int zeroes = 0;
-    int64_t value = 0;
+    int64_t nanosec = 0;
     for(unsigned int i=0; i<rowBatch.capacity; i++) {
-      value =  nanoseconds[i] >> 3 ;
+      nanosec =  nanoseconds[i] >> 3 ;
       zeroes = nanoseconds[i] & 0x7 ;
       while(zeroes>=0) {
-        value *=10 ;
+        nanosec *=10 ;
         zeroes--;
       }
-      pStamp[i] = seconds[i]*1000000000 + value;
+      pStamp[i] =  seconds[i]*1000000000 + nanosec // ns since 1/1/2015 (ORC)
+          + 1420070400000000000; // ns between 1/1/1970 and 1/1/2015
     }
   }
 
