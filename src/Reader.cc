@@ -946,7 +946,7 @@ namespace orc {
     
     bool hasCorrectStatistics() const override;
 
-    virtual uint64_t memoryEstimate() override;
+    virtual uint64_t memoryEstimate(int stripeIx = -1) override;
   };
 
   InputStream::~InputStream() {
@@ -1301,7 +1301,7 @@ namespace orc {
     numberOfStripeStatistics = static_cast<unsigned long>(metadata.stripestats_size());
   }
 
-  uint64_t ReaderImpl::memoryEstimate() {
+  uint64_t ReaderImpl::memoryEstimate(int stripeIx) {
     // Memory is freed after reading footer, metadata, and each stripe.
     // Pick the max size needed.
     uint64_t memory = postscript.footerlength();
@@ -1309,15 +1309,22 @@ namespace orc {
       memory =  postscript.metadatalength();
     }
 
+    /* ReaderImpl currently does not read stripe indices.
+     * When we add index support, memory per stripe is:
+     * stripe = footer.stripes(i).datalength() + footer.stripes(i).indexlength();
+     */
     uint64_t stripe ;
-    for (int i=0; i < footer.stripes_size(); i++) {
-      stripe = footer.stripes(i).datalength();
-      /* ReaderImpl currently does not read stripe indices.
-       * When we add index support, replace the above line with the following:
-       * stripe = footer.stripes(i).datalength() + footer.stripes(i).indexlength();
-       */
+    if (stripeIx >= 0 && stripeIx < footer.stripes_size()) {
+      stripe = footer.stripes(stripeIx).datalength();
       if (stripe > memory) {
         memory = stripe;
+      }
+    } else {
+      for (int i=0; i < footer.stripes_size(); i++) {
+        stripe = footer.stripes(i).datalength();
+        if (stripe > memory) {
+          memory = stripe;
+        }
       }
     }
 

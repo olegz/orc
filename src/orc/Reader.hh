@@ -667,11 +667,14 @@ namespace orc {
     virtual bool hasCorrectStatistics() const = 0;
 
     /**
-     * Estimate an upper bound on memory usage by the Reader based on the file footer
-     * (the bound is less tight the fewer columns are read)
+     * Estimate an upper bound on heap memory allocation by the Reader
+     * based on the information in the file footer.
+     * the bound is less tight the fewer columns are read.
+     * @param stripeIx index of the stripe to be read (if not specified,
+     * all stripes are considered).
      * @return memory estimate
      */
-    virtual uint64_t memoryEstimate() = 0;
+    virtual uint64_t memoryEstimate(int stripeIx = -1) = 0;
   };
 }
 
