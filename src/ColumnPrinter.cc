@@ -26,8 +26,9 @@
 
 #ifdef _WIN32
 // TODO: put this adapter somewhere.
-#define localtime_r(timeValue, tmValue) _localtime64_s((tmValue), (timeValue))
-#define gmtime_r(timeValue, tmValue) _gmtime64_s((tmValue), (timeValue))
+// NOTES: in Windows gmtime_s does not works when 
+#define localtime_r(timeValue, tmValue) localtime_s((tmValue), (timeValue))
+#define gmtime_r(timeValue, tmValue) gmtime_s((tmValue), (timeValue))
 #endif
 
 namespace orc {
