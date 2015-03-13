@@ -120,12 +120,12 @@ namespace orc {
       if (size > _capacity) {  // re-allocate memory only if required
         if (buf) {
           T* buf_old = buf;
-          buf = (T*)memoryPool->malloc(sizeof(T)*size);
+          buf = reinterpret_cast<T*>(memoryPool->malloc(sizeof(T)*size));
           std::memcpy(buf, buf_old, sizeof(T)*_size);
           std::memset(buf+_size, 0, sizeof(T)*(size-_size));
           memoryPool->free(buf_old);
         } else {
-          buf = (T*)memoryPool->malloc(sizeof(T)*size);
+          buf = reinterpret_cast<T*>(memoryPool->malloc(sizeof(T)*size));
           std::memset(buf, 0, sizeof(T)*size);
         }
         _capacity = size;

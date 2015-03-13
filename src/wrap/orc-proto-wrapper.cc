@@ -15,6 +15,7 @@
 #ifdef __clang__
   #pragma clang diagnostic ignored "-Wpadded"
   #pragma clang diagnostic ignored "-Wsign-conversion"
+  #pragma clang diagnostic ignored "-Wsign-compare"
   #pragma clang diagnostic ignored "-Wweak-vtables"
   #pragma clang diagnostic ignored "-Wshorten-64-to-32"
   #pragma clang diagnostic ignored "-Wglobal-constructors"
