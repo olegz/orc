@@ -20,6 +20,8 @@
 #include "Compression.hh"
 #include "Exceptions.hh"
 
+#include <algorithm>
+
 #define MIN_REPEAT 3
 
 namespace orc {

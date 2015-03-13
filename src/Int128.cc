@@ -18,6 +18,7 @@
 
 #include "orc/Int128.hh"
 
+#include <algorithm>
 #include <iomanip>
 #include <iostream>
 #include <sstream>

@@ -207,6 +207,10 @@ namespace orc {
     printer->reset(batch);
     for(uint64_t i=0; i < batch.numElements; ++i) {
       buffer.str("");
+#ifdef _WIN32
+      // gmtime won't work for negative value
+      if (batch.data[i] < 0) continue;
+#endif
       printer->printRow(i);
       EXPECT_EQ(expected[i], buffer.str()) << "for i = " << i;
     }
@@ -217,6 +221,10 @@ namespace orc {
     printer->reset(batch);
     for(uint64_t i=0; i < batch.numElements; ++i) {
       buffer.str("");
+#ifdef _WIN32
+      // gmtime won't work for negative value
+      if (batch.data[i] < 0) continue;
+#endif
       printer->printRow(i);
       if (i % 2) {
         EXPECT_EQ(expected[i], buffer.str()) << "for i = " << i;

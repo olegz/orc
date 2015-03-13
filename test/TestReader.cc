@@ -142,6 +142,85 @@ namespace orc {
     EXPECT_EQ(GetParam().rowCount, reader->getRowNumber());
   }
 
+#ifdef _WIN32
+  INSTANTIATE_TEST_CASE_P(TestReader, MatchTest,
+    testing::Values(OrcFileDescription("demo-11-none.orc",
+                                       "demo-12-zlib.jsn.gz",
+                                       ("struct<_col0:int,_col1:string,"
+                                        "_col2:string,_col3:string,_col4:int,"
+                                        "_col5:string,_col6:int,_col7:int,"
+                                        "_col8:int>"),
+                                       1920800,
+                                       5069718,
+                                       385,
+                                       CompressionKind_NONE,
+                                       262144,
+                                       10000),
+                    OrcFileDescription("demo-11-zlib.orc",
+                                       "demo-12-zlib.jsn.gz",
+                                       ("struct<_col0:int,_col1:string,"
+                                        "_col2:string,_col3:string,_col4:int,"
+                                        "_col5:string,_col6:int,_col7:int,"
+                                        "_col8:int>"),
+                                       1920800,
+                                       396823,
+                                       385,
+                                       CompressionKind_ZLIB,
+                                       262144,
+                                       10000),
+                    OrcFileDescription("demo-12-zlib.orc",
+                                       "demo-12-zlib.jsn.gz",
+                                       ("struct<_col0:int,_col1:string,"
+                                        "_col2:string,_col3:string,_col4:int,"
+                                        "_col5:string,_col6:int,_col7:int,"
+                                        "_col8:int>"),
+                                       1920800,
+                                       45592,
+                                       1,
+                                       CompressionKind_ZLIB,
+                                       262144,
+                                       10000),
+                    OrcFileDescription("orc-file-11-format.orc",
+                                       "orc-file-11-format.jsn.gz",
+                                       ("struct<boolean1:boolean,"
+                                        "byte1:tinyint,short1:smallint,"
+                                        "int1:int,long1:bigint,float1:float,"
+                                        "double1:double,bytes1:binary,"
+                                        "string1:string,middle:struct<list:"
+                                        "array<struct<int1:int,"
+                                        "string1:string>>>,list:array<struct"
+                                        "<int1:int,string1:string>>,map:map"
+                                        "<string,struct<int1:int,string1:"
+                                        "string>>,ts:timestamp,"
+                                        "decimal1:decimal(0,0)>"),
+                                       7500,
+                                       372542,
+                                       2,
+                                       CompressionKind_NONE,
+                                       262144,
+                                       10000),
+                    OrcFileDescription("orc_split_elim.orc",
+                                       "orc_split_elim.jsn.gz",
+                                       ("struct<userid:bigint,string1:string,"
+                                        "subtype:double,decimal1:decimal(0,0),"
+                                        "ts:timestamp>"),
+                                       25000,
+                                       245568,
+                                       5,
+                                       CompressionKind_NONE,
+                                       262144,
+                                       10000),
+                    OrcFileDescription("decimal.orc",
+                                       "decimal.jsn.gz",
+                                       "struct<_col0:decimal(10,5)>",
+                                       6000,
+                                       16186,
+                                       1,
+                                       CompressionKind_NONE,
+                                       262144,
+                                       10000)
+                    ));
+#else
   INSTANTIATE_TEST_CASE_P(TestReader, MatchTest,
     testing::Values(OrcFileDescription("demo-11-none.orc",
                                        "demo-12-zlib.jsn.gz",
@@ -230,7 +309,7 @@ namespace orc {
                                        262144,
                                        10000)
                     ));
-
+#endif // _WIN32
   TEST(Reader, columnSelectionTest) {
     ReaderOptions opts;
     int myints[] = {1,3,5,7,9};
