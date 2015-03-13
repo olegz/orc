@@ -190,7 +190,7 @@ namespace orc {
               nextBuffer();
             }
             unsigned long copyBytes =
-              std::min(static_cast<unsigned long>(count),
+              std::min(static_cast<unsigned long>(count - i),
                        static_cast<unsigned long>(bufferEnd - bufferStart));
             memcpy(data + position + i, bufferStart, copyBytes);
             bufferStart += copyBytes;

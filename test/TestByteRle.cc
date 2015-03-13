@@ -40,6 +40,23 @@ TEST(ByteRle, simpleTest) {
   EXPECT_EQ(0x46, data[102]);
 }
 
+TEST(ByteRle, literalCrossBuffer) {
+  std::unique_ptr<ByteRleDecoder> rle =
+      createByteRleDecoder(
+        std::unique_ptr<SeekableInputStream>
+        (new SeekableArrayInputStream({0xf6, 0x00, 0x01, 0x02, 0x03, 0x04,
+              0x05, 0x06, 0x07, 0x08, 0x09, 0x07, 0x10}, 6)));
+  std::vector<char> data(20);
+  rle->next(data.data(), data.size(), nullptr);
+
+  for(size_t i = 0; i < 10; ++i) {
+    EXPECT_EQ(i, data[i]) << "Output wrong at " << i;
+  }
+  for(size_t i = 10; i < 20; ++i) {
+    EXPECT_EQ(16, data[i]) << "Output wrong at " << i;
+  }
+}
+
 TEST(ByteRle, skipLiteralBufferUnderflowTest) {
   std::unique_ptr<ByteRleDecoder> rle =
       createByteRleDecoder(
