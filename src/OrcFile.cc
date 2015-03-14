@@ -16,6 +16,7 @@
  * limitations under the License.
  */
 
+#include "../hdfsaccess/hdfs.h"
 #include "orc/OrcFile.hh"
 #include "Exceptions.hh"
 
@@ -37,7 +38,7 @@ namespace orc {
   private:
     std::string filename ;
     int file;
-    off_t totalLength;
+    int64_t totalLength;
 
   public:
     FileInputStream(std::string _filename) {
@@ -55,12 +56,12 @@ namespace orc {
 
     ~FileInputStream();
 
-    long getLength() const {
+    int64_t getLength() const {
       return totalLength;
     }
 
-    void read(void* buffer, unsigned long offset,
-              unsigned long length) override {
+    void read(void* buffer, uint64_t offset,
+              uint64_t length) override {
       ssize_t bytesRead = pread(file, buffer, length,
                                 static_cast<off_t>(offset));
       if (bytesRead == -1) {
@@ -80,7 +81,83 @@ namespace orc {
     close(file);
   }
 
+  class HdfsFileInputStream : public InputStream {
+  private:
+    std::string filename;
+    int64_t totalLength;
+    hdfsFS fs;
+    hdfsFileInfo* info;
+    hdfsFile file;
+
+  public:
+    HdfsFileInputStream(std::string _namenode, std::string _filename) {
+      filename = _filename;
+      struct hdfsBuilder* bld = hdfsNewBuilder();
+      hdfsBuilderSetNameNode(bld, _namenode.c_str());
+      hdfsBuilderSetForceNewInstance(bld);
+      fs = hdfsBuilderConnect(bld);
+      hdfsFreeBuilder(bld);
+      if (fs == nullptr) {
+        throw ParseError("Cannot connect to " + _namenode);
+      }
+      info = hdfsGetPathInfo(fs, _filename.c_str());
+      if (info == nullptr) {
+        throw ParseError("Cannot stats HDFS file " + _filename);
+      }
+      if (info->mKind == kObjectKindDirectory) {
+        throw ParseError("Cannot parse a directory " + _filename);
+      }
+      totalLength = info->mSize;
+      file = hdfsOpenFile(fs, _filename.c_str(), O_RDONLY, 0, 0, 0);
+      if (file == nullptr) {
+        throw ParseError("Cannot open file " + _filename);
+      }
+    }
+
+    ~HdfsFileInputStream() {
+      hdfsFreeFileInfo(info, 1);
+      hdfsCloseFile(fs, file);
+      hdfsDisconnect(fs);
+    }
+
+    int64_t getLength() const {
+      return totalLength;
+    }
+
+    const std::string& getName() const override {
+      return filename;
+    }
+
+    void read(void* buffer, uint64_t offset,
+              uint64_t length) override {
+      if (hdfsSeek(fs, file, offset) < 0) {
+        throw ParseError("Seek error on file " + filename);
+      }
+      tSize bytesRead = 0;
+      uint64_t total = 0;
+      while (total < length) {
+        bytesRead = hdfsRead(fs, file, static_cast<char*>(buffer) + total,
+                             length - total);
+        if (bytesRead == -1) {
+          throw ParseError("Bad read of " + filename);
+        }
+        total += bytesRead;
+      }
+      if (hdfsSeek(fs, file, offset) < 0) {
+        throw ParseError("Seek error on file " + filename);
+      }
+    }
+  };
+
   std::unique_ptr<InputStream> readLocalFile(const std::string& path) {
     return std::unique_ptr<InputStream>(new FileInputStream(path));
   }
+
+  std::unique_ptr<InputStream> readHdfsFile(
+      const std::string& namenode,
+      const std::string& path) {
+    return std::unique_ptr<InputStream>(
+        new HdfsFileInputStream(namenode, path));
+  }
+
 }
