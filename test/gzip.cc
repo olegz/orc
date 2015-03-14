@@ -56,7 +56,7 @@ namespace orc {
     // if the last read is done, read more
     if (stream.avail_in == 0 && stream.avail_out != 0) {
       stream.next_in = input;
-      stream.avail_in = static_cast<size_t>(fread(input, 1, sizeof(input),
+      stream.avail_in = static_cast<uInt>(fread(input, 1, sizeof(input),
                                                 file));
       if (ferror(file)) {
         throw std::runtime_error("failure reading " + filename);
