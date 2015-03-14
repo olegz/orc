@@ -39,7 +39,7 @@ namespace orc {
     /**
      * Get the total length of the file in bytes.
      */
-    virtual long getLength() const = 0;
+    virtual int64_t getLength() const = 0;
 
     /**
      * Read length bytes from the file starting at offset into
@@ -49,8 +49,8 @@ namespace orc {
      * @param offset the position in the file to read from
      * @param length the number of bytes toread
      */
-    virtual void read(void* buffer, unsigned long offset, 
-                      unsigned long length) = 0;
+    virtual void read(void* buffer, uint64_t offset,
+                      uint64_t length) = 0;
 
     /**
      * Get the name of the stream for error messages.
