@@ -37,7 +37,7 @@ namespace orc {
   private:
     std::string filename ;
     int file;
-    off_t totalLength;
+    int64_t totalLength;
 
   public:
     FileInputStream(std::string _filename) {
@@ -55,12 +55,12 @@ namespace orc {
 
     ~FileInputStream();
 
-    long getLength() const {
+    int64_t getLength() const {
       return totalLength;
     }
 
-    void read(void* buffer, unsigned long offset,
-              unsigned long length) override {
+    void read(void* buffer, uint64_t offset,
+              uint64_t length) override {
       ssize_t bytesRead = pread(file, buffer, length,
                                 static_cast<off_t>(offset));
       if (bytesRead == -1) {
