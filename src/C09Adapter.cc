@@ -16,17 +16,13 @@
 * limitations under the License.
 */
 
-#if __cplusplus < 201103L
+#include "orc/C09Adapter.hh"
+#include <sstream>
 
-  #include "orc/C09Adapter.hh"
-  #include <sstream>
-
-  long long std::stoll(std::string str)
-  {
-    long long val = 0;
-    stringstream ss ;
-    ss << str ;
-    ss >> val ;
-    return val;
-  }
-#endif // __cplusplus
+int64_t std::stoll(std::string str) {
+  long long val = 0;
+  stringstream ss ;
+  ss << str ;
+  ss >> val ;
+  return val;
+}

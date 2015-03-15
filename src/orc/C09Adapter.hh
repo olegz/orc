@@ -42,7 +42,7 @@
 
   namespace std {
     // A poor man's stoll that converts str to a long long int base 10
-    long long stoll(std::string str);
+    int64_t stoll(std::string str);
   } // namespace std
 
 
