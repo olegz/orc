@@ -98,11 +98,94 @@ namespace orc {
     }
   }
 
-  #pragma clang diagnostic ignored "-Wexit-time-destructors"
+  // Specializations for char
 
-  MemoryPool* getDefaultPool() {
-    static MemoryPoolImpl internal;
-    return &internal;
+  template <>
+  DataBuffer<char>::~DataBuffer(){
+    if (buf) {
+      memoryPool.free(reinterpret_cast<char*>(buf));
+    }
+  }
+
+  template <>
+  void DataBuffer<char>::resize(uint64_t newSize) {
+    reserve(newSize);
+    if (newSize > currentSize) {
+      memset(buf + currentSize, 0, newSize - currentSize);
+    }
+    currentSize = newSize;
+  }
+
+  // Specializations for char*
+
+  template <>
+  DataBuffer<char*>::~DataBuffer(){
+    if (buf) {
+      memoryPool.free(reinterpret_cast<char*>(buf));
+    }
+  }
+
+  template <>
+  void DataBuffer<char*>::resize(uint64_t newSize) {
+    reserve(newSize);
+    if (newSize > currentSize) {
+      memset(buf + currentSize, 0, (newSize - currentSize) * sizeof(char*));
+    }
+    currentSize = newSize;
+  }
+
+  // Specializations for double
+
+  template <>
+  DataBuffer<double>::~DataBuffer(){
+    if (buf) {
+      memoryPool.free(reinterpret_cast<char*>(buf));
+    }
+  }
+
+  template <>
+  void DataBuffer<double>::resize(uint64_t newSize) {
+    reserve(newSize);
+    if (newSize > currentSize) {
+      memset(buf + currentSize, 0, (newSize - currentSize) * sizeof(double));
+    }
+    currentSize = newSize;
+  }
+
+  // Specializations for int64_t
+
+  template <>
+  DataBuffer<int64_t>::~DataBuffer(){
+    if (buf) {
+      memoryPool.free(reinterpret_cast<char*>(buf));
+    }
+  }
+
+  template <>
+  void DataBuffer<int64_t>::resize(uint64_t newSize) {
+    reserve(newSize);
+    if (newSize > currentSize) {
+      memset(buf + currentSize, 0, (newSize - currentSize) * sizeof(int64_t));
+    }
+    currentSize = newSize;
+  }
+
+  // Specializations for uint64_t
+
+  template <>
+  DataBuffer<uint64_t>::~DataBuffer(){
+    if (buf) {
+      memoryPool.free(reinterpret_cast<char*>(buf));
+    }
+  }
+
+  template <>
+  void DataBuffer<uint64_t>::resize(uint64_t newSize) {
+    reserve(newSize);
+    if (newSize > currentSize) {
+      memset(buf + currentSize, 0, (newSize - currentSize) * sizeof(uint64_t));
+    }
+    currentSize = newSize;
   }
 
   #pragma clang diagnostic ignored "-Wweak-template-vtables"
@@ -114,4 +197,10 @@ namespace orc {
   template class DataBuffer<int64_t>;
   template class DataBuffer<uint64_t>;
 
+  #pragma clang diagnostic ignored "-Wexit-time-destructors"
+
+  MemoryPool* getDefaultPool() {
+    static MemoryPoolImpl internal;
+    return &internal;
+  }
 } // namespace orc
