@@ -677,7 +677,7 @@ namespace orc {
     virtual uint64_t memoryEstimate(int stripeIx = -1) = 0;
   };
 
-  static const uint64_t FILE_BLOCK_SIZE = 4*1024*1024 ;
+  static const unsigned long FILE_BLOCK_SIZE = 4*1024*1024 ;
 }
 
 #endif
