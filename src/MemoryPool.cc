@@ -89,7 +89,7 @@ namespace orc {
       if (buf) {
         T* buf_old = buf;
         buf = reinterpret_cast<T*>(memoryPool.malloc(sizeof(T) * newCapacity));
-        std::memcpy(buf, buf_old, sizeof(T) * currentSize);
+        memcpy(buf, buf_old, sizeof(T) * currentSize);
         memoryPool.free(reinterpret_cast<char*>(buf_old));
       } else {
         buf = reinterpret_cast<T*>(memoryPool.malloc(sizeof(T) * newCapacity));
@@ -188,7 +188,9 @@ namespace orc {
     currentSize = newSize;
   }
 
-  #pragma clang diagnostic ignored "-Wweak-template-vtables"
+  #ifdef __clang__
+    #pragma clang diagnostic ignored "-Wweak-template-vtables"
+  #endif
 
   template class DataBuffer<char>;
   template class DataBuffer<char*>;
@@ -197,7 +199,9 @@ namespace orc {
   template class DataBuffer<int64_t>;
   template class DataBuffer<uint64_t>;
 
-  #pragma clang diagnostic ignored "-Wexit-time-destructors"
+  #ifdef __clang__
+    #pragma clang diagnostic ignored "-Wexit-time-destructors"
+  #endif
 
   MemoryPool* getDefaultPool() {
     static MemoryPoolImpl internal;
