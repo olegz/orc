@@ -21,6 +21,7 @@
 
 #include <cstdlib>
 #include <iostream>
+#include <string.h>
 
 namespace orc {
 
