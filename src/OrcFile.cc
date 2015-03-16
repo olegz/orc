@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-#include "../hdfsaccess/hdfs.h"
+#include "hdfs.h"
 #include "orc/OrcFile.hh"
 #include "Exceptions.hh"
 
