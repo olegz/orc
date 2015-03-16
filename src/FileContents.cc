@@ -29,8 +29,6 @@ int main(int argc, char* argv[]) {
     std::cout << "Usage: file-contents <filename>\n";
     return 1;
   }
-  std::cout << std::nounitbuf;
-
   orc::ReaderOptions opts;
   std::list<int> cols;
   cols.push_back(0);
@@ -46,14 +44,18 @@ int main(int argc, char* argv[]) {
   }
 
   std::unique_ptr<orc::ColumnVectorBatch> batch = reader->createRowBatch(1000);
+  std::string line;
   std::unique_ptr<orc::ColumnPrinter> printer =
-    createColumnPrinter(std::cout, reader->getType());
+    createColumnPrinter(line, reader->getType());
 
   while (reader->next(*batch)) {
     printer->reset(*batch);
     for(unsigned long i=0; i < batch->numElements; ++i) {
+      line.clear();
       printer->printRow(i);
-      std::cout << "\n";
+      line += "\n";
+      const char* str = line.c_str();
+      fwrite(str, 1, strlen(str), stdout);
     }
   }
   return 0;

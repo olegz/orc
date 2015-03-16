@@ -21,9 +21,9 @@
 
 #include "orc/OrcFile.hh"
 
+#include <stdio.h>
 #include <string>
 #include <memory>
-#include <iostream>
 #include <string>
 #include <vector>
 
@@ -31,21 +31,20 @@ namespace orc {
 
   class ColumnPrinter {
   protected:
-    std::ostream& stream;
+    std::string &buffer;
     const Type& type;
     bool hasNulls ;
     const char* notNull;
 
   public:
-    ColumnPrinter(std::ostream&, const Type&);
+    ColumnPrinter(std::string&, const Type&);
     virtual ~ColumnPrinter();
     virtual void printRow(unsigned long rowId) = 0;
     // should be called once at the start of each batch of rows
     virtual void reset(const ColumnVectorBatch& batch);
   };
 
-  std::unique_ptr<ColumnPrinter> createColumnPrinter(std::ostream& stream,
+  std::unique_ptr<ColumnPrinter> createColumnPrinter(std::string&,
                                                      const Type& type);
 }
 #endif
-

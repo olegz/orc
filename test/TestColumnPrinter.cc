@@ -24,11 +24,12 @@
 namespace orc {
 
   TEST(TestColumnPrinter, BooleanColumnPrinter) {
-    std::stringstream buffer;
+    std::string line;
     std::unique_ptr<Type> type = createPrimitiveType(BOOLEAN);
     std::unique_ptr<ColumnPrinter> printer =
-      createColumnPrinter(buffer, *type);
+      createColumnPrinter(line, *type);
     LongVectorBatch batch(1024, *getDefaultPool());
+    const char *expected[] = {"true", "false", "true"};
     batch.numElements = 3;
     batch.hasNulls = false;
     batch.data[0] = 1;
@@ -36,11 +37,11 @@ namespace orc {
     batch.data[2] = 1;
     printer->reset(batch);
     for(uint64_t i=0; i < 3; ++i) {
+      line.clear();
       printer->printRow(i);
-      buffer << " ";
+      EXPECT_EQ(expected[i], line);
     }
-    EXPECT_EQ("true false true ", buffer.str());
-    buffer.str("");
+    const char *expected2[] = {"null", "null", "true", "false"};
     batch.numElements = 4;
     batch.data[3] = false;
     batch.hasNulls = true;
@@ -50,29 +51,28 @@ namespace orc {
     batch.notNull[3] = true;
     printer->reset(batch);
     for(uint64_t i=0; i < 4; ++i) {
+      line.clear();
       printer->printRow(i);
-      buffer << " ";
+      EXPECT_EQ(expected2[i], line);
     }
-    EXPECT_EQ("null null true false ", buffer.str());
   }
 
   TEST(TestColumnPrinter, LongColumnPrinter) {
-    std::stringstream buffer;
+    std::string line;
     std::unique_ptr<Type> type = createPrimitiveType(LONG);
-    std::unique_ptr<ColumnPrinter> printer =
-      createColumnPrinter(buffer, *type);
+    std::unique_ptr<ColumnPrinter> printer = createColumnPrinter(line, *type);
     LongVectorBatch batch(1024, *getDefaultPool());
     batch.numElements = 2;
     batch.hasNulls = false;
     batch.data[0] = 9223372036854775807LL;
     batch.data[1] = -9223372036854775807LL;
     printer->reset(batch);
+    const char *expected[] = {"9223372036854775807", "-9223372036854775807"};
     for(uint64_t i=0; i < 2; ++i) {
+      line.clear();
       printer->printRow(i);
-      buffer << " ";
+      EXPECT_EQ(expected[i], line);
     }
-    EXPECT_EQ("9223372036854775807 -9223372036854775807 ", buffer.str());
-    buffer.str("");
     batch.numElements = 3;
     batch.hasNulls = true;
     batch.data[0] = 127;
@@ -82,30 +82,31 @@ namespace orc {
     batch.notNull[1] = true;
     batch.notNull[2] = false;
     printer->reset(batch);
+    const char *expected2[] = {"127", "-127", "null"};
     for(uint64_t i=0; i < 3; ++i) {
+      line.clear();
       printer->printRow(i);
-      buffer << " ";
+      EXPECT_EQ(expected2[i], line);
     }
-    EXPECT_EQ("127 -127 null ", buffer.str());
   }
 
   TEST(TestColumnPrinter, DoubleColumnPrinter) {
-    std::stringstream buffer;
+    std::string line;
     std::unique_ptr<Type> type = createPrimitiveType(DOUBLE);
     std::unique_ptr<ColumnPrinter> printer =
-      createColumnPrinter(buffer, *type);
+      createColumnPrinter(line, *type);
     DoubleVectorBatch batch(1024, *getDefaultPool());
     batch.numElements = 2;
     batch.hasNulls = false;
     batch.data[0] = 1234.5;
     batch.data[1] = -1234.5;
     printer->reset(batch);
+    const char *expected[] = {"1234.5", "-1234.5"};
     for(uint64_t i=0; i < 2; ++i) {
+      line.clear();
       printer->printRow(i);
-      buffer << " ";
+      EXPECT_EQ(expected[i], line);
     }
-    EXPECT_EQ("1234.5 -1234.5 ", buffer.str());
-    buffer.str("");
     batch.numElements = 3;
     batch.hasNulls = true;
     batch.data[0] = 9999.125;
@@ -115,18 +116,18 @@ namespace orc {
     batch.notNull[1] = true;
     batch.notNull[2] = false;
     printer->reset(batch);
+    const char *expected2[] = {"9999.125", "-9999.125", "null"};
     for(uint64_t i=0; i < 3; ++i) {
+      line.clear();
       printer->printRow(i);
-      buffer << " ";
+      EXPECT_EQ(expected2[i], line);
     }
-    EXPECT_EQ("9999.125 -9999.125 null ", buffer.str());
   }
 
   TEST(TestColumnPrinter, TimestampColumnPrinter) {
-    std::stringstream buffer;
+    std::string line;
     std::unique_ptr<Type> type = createPrimitiveType(TIMESTAMP);
-    std::unique_ptr<ColumnPrinter> printer =
-      createColumnPrinter(buffer, *type);
+    std::unique_ptr<ColumnPrinter> printer = createColumnPrinter(line, *type);
     LongVectorBatch batch(1024, *getDefaultPool());
     batch.numElements = 12;
     batch.hasNulls = false;
@@ -156,9 +157,9 @@ namespace orc {
                               "\"2015-03-12 15:00:59.1\""};
     printer->reset(batch);
     for(uint64_t i=0; i < batch.numElements; ++i) {
-      buffer.str("");
+      line.clear();
       printer->printRow(i);
-      EXPECT_EQ(expected[i], buffer.str()) << "for i = " << i;
+      EXPECT_EQ(expected[i], line) << "for i = " << i;
     }
     batch.hasNulls = true;
     for(size_t i = 0; i < batch.numElements; ++i) {
@@ -166,21 +167,21 @@ namespace orc {
     }
     printer->reset(batch);
     for(uint64_t i=0; i < batch.numElements; ++i) {
-      buffer.str("");
+      line.clear();
       printer->printRow(i);
       if (i % 2) {
-        EXPECT_EQ(expected[i], buffer.str()) << "for i = " << i;
+        EXPECT_EQ(expected[i], line) << "for i = " << i;
       } else {
-        EXPECT_EQ("null", buffer.str()) << "for i = " << i;
+        EXPECT_EQ("null", line) << "for i = " << i;
       }
     }
   }
 
   TEST(TestColumnPrinter, DateColumnPrinter) {
-    std::stringstream buffer;
+    std::string line;
     std::unique_ptr<Type> type = createPrimitiveType(DATE);
     std::unique_ptr<ColumnPrinter> printer =
-      createColumnPrinter(buffer, *type);
+      createColumnPrinter(line, *type);
     LongVectorBatch batch(1024, *getDefaultPool());
     batch.numElements = 10;
     batch.hasNulls = false;
@@ -206,9 +207,9 @@ namespace orc {
                               "\"2003-08-11\""};
     printer->reset(batch);
     for(uint64_t i=0; i < batch.numElements; ++i) {
-      buffer.str("");
+      line.clear();
       printer->printRow(i);
-      EXPECT_EQ(expected[i], buffer.str()) << "for i = " << i;
+      EXPECT_EQ(expected[i], line) << "for i = " << i;
     }
     batch.hasNulls = true;
     for(size_t i = 0; i < batch.numElements; ++i) {
@@ -216,21 +217,21 @@ namespace orc {
     }
     printer->reset(batch);
     for(uint64_t i=0; i < batch.numElements; ++i) {
-      buffer.str("");
+      line.clear();
       printer->printRow(i);
       if (i % 2) {
-        EXPECT_EQ(expected[i], buffer.str()) << "for i = " << i;
+        EXPECT_EQ(expected[i], line) << "for i = " << i;
       } else {
-        EXPECT_EQ("null", buffer.str()) << "for i = " << i;
+        EXPECT_EQ("null", line) << "for i = " << i;
       }
     }
   }
 
   TEST(TestColumnPrinter, Decimal64ColumnPrinter) {
-    std::stringstream buffer;
+    std::string line;
     std::unique_ptr<Type> type = createDecimalType(16, 5);
     std::unique_ptr<ColumnPrinter> printer =
-      createColumnPrinter(buffer, *type);
+      createColumnPrinter(line, *type);
     Decimal64VectorBatch batch(1024, *getDefaultPool());
     batch.numElements = 10;
     batch.hasNulls = false;
@@ -257,9 +258,9 @@ namespace orc {
                                "1000.00000"};
     printer->reset(batch);
     for(uint64_t i=0; i < batch.numElements; ++i) {
-      buffer.str("");
+      line.clear();
       printer->printRow(i);
-      EXPECT_EQ(expected[i], buffer.str()) << "for i = " << i;
+      EXPECT_EQ(expected[i], line) << "for i = " << i;
     }
     batch.hasNulls = true;
     for(size_t i = 0; i < batch.numElements; ++i) {
@@ -267,21 +268,21 @@ namespace orc {
     }
     printer->reset(batch);
     for(uint64_t i=0; i < batch.numElements; ++i) {
-      buffer.str("");
+      line.clear();
       printer->printRow(i);
       if (i % 2) {
-        EXPECT_EQ(expected[i], buffer.str()) << "for i = " << i;
+        EXPECT_EQ(expected[i], line) << "for i = " << i;
       } else {
-        EXPECT_EQ("null", buffer.str()) << "for i = " << i;
+        EXPECT_EQ("null", line) << "for i = " << i;
       }
     }
   }
 
   TEST(TestColumnPrinter, Decimal128ColumnPrinter) {
-    std::stringstream buffer;
+    std::string line;
     std::unique_ptr<Type> type = createDecimalType(30, 5);
     std::unique_ptr<ColumnPrinter> printer =
-      createColumnPrinter(buffer, *type);
+      createColumnPrinter(line, *type);
     Decimal128VectorBatch batch(1024, *getDefaultPool());
     batch.numElements = 10;
     batch.hasNulls = false;
@@ -308,9 +309,9 @@ namespace orc {
                                "1000.00000"};
     printer->reset(batch);
     for(uint64_t i=0; i < batch.numElements; ++i) {
-      buffer.str("");
+      line.clear();
       printer->printRow(i);
-      EXPECT_EQ(expected[i], buffer.str()) << "for i = " << i;
+      EXPECT_EQ(expected[i], line) << "for i = " << i;
     }
     batch.hasNulls = true;
     for(size_t i = 0; i < batch.numElements; ++i) {
@@ -318,21 +319,21 @@ namespace orc {
     }
     printer->reset(batch);
     for(uint64_t i=0; i < batch.numElements; ++i) {
-      buffer.str("");
+      line.clear();
       printer->printRow(i);
       if (i % 2) {
-        EXPECT_EQ(expected[i], buffer.str()) << "for i = " << i;
+        EXPECT_EQ(expected[i], line) << "for i = " << i;
       } else {
-        EXPECT_EQ("null", buffer.str()) << "for i = " << i;
+        EXPECT_EQ("null", line) << "for i = " << i;
       }
     }
   }
 
   TEST(TestColumnPrinter, StringColumnPrinter) {
-    std::stringstream buffer;
+    std::string line;
     std::unique_ptr<Type> type = createPrimitiveType(STRING);
     std::unique_ptr<ColumnPrinter> printer =
-      createColumnPrinter(buffer, *type);
+      createColumnPrinter(line, *type);
     StringVectorBatch batch(1024, *getDefaultPool());
     const char *blob= "thisisatest\b\f\n\r\t\\\"'";
     batch.numElements = 5;
@@ -351,9 +352,9 @@ namespace orc {
                               "\"\\b\\f\\n\\r\\t\\\\\\\"'\""};
     printer->reset(batch);
     for(uint64_t i=0; i < batch.numElements; ++i) {
-      buffer.str("");
+      line.clear();
       printer->printRow(i);
-      EXPECT_EQ(expected[i], buffer.str()) << "for i = " << i;
+      EXPECT_EQ(expected[i], line) << "for i = " << i;
     }
     batch.hasNulls = true;
     for(size_t i = 0; i < batch.numElements; ++i) {
@@ -361,21 +362,21 @@ namespace orc {
     }
     printer->reset(batch);
     for(uint64_t i=0; i < batch.numElements; ++i) {
-      buffer.str("");
+      line.clear();
       printer->printRow(i);
       if (i % 2) {
-        EXPECT_EQ(expected[i], buffer.str()) << "for i = " << i;
+        EXPECT_EQ(expected[i], line) << "for i = " << i;
       } else {
-        EXPECT_EQ("null", buffer.str()) << "for i = " << i;
+        EXPECT_EQ("null", line) << "for i = " << i;
       }
     }
   }
 
   TEST(TestColumnPrinter, BinaryColumnPrinter) {
-    std::stringstream buffer;
+    std::string line;
     std::unique_ptr<Type> type = createPrimitiveType(BINARY);
     std::unique_ptr<ColumnPrinter> printer =
-      createColumnPrinter(buffer, *type);
+      createColumnPrinter(line, *type);
     StringVectorBatch batch(1024, *getDefaultPool());
     char blob[45];
     for(size_t i=0; i < sizeof(blob); ++i) {
@@ -401,9 +402,9 @@ namespace orc {
                               "[28, 29, 30, 31, 32, 33, 34, 35]",
                               "[36, 37, 38, 39, 40, 41, 42, 43, 44]"};
     for(uint64_t i=0; i < batch.numElements; ++i) {
-      buffer.str("");
+      line.clear();
       printer->printRow(i);
-      EXPECT_EQ(expected[i], buffer.str()) << "for i = " << i;
+      EXPECT_EQ(expected[i], line) << "for i = " << i;
     }
     batch.hasNulls = true;
     for(size_t i = 0; i < batch.numElements; ++i) {
@@ -411,21 +412,21 @@ namespace orc {
     }
     printer->reset(batch);
     for(uint64_t i=0; i < batch.numElements; ++i) {
-      buffer.str("");
+      line.clear();
       printer->printRow(i);
       if (i % 2) {
-        EXPECT_EQ(expected[i], buffer.str()) << "for i = " << i;
+        EXPECT_EQ(expected[i], line) << "for i = " << i;
       } else {
-        EXPECT_EQ("null", buffer.str()) << "for i = " << i;
+        EXPECT_EQ("null", line) << "for i = " << i;
       }
     }
   }
 
   TEST(TestColumnPrinter, ListColumnPrinter) {
-    std::stringstream buffer;
+    std::string line;
     std::unique_ptr<Type> type = createListType(createPrimitiveType(LONG));
     std::unique_ptr<ColumnPrinter> printer =
-      createColumnPrinter(buffer, *type);
+      createColumnPrinter(line, *type);
     ListVectorBatch batch(1024, *getDefaultPool());
     LongVectorBatch* longBatch = new LongVectorBatch(1024, *getDefaultPool());
     batch.elements = std::unique_ptr<ColumnVectorBatch>(longBatch);
@@ -452,9 +453,9 @@ namespace orc {
                               "[36, 37, 38, 39, 40, 41, 42, 43, 44]"};
     printer->reset(batch);
     for(uint64_t i=0; i < batch.numElements; ++i) {
-      buffer.str("");
+      line.clear();
       printer->printRow(i);
-      EXPECT_EQ(expected[i], buffer.str()) << "for i = " << i;
+      EXPECT_EQ(expected[i], line) << "for i = " << i;
     }
     batch.hasNulls = true;
     for(size_t i = 0; i < batch.numElements; ++i) {
@@ -462,22 +463,22 @@ namespace orc {
     }
     printer->reset(batch);
     for(uint64_t i=0; i < batch.numElements; ++i) {
-      buffer.str("");
+      line.clear();
       printer->printRow(i);
       if (i % 2) {
-        EXPECT_EQ(expected[i], buffer.str()) << "for i = " << i;
+        EXPECT_EQ(expected[i], line) << "for i = " << i;
       } else {
-        EXPECT_EQ("null", buffer.str()) << "for i = " << i;
+        EXPECT_EQ("null", line) << "for i = " << i;
       }
     }
   }
 
   TEST(TestColumnPrinter, MapColumnPrinter) {
-    std::stringstream buffer;
+    std::string line;
     std::unique_ptr<Type> type = createMapType(createPrimitiveType(LONG),
                                                createPrimitiveType(LONG));
     std::unique_ptr<ColumnPrinter> printer =
-      createColumnPrinter(buffer, *type);
+      createColumnPrinter(line, *type);
     MapVectorBatch batch(1024, *getDefaultPool());
     LongVectorBatch* keyBatch = new LongVectorBatch(1024, *getDefaultPool());
     LongVectorBatch* valueBatch = new LongVectorBatch(1024, *getDefaultPool());
@@ -506,9 +507,9 @@ namespace orc {
                                " {\"key\": 5, \"value\": 10}]")};
     printer->reset(batch);
     for(uint64_t i=0; i < batch.numElements; ++i) {
-      buffer.str("");
+      line.clear();
       printer->printRow(i);
-      EXPECT_EQ(expected[i], buffer.str()) << "for i = " << i;
+      EXPECT_EQ(expected[i], line) << "for i = " << i;
     }
     batch.hasNulls = true;
     for(size_t i = 0; i < batch.numElements; ++i) {
@@ -516,18 +517,18 @@ namespace orc {
     }
     printer->reset(batch);
     for(uint64_t i=0; i < batch.numElements; ++i) {
-      buffer.str("");
+      line.clear();
       printer->printRow(i);
       if (i % 2) {
-        EXPECT_EQ(expected[i], buffer.str()) << "for i = " << i;
+        EXPECT_EQ(expected[i], line) << "for i = " << i;
       } else {
-        EXPECT_EQ("null", buffer.str()) << "for i = " << i;
+        EXPECT_EQ("null", line) << "for i = " << i;
       }
     }
   }
 
   TEST(TestColumnPrinter, StructColumnPrinter) {
-    std::stringstream buffer;
+    std::string line;
     std::vector<std::string> fieldNames;
     std::vector<Type*> subtypes;
     fieldNames.push_back("first");
@@ -536,7 +537,7 @@ namespace orc {
     subtypes.push_back(createPrimitiveType(LONG).release());
     std::unique_ptr<Type> type = createStructType(subtypes, fieldNames);
     std::unique_ptr<ColumnPrinter> printer =
-      createColumnPrinter(buffer, *type);
+      createColumnPrinter(line, *type);
     StructVectorBatch batch(1024, *getDefaultPool());
     LongVectorBatch* firstBatch = new LongVectorBatch(1024, *getDefaultPool());
     LongVectorBatch* secondBatch =
@@ -565,9 +566,9 @@ namespace orc {
                               "{\"first\": 9, \"second\": 18}"};
     printer->reset(batch);
     for(uint64_t i=0; i < batch.numElements; ++i) {
-      buffer.str("");
+      line.clear();
       printer->printRow(i);
-      EXPECT_EQ(expected[i], buffer.str()) << "for i = " << i;
+      EXPECT_EQ(expected[i], line) << "for i = " << i;
     }
     batch.hasNulls = true;
     for(size_t i = 0; i < batch.numElements; ++i) {
@@ -575,12 +576,12 @@ namespace orc {
     }
     printer->reset(batch);
     for(uint64_t i=0; i < batch.numElements; ++i) {
-      buffer.str("");
+      line.clear();
       printer->printRow(i);
       if (i % 2) {
-        EXPECT_EQ(expected[i], buffer.str()) << "for i = " << i;
+        EXPECT_EQ(expected[i], line) << "for i = " << i;
       } else {
-        EXPECT_EQ("null", buffer.str()) << "for i = " << i;
+        EXPECT_EQ("null", line) << "for i = " << i;
       }
     }
   }
