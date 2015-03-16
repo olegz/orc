@@ -68,9 +68,6 @@ namespace orc {
     void read(void* buffer, unsigned long offset,
               unsigned long length) override {
 
-      std::cout << "[FileInputStream] Getting " << length << " bytes at "
-          << offset << " from " << filename << std::endl;
-
       // Check if the data is available
       if (offset >= pageStart && offset+length <= pageStart+pageLength) {
         std::memcpy(buffer, page+(offset-pageStart), length);
@@ -105,9 +102,6 @@ namespace orc {
         pageStart = offset+length-PAGE_SIZE;
         pageLength = PAGE_SIZE;
       }
-
-      std::cout << " *** [FileInputStream] Read " << bytesRead << " bytes at "
-          << offset << " from " << filename << std::endl;
     }
 
     const std::string& getName() const override { 
