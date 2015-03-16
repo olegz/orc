@@ -56,6 +56,10 @@ namespace orc {
               unsigned long length) override {
       ssize_t bytesRead = pread(file, buffer, length,
                                 static_cast<off_t>(offset));
+
+      std::cout << "[FileInputStream] Read " << bytesRead << " bytes (out of "
+          << length << ") at " << offset << " from " << filename << std::endl;
+
       if (bytesRead == -1) {
         throw ParseError("Bad read of " + filename);
       }

@@ -976,8 +976,8 @@ namespace orc {
     readFooter(buffer.data(), readSize, size);
     
     // read metadata
-    unsigned long position = size - 1 - postscript.footerlength()
-        - postscriptLength - postscript.metadatalength();
+    unsigned long position = size - 1 - postscriptLength
+        - postscript.footerlength() - postscript.metadatalength();
     buffer.resize(postscript.metadatalength());
     stream->read(buffer.data(), position, postscript.metadatalength());
 
