@@ -1140,11 +1140,11 @@ namespace orc {
     }
 
     // Look for the magic string at the end of the postscript.
-    if (memcmp(buffer+readSize-1-postscriptLength, MAGIC.c_str(), MAGIC.length()) != 0) {
+    if (memcmp(buffer+readSize-1-len, MAGIC.c_str(), len) != 0) {
       // if there is no magic string at the end, check the beginning of the file
-      DataBuffer<char> frontBuffer(MAGIC.length(), memoryPool);
-      stream->read(frontBuffer.data(), 0, MAGIC.length());
-      if (memcmp(frontBuffer.data(), MAGIC.c_str(), MAGIC.length()) != 0) {
+      DataBuffer<char> frontBuffer(len, memoryPool);
+      stream->read(frontBuffer.data(), 0, len);
+      if (memcmp(frontBuffer.data(), MAGIC.c_str(), len) != 0) {
         throw ParseError("Not an ORC file");
       }
     }
