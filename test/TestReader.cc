@@ -27,7 +27,7 @@
 #include <sstream>
 
 #ifdef __clang__
-#pragma clang diagnostic ignored "-Wmissing-variable-declarations"
+  #pragma clang diagnostic ignored "-Wmissing-variable-declarations"
 #endif
 
 namespace orc {
@@ -115,29 +115,38 @@ namespace orc {
     EXPECT_EQ(GetParam().typeString, reader->getType().toString());
   }
 
+  std::string getOutput(FILE* outputFile) {
+    size_t posn = static_cast<size_t>(ftell(outputFile));
+    rewind(outputFile);
+    char *buffer = new char[posn];
+    fread(buffer, 1, posn, outputFile);
+    rewind(outputFile);
+    return std::string(buffer, posn);
+  }
+
   TEST_P(MatchTest, Contents) {
     orc::ReaderOptions opts;
     std::unique_ptr<Reader> reader =
       createReader(readLocalFile(getFilename()), opts);
     unsigned long rowCount = 0;
     std::unique_ptr<ColumnVectorBatch> batch = reader->createRowBatch(1024);
+    std::string line;
+    std::unique_ptr<orc::ColumnPrinter> printer =
+      orc::createColumnPrinter(line, reader->getType());
     GzipTextReader expected(getJsonFilename());
     std::string expectedLine;
-    std::stringstream outBuffer;
-    std::unique_ptr<orc::ColumnPrinter> printer =
-      orc::createColumnPrinter(outBuffer, reader->getType());
     while (reader->next(*batch)) {
       EXPECT_EQ(rowCount, reader->getRowNumber());
-      rowCount += batch->numElements;
       printer->reset(*batch);
       for(size_t i=0; i < batch->numElements; ++i) {
         ASSERT_EQ(true, expected.nextLine(expectedLine));
-        outBuffer.str("");
+        line.clear();
         printer->printRow(i);
-        EXPECT_EQ(expectedLine, outBuffer.str());
+        EXPECT_EQ(expectedLine, line)
+          << "wrong output at row " << (rowCount + i);
       }
+      rowCount += batch->numElements;
     }
-    EXPECT_EQ(false, expected.nextLine(expectedLine));
     EXPECT_EQ(GetParam().rowCount, rowCount);
     EXPECT_EQ(GetParam().rowCount, reader->getRowNumber());
   }
