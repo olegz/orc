@@ -188,8 +188,6 @@ namespace orc {
                                                 FILE_BLOCK_SIZE : _blockSize));
     buffer.reset(new DataBuffer<char>(blockSize, pool));
     remainder = 0;
-
-    std::cout << "Created stream with blocksize = " << blockSize << std::endl;
   }
 
   SeekableFileInputStream::~SeekableFileInputStream() {
