@@ -187,7 +187,7 @@ namespace orc {
     }
     totalLength = static_cast<uint64_t>(fileStat.st_size);
     start = static_cast<char*>(mmap(nullptr, totalLength, PROT_READ,
-                                    MAP_FILE|MAP_PRIVATE|MAP_NOCACHE,
+                                    MAP_FILE|MAP_PRIVATE,
                                     file, 0LL));
     if (start == MAP_FAILED) {
       throw std::runtime_error("mmap failed " + filename + " " +
