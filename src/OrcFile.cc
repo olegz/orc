@@ -36,11 +36,11 @@ namespace orc {
     char* page;
     unsigned long pageStart ;
     unsigned long pageLength ;
+    const unsigned long PAGE_SIZE = 4096 ;
 
   public:
-    static const unsigned long PAGE_SIZE = 4096 ;
 
-    FileInputStream(std::string _filename) {
+    FileInputStream(std::string _filename) : PAGE_SIZE(4096) {
       filename = _filename ;
       file = open(filename.c_str(), O_RDONLY);
       if (file == -1) {

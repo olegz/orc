@@ -1265,10 +1265,7 @@ namespace orc {
                          (new SeekableFileInputStream(stream.get(),
                                                       footerStart,
                                                       footerLength,
-                                                      memoryPool,
-                                                      static_cast<long>
-                                                      (blockSize)
-                                                      )),
+                                                      memoryPool)),
                          blockSize);
     proto::StripeFooter result;
     if (!result.ParseFromZeroCopyStream(pbStream.get())) {
