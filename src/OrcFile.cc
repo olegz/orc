@@ -23,6 +23,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <algorithm>
 
 namespace orc {
 
@@ -32,7 +33,13 @@ namespace orc {
     int file;
     off_t totalLength;
 
+    char* page;
+    unsigned long pageStart ;
+    unsigned long pageLength ;
+
   public:
+    static const unsigned long PAGE_SIZE = 4096 ;
+
     FileInputStream(std::string _filename) {
       filename = _filename ;
       file = open(filename.c_str(), O_RDONLY);
@@ -44,9 +51,15 @@ namespace orc {
         throw ParseError("Can't stat " + filename);
       }
       totalLength = fileStat.st_size;
+
+      page = new char[PAGE_SIZE] ;
+      pageStart = pageLength = 0;
     }
 
-    ~FileInputStream();
+    ~FileInputStream() {
+      close(file);
+      delete[] page ;
+    }
 
     long getLength() const {
       return totalLength;
@@ -54,28 +67,53 @@ namespace orc {
 
     void read(void* buffer, unsigned long offset,
               unsigned long length) override {
-      ssize_t bytesRead = pread(file, buffer, length,
-                                static_cast<off_t>(offset));
 
-      std::cout << "[FileInputStream] Read " << bytesRead << " bytes (out of "
-          << length << ") at " << offset << " from " << filename << std::endl;
+      std::cout << "[FileInputStream] Getting " << length << " bytes at "
+          << offset << " from " << filename << std::endl;
 
-      if (bytesRead == -1) {
-        throw ParseError("Bad read of " + filename);
+      // Check if the data is available
+      if (offset >= pageStart && offset+length <= pageStart+pageLength) {
+        std::memcpy(buffer, page+(offset-pageStart), length);
+        return ;
       }
-      if (static_cast<unsigned long>(bytesRead) != length) {
-        throw ParseError("Short read of " + filename);
+
+      ssize_t bytesRead ;
+      if (length < PAGE_SIZE) {
+        unsigned long availableBytes = static_cast<unsigned long>(totalLength)-offset;
+        if (availableBytes > PAGE_SIZE) {
+          availableBytes = PAGE_SIZE;
+        }
+        bytesRead = pread(file, page, availableBytes, static_cast<off_t>(offset));
+        if (bytesRead == -1) {
+          throw ParseError("Bad read of " + filename);
+        }
+        if (static_cast<unsigned long>(bytesRead) != availableBytes) {
+          throw ParseError("Short read of " + filename);
+        }
+        pageStart = offset ;
+        pageLength = availableBytes;
+        std::memcpy(buffer, page, length);
+      } else {
+        bytesRead = pread(file, buffer, length, static_cast<off_t>(offset));
+        if (bytesRead == -1) {
+          throw ParseError("Bad read of " + filename);
+        }
+        if (static_cast<unsigned long>(bytesRead) != length) {
+          throw ParseError("Short read of " + filename);
+        }
+        std::memcpy(page, static_cast<char*>(buffer)+(length-PAGE_SIZE), PAGE_SIZE);
+        pageStart = offset+length-PAGE_SIZE;
+        pageLength = PAGE_SIZE;
       }
+
+      std::cout << " *** [FileInputStream] Read " << bytesRead << " bytes at "
+          << offset << " from " << filename << std::endl;
     }
 
     const std::string& getName() const override { 
       return filename;
     }
   };
-
-  FileInputStream::~FileInputStream() { 
-    close(file);
-  }
 
   std::unique_ptr<InputStream> readLocalFile(const std::string& path) {
     return std::unique_ptr<InputStream>(new FileInputStream(path));
