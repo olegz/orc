@@ -184,9 +184,8 @@ namespace orc {
     offset = _offset;
     length = _length;
     position = 0;
-    blockSize = std::min(length,
-                         static_cast<unsigned long>(_blockSize < 0 ?
-                                                    256 * 1024 : _blockSize));
+    blockSize = std::min(length, static_cast<unsigned long>(_blockSize < 0 ?
+                                                FILE_BLOCK_SIZE : _blockSize));
     buffer.reset(new DataBuffer<char>(blockSize, pool));
     remainder = 0;
   }

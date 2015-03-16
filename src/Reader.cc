@@ -976,8 +976,8 @@ namespace orc {
     readFooter(buffer.data(), readSize, size);
     
     // read metadata
-    unsigned long position = size - 1 - postscript.footerlength()
-        - postscriptLength - postscript.metadatalength();
+    unsigned long position = size - 1 - postscriptLength
+        - postscript.footerlength() - postscript.metadatalength();
     buffer.resize(postscript.metadatalength());
     stream->read(buffer.data(), position, postscript.metadatalength());
 
@@ -1265,10 +1265,7 @@ namespace orc {
                          (new SeekableFileInputStream(stream.get(),
                                                       footerStart,
                                                       footerLength,
-                                                      memoryPool,
-                                                      static_cast<long>
-                                                      (blockSize)
-                                                      )),
+                                                      memoryPool)),
                          blockSize);
     proto::StripeFooter result;
     if (!result.ParseFromZeroCopyStream(pbStream.get())) {
@@ -1302,30 +1299,57 @@ namespace orc {
   }
 
   uint64_t ReaderImpl::memoryEstimate(int stripeIx) {
-    // Memory is freed after reading footer, metadata, and each stripe.
-    // Pick the max size needed.
-    uint64_t memory = postscript.footerlength();
-    if (memory < postscript.metadatalength()) {
-      memory =  postscript.metadatalength();
-    }
+    uint64_t memory = 0;
 
-    /* ReaderImpl currently does not read stripe indices.
+    /* TODO: ReaderImpl currently does not read stripe indices.
      * When we add index support, memory per stripe is:
-     * stripe = footer.stripes(i).datalength() + footer.stripes(i).indexlength();
+     * stripe = footer.stripes(i).datalength()+footer.stripes(i).indexlength();
      */
     uint64_t stripe ;
     if (stripeIx >= 0 && stripeIx < footer.stripes_size()) {
       stripe = footer.stripes(stripeIx).datalength();
-      if (stripe > memory) {
+      if (memory < stripe) {
         memory = stripe;
       }
     } else {
       for (int i=0; i < footer.stripes_size(); i++) {
         stripe = footer.stripes(i).datalength();
-        if (stripe > memory) {
+        if (memory < stripe) {
           memory = stripe;
         }
       }
+    }
+
+    // If no string columns are selected, we can potentially tighten the estimate.
+    bool hasStringColumn = false;
+    uint64_t nSelectedColumns = 0;
+    for (unsigned int i=0; i < schema->getSubtypeCount(); i++) {
+      if (selectedColumns[i+1]) {
+        nSelectedColumns++ ;
+        switch (static_cast<unsigned int>(schema->getSubtype(i).getKind())) {
+          case CHAR:
+          case STRING:
+          case VARCHAR:
+          case BINARY: {
+            hasStringColumn = true;
+            break;
+          }
+          default: {
+            break;
+          }
+        }
+      }
+    }
+    if (!hasStringColumn && memory > nSelectedColumns * FILE_BLOCK_SIZE) {
+      memory = nSelectedColumns * FILE_BLOCK_SIZE ;
+    }
+
+    // Do we need even more memory to read the footer or the metadata?
+    if (memory < postscript.footerlength()) {
+      memory =  postscript.footerlength();
+    }
+    if (memory < postscript.metadatalength()) {
+      memory =  postscript.metadatalength();
     }
 
     // Account for firstRowOfStripe.
