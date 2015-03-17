@@ -49,6 +49,7 @@ namespace orc {
     bool throwOnHive11DecimalOverflow;
     int32_t forcedScaleOnHive11Decimal;
     std::ostream* errorStream;
+    uint64_t fileBlockSize;
 
     ReaderOptionsPrivate() {
       includedColumns.assign(1,0);
@@ -58,6 +59,7 @@ namespace orc {
       throwOnHive11DecimalOverflow = true;
       forcedScaleOnHive11Decimal = 6;
       errorStream = &std::cerr;
+      fileBlockSize = 256*1024 ;
     }
   };
 
@@ -157,8 +159,22 @@ namespace orc {
     return privateBits->errorStream;
   }
 
-  StripeInformation::~StripeInformation() {
+  ReaderOptions& ReaderOptions::setFileBlockSize(uint64_t blocksize) {
+    privateBits->fileBlockSize = blocksize;
+    return *this;
+  }
 
+  uint64_t ReaderOptions::getFileBlockSize() {
+    return privateBits->fileBlockSize;
+  }
+
+  uint64_t ReaderOptions::getFileBlockSize() const {
+    return privateBits->fileBlockSize;
+  }
+
+
+  StripeInformation::~StripeInformation() {
+    // PASS
   }
 
   class ColumnStatisticsImpl: public ColumnStatistics {
@@ -1262,10 +1278,14 @@ namespace orc {
     std::unique_ptr<SeekableInputStream> pbStream =
       createDecompressor(compression,
                          std::unique_ptr<SeekableInputStream>
-                         (new SeekableFileInputStream(stream.get(),
-                                                      footerStart,
-                                                      footerLength,
-                                                      memoryPool)),
+                         (new SeekableFileInputStream(
+                            stream.get(),
+                            footerStart,
+                            footerLength,
+                            memoryPool,
+                            std::max(static_cast<long>(blockSize),
+                                static_cast<long>(options.getFileBlockSize()))
+                         )),
                          blockSize);
     proto::StripeFooter result;
     if (!result.ParseFromZeroCopyStream(pbStream.get())) {
@@ -1340,8 +1360,8 @@ namespace orc {
         }
       }
     }
-    if (!hasStringColumn && memory > nSelectedColumns * FILE_BLOCK_SIZE) {
-      memory = nSelectedColumns * FILE_BLOCK_SIZE ;
+    if (!hasStringColumn && memory > nSelectedColumns * options.getFileBlockSize()) {
+      memory = nSelectedColumns * options.getFileBlockSize() ;
     }
 
     // Do we need even more memory to read the footer or the metadata?
@@ -1462,16 +1482,20 @@ namespace orc {
       const proto::Stream& stream = footer.streams(i);
       if (stream.kind() == kind &&
           stream.column() == static_cast<unsigned int>(columnId)) {
-        return createDecompressor(reader.getCompression(),
-                                  std::unique_ptr<SeekableInputStream>
-                                  (new SeekableFileInputStream
-                                   (&input,
-                                    offset,
-                                    stream.length(),
-                                    static_cast<MemoryPool*>(reader.getMemoryPool()),
-                                    static_cast<long>
-                                    (reader.getCompressionSize()))),
-                                  reader.getCompressionSize());
+        return createDecompressor(
+                  reader.getCompression(),
+                  std::unique_ptr<SeekableInputStream>
+                  (new SeekableFileInputStream
+                   (&input,
+                    offset,
+                    stream.length(),
+                    static_cast<MemoryPool*>(reader.getMemoryPool()),
+                    std::max(static_cast<long>(reader.getCompressionSize()),
+                        static_cast<long>(
+                            reader.getReaderOptions().getFileBlockSize())
+                            )
+                   )),
+                  reader.getCompressionSize());
       }
       offset += stream.length();
     }

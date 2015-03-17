@@ -474,6 +474,11 @@ namespace orc {
     ReaderOptions& setErrorStream(std::ostream& stream);
 
     /**
+     * Set the block size for seekable input streams
+     */
+    ReaderOptions& setFileBlockSize(uint64_t blocksize);
+
+    /**
      * Get the list of selected columns to read. All children of the selected
      * columns are also selected.
      */
@@ -513,6 +518,12 @@ namespace orc {
      * Get the stream to write warnings or errors to.
      */
     std::ostream* getErrorStream() const;
+
+    /**
+     * Get the block size for seekable input streams
+     */
+    uint64_t getFileBlockSize();
+    uint64_t getFileBlockSize() const;
   };
 
   /**
@@ -676,8 +687,6 @@ namespace orc {
      */
     virtual uint64_t memoryEstimate(int stripeIx = -1) = 0;
   };
-
-  static const unsigned long FILE_BLOCK_SIZE = 4*1024*1024 ;
 }
 
 #endif

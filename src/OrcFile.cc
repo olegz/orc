@@ -36,7 +36,7 @@ namespace orc {
     char* page;
     unsigned long pageStart ;
     unsigned long pageLength ;
-    const unsigned long PAGE_SIZE = 4096 ;
+    const unsigned long PAGE_SIZE;
 
   public:
 
@@ -67,7 +67,6 @@ namespace orc {
 
     void read(void* buffer, unsigned long offset,
               unsigned long length) override {
-
       // Check if the data is available
       if (offset >= pageStart && offset+length <= pageStart+pageLength) {
         std::memcpy(buffer, page+(offset-pageStart), length);

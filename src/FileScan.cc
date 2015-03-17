@@ -33,6 +33,7 @@ int main(int argc, char* argv[]) {
   std::list<int> cols;
   cols.push_back(0);
   opts.include(cols);
+  opts.setFileBlockSize(4*1024*1024);
 
   std::unique_ptr<orc::Reader> reader;
   try{
