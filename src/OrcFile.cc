@@ -48,11 +48,9 @@ namespace orc {
       totalLength = fileStat.st_size;
     }
 
-    ~FileInputStream() {
-      close(file);
-    }
+    ~FileInputStream();
 
-    long getLength() const {
+    long getLength() const override {
       return totalLength;
     }
 
@@ -72,6 +70,10 @@ namespace orc {
       return filename;
     }
   };
+
+  FileInputStream::~FileInputStream() {
+    close(file);
+  }
 
   std::unique_ptr<InputStream> readLocalFile(const std::string& path) {
     return std::unique_ptr<InputStream>(new FileInputStream(path));
