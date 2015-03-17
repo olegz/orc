@@ -1136,10 +1136,10 @@ namespace orc {
     if (postscriptLength < magicLength || bufferLength < magicLength) {
       throw ParseError("Invalid ORC postscript length");
     }
-    const char* psStart = bufferStart + bufferLength - 1 - postscriptLength;
+    const char* magicStart = bufferStart + bufferLength - 1 - magicLength;
 
     // Look for the magic string at the end of the postscript.
-    if (memcmp(psStart, MAGIC.c_str(), magicLength) != 0) {
+    if (memcmp(magicStart, MAGIC.c_str(), magicLength) != 0) {
       // If there is no magic string at the end, check the beginning.
       // Only files written by Hive 0.11.0 don't have the tail ORC string.
       Buffer *frontBuffer = stream->read(0, magicLength, nullptr);
