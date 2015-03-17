@@ -33,7 +33,6 @@ int main(int argc, char* argv[]) {
   std::list<int> cols;
   cols.push_back(0);
   opts.include(cols);
-  opts.setFileBlockSize(4*1024*1024);
 
   std::unique_ptr<orc::Reader> reader;
   try{
@@ -47,62 +46,6 @@ int main(int argc, char* argv[]) {
   const int BATCH_SIZE = 1000;
   std::unique_ptr<orc::ColumnVectorBatch> batch = reader->createRowBatch(BATCH_SIZE);
 
-  // Calculate batch memory usage
-  uint64_t memory = BATCH_SIZE * sizeof(char);  // batch->notNull
-  const orc::Type& schema = reader->getType();
-  const std::vector<bool> selectedColumns = reader->getSelectedColumns();
-  for (unsigned int i=0; i < schema.getSubtypeCount(); i++) {
-    if (selectedColumns[i+1]) {
-      switch (static_cast<unsigned int>(schema.getSubtype(i).getKind())) {
-      case orc::BOOLEAN:
-      case orc::BYTE:
-      case orc::SHORT:
-      case orc::INT:
-      case orc::LONG:
-      case orc::DATE: {
-        memory += BATCH_SIZE*(sizeof(int64_t) + sizeof(char)) ;
-        break;
-      }
-      case orc::TIMESTAMP: {
-        memory += BATCH_SIZE*(sizeof(int64_t) + sizeof(char)
-            + 2*sizeof(int64_t)); // TimestampColumnReader uses temp buffers
-        break;
-      }
-
-      case orc::FLOAT:
-      case orc::DOUBLE: {
-        memory += BATCH_SIZE*(sizeof(double) + sizeof(char)) ;
-        break;
-      }
-      case orc::STRING:
-      case orc::BINARY:
-      case orc::CHAR:
-      case orc::VARCHAR: {
-        memory += BATCH_SIZE*(sizeof(char*) + sizeof(int64_t) + sizeof(char)) ;
-        break;
-      }
-      case orc::DECIMAL: {
-        if (schema.getSubtype(i).getPrecision() == 0 ||
-            schema.getSubtype(i).getPrecision() > 18) {
-          memory += BATCH_SIZE * (sizeof(orc::Int128) +
-              sizeof(int64_t) + sizeof(char));
-        } else {
-          memory += BATCH_SIZE * (2*sizeof(int64_t) + sizeof(char));
-        }
-        break;
-      }
-      case orc::STRUCT:
-      case orc::LIST:
-      case orc::MAP:
-      case orc::UNION: {
-        throw orc::NotImplementedYet("Complex datatypes are not supported yet");
-      }
-      default:
-        break;
-      }
-    }
-  };
-
   unsigned long rows = 0;
   unsigned long batches = 0;
   while (reader->next(*batch)) {
@@ -111,8 +54,6 @@ int main(int argc, char* argv[]) {
   }
   std::cout << "Rows: " << rows << std::endl;
   std::cout << "Batches: " << batches << std::endl;
-
-  std::cout << "Total memory estimate: " << memory+reader->memoryEstimate() << std::endl;
 
   return 0;
 }

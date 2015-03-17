@@ -33,14 +33,9 @@ namespace orc {
     int file;
     off_t totalLength;
 
-    char* page;
-    unsigned long pageStart ;
-    unsigned long pageLength ;
-    const unsigned long PAGE_SIZE;
-
   public:
 
-    FileInputStream(std::string _filename) : PAGE_SIZE(4096) {
+    FileInputStream(std::string _filename)  {
       filename = _filename ;
       file = open(filename.c_str(), O_RDONLY);
       if (file == -1) {
@@ -51,14 +46,10 @@ namespace orc {
         throw ParseError("Can't stat " + filename);
       }
       totalLength = fileStat.st_size;
-
-      page = new char[PAGE_SIZE] ;
-      pageStart = pageLength = 0;
     }
 
     ~FileInputStream() {
       close(file);
-      delete[] page ;
     }
 
     long getLength() const {
@@ -67,40 +58,14 @@ namespace orc {
 
     void read(void* buffer, unsigned long offset,
               unsigned long length) override {
-      // Check if the data is available
-      if (offset >= pageStart && offset+length <= pageStart+pageLength) {
-        std::memcpy(buffer, page+(offset-pageStart), length);
-        return ;
-      }
-
-      ssize_t bytesRead ;
-      if (length < PAGE_SIZE) {
-        unsigned long availableBytes = static_cast<unsigned long>(totalLength)-offset;
-        if (availableBytes > PAGE_SIZE) {
-          availableBytes = PAGE_SIZE;
-        }
-        bytesRead = pread(file, page, availableBytes, static_cast<off_t>(offset));
-        if (bytesRead == -1) {
-          throw ParseError("Bad read of " + filename);
-        }
-        if (static_cast<unsigned long>(bytesRead) != availableBytes) {
-          throw ParseError("Short read of " + filename);
-        }
-        pageStart = offset ;
-        pageLength = availableBytes;
-        std::memcpy(buffer, page, length);
-      } else {
-        bytesRead = pread(file, buffer, length, static_cast<off_t>(offset));
+        ssize_t bytesRead = pread(file, buffer, length,
+                                  static_cast<off_t>(offset));
         if (bytesRead == -1) {
           throw ParseError("Bad read of " + filename);
         }
         if (static_cast<unsigned long>(bytesRead) != length) {
           throw ParseError("Short read of " + filename);
         }
-        std::memcpy(page, static_cast<char*>(buffer)+(length-PAGE_SIZE), PAGE_SIZE);
-        pageStart = offset+length-PAGE_SIZE;
-        pageLength = PAGE_SIZE;
-      }
     }
 
     const std::string& getName() const override { 
