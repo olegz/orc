@@ -433,7 +433,7 @@ TEST(RLEv2, basicDirectSeek) {
       createRleDecoder(std::unique_ptr<SeekableInputStream>
                        (new SeekableArrayInputStream(bytes,l)), true,
                        RleVersion_2, *getDefaultPool());
-  std::list<unsigned long> position;
+  std::list<uint64_t> position;
   position.push_back(7); // byte position; skip first 20 [0 to 19]
   position.push_back(13); // value position; skip 13 more [20 to 32]
 
@@ -2589,7 +2589,7 @@ TEST(RLEv1, seekTest) {
  96,  97,  98,  99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111,
 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127
   };
-  std::list<unsigned long> positions[4096];
+  std::list<uint64_t> positions[4096];
   for (size_t i = 0; i < 4096; ++i) {
     positions[i].push_back(fileLoc[i]);
     positions[i].push_back(rleLoc[i]);

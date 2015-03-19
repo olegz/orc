@@ -49,7 +49,7 @@ namespace orc {
                              ): columnId(type.getColumnId()),
                                 memoryPool(stripe.getMemoryPool()) {
     std::unique_ptr<SeekableInputStream> stream =
-      stripe.getStream(columnId, proto::Stream_Kind_PRESENT);
+      stripe.getStream(columnId, proto::Stream_Kind_PRESENT, true);
     if (stream.get()) {
       notNullDecoder = createBooleanRleDecoder(std::move(stream));
     }
@@ -140,7 +140,8 @@ namespace orc {
                                            StripeStreams& stripe
                                            ): ColumnReader(type, stripe){
     rle = createBooleanRleDecoder(stripe.getStream(columnId,
-                                                   proto::Stream_Kind_DATA));
+                                                   proto::Stream_Kind_DATA,
+                                                   true));
   }
 
   BooleanColumnReader::~BooleanColumnReader() {
@@ -184,7 +185,8 @@ namespace orc {
                                            StripeStreams& stripe
                                            ): ColumnReader(type, stripe){
     rle = createByteRleDecoder(stripe.getStream(columnId,
-                                                proto::Stream_Kind_DATA));
+                                                proto::Stream_Kind_DATA,
+                                                true));
   }
 
   ByteColumnReader::~ByteColumnReader() {
@@ -229,7 +231,8 @@ namespace orc {
                                            ): ColumnReader(type, stripe) {
     RleVersion vers = convertRleVersion(stripe.getEncoding(columnId).kind());
     rle = createRleDecoder(stripe.getStream(columnId,
-                                            proto::Stream_Kind_DATA),
+                                            proto::Stream_Kind_DATA,
+                                            true),
                            true, vers, memoryPool);
   }
 
@@ -273,7 +276,8 @@ namespace orc {
                                                                       stripe) {
     RleVersion vers = convertRleVersion(stripe.getEncoding(columnId).kind());
     nanos = createRleDecoder(stripe.getStream(columnId,
-                                              proto::Stream_Kind_SECONDARY),
+                                              proto::Stream_Kind_SECONDARY,
+                                              true),
                              false, vers, memoryPool);
   }
 
@@ -371,7 +375,8 @@ namespace orc {
                                             inputStream
                                                (stripe.getStream
                                                 (columnId,
-                                                 proto::Stream_Kind_DATA)),
+                                                 proto::Stream_Kind_DATA,
+                                                 true)),
                                             columnKind(type.getKind()),
                                             bytesPerValue((type.getKind() ==
                                                            FLOAT) ? 4 : 8),
@@ -477,11 +482,13 @@ namespace orc {
                                                 .kind());
     dictionaryCount = stripe.getEncoding(columnId).dictionarysize();
     rle = createRleDecoder(stripe.getStream(columnId,
-                                            proto::Stream_Kind_DATA),
+                                            proto::Stream_Kind_DATA,
+                                            true),
                            false, rleVersion, memoryPool);
     std::unique_ptr<RleDecoder> lengthDecoder =
       createRleDecoder(stripe.getStream(columnId,
-                                        proto::Stream_Kind_LENGTH),
+                                        proto::Stream_Kind_LENGTH,
+                                        false),
                        false, rleVersion, memoryPool);
     dictionaryOffset.resize(dictionaryCount+1);
     int64_t* lengthArray = dictionaryOffset.data();
@@ -493,7 +500,7 @@ namespace orc {
     long blobSize = lengthArray[dictionaryCount];
     dictionaryBlob.resize(static_cast<uint64_t>(blobSize));
     std::unique_ptr<SeekableInputStream> blobStream =
-      stripe.getStream(columnId, proto::Stream_Kind_DICTIONARY_DATA);
+      stripe.getStream(columnId, proto::Stream_Kind_DICTIONARY_DATA, false);
     readFully(dictionaryBlob.data(), blobSize, blobStream.get());
   }
 
@@ -575,9 +582,10 @@ namespace orc {
     RleVersion rleVersion = convertRleVersion(stripe.getEncoding(columnId)
                                                 .kind());
     lengthRle = createRleDecoder(stripe.getStream(columnId,
-                                                  proto::Stream_Kind_LENGTH),
+                                                  proto::Stream_Kind_LENGTH,
+                                                  true),
                                  false, rleVersion, memoryPool);
-    blobStream = stripe.getStream(columnId, proto::Stream_Kind_DATA);
+    blobStream = stripe.getStream(columnId, proto::Stream_Kind_DATA, true);
     lastBuffer = 0;
     lastBufferLength = 0;
   }
@@ -809,7 +817,8 @@ namespace orc {
     const std::vector<bool> selectedColumns = stripe.getSelectedColumns();
     RleVersion vers = convertRleVersion(stripe.getEncoding(columnId).kind());
     rle = createRleDecoder(stripe.getStream(columnId,
-                                            proto::Stream_Kind_LENGTH),
+                                            proto::Stream_Kind_LENGTH,
+                                            true),
                            false, vers, memoryPool);
     const Type& childType = type.getSubtype(0);
     if (selectedColumns[static_cast<unsigned int>(childType.getColumnId())]) {
@@ -901,7 +910,8 @@ namespace orc {
     const std::vector<bool> selectedColumns = stripe.getSelectedColumns();
     RleVersion vers = convertRleVersion(stripe.getEncoding(columnId).kind());
     rle = createRleDecoder(stripe.getStream(columnId,
-                                            proto::Stream_Kind_LENGTH),
+                                            proto::Stream_Kind_LENGTH,
+                                            true),
                            false, vers, memoryPool);
     const Type& keyType = type.getSubtype(0);
     if (selectedColumns[static_cast<unsigned int>(keyType.getColumnId())]) {
@@ -1084,13 +1094,14 @@ namespace orc {
                                                ): ColumnReader(type, stripe) {
     scale = static_cast<int32_t>(type.getScale());
     precision = static_cast<int32_t>(type.getPrecision());
-    valueStream = stripe.getStream(columnId, proto::Stream_Kind_DATA);
+    valueStream = stripe.getStream(columnId, proto::Stream_Kind_DATA, true);
     buffer = nullptr;
     bufferEnd = nullptr;
     RleVersion vers = convertRleVersion(stripe.getEncoding(columnId).kind());
     scaleDecoder = createRleDecoder(stripe.getStream
                                     (columnId,
-                                     proto::Stream_Kind_SECONDARY),
+                                     proto::Stream_Kind_SECONDARY,
+                                     true),
                                     true, vers, memoryPool);
   }
 

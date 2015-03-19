@@ -49,10 +49,15 @@ namespace orc {
 
     /**
      * Get the stream for the given column/kind in this stripe.
+     * @param columnId the id of the column
+     * @param kind the kind of the stream
+     * @param shouldStream should the reading page the stream in
+     * @return the new stream
      */
     virtual std::unique_ptr<SeekableInputStream> 
                     getStream(int columnId,
-                              proto::Stream_Kind kind) const = 0;
+                              proto::Stream_Kind kind,
+                              bool shouldStream) const = 0;
 
     /**
      * Get the memory pool for this reader.

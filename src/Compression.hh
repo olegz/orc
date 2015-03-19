@@ -33,14 +33,14 @@ namespace orc {
 
   void printBuffer(std::ostream& out,
                    const char *buffer,
-                   unsigned long length);
+                   uint64_t length);
 
   class PositionProvider {
   private:
-    std::list<unsigned long>::const_iterator position;
+    std::list<uint64_t>::const_iterator position;
   public:
-    PositionProvider(const std::list<unsigned long>& positions);
-    unsigned long next();
+    PositionProvider(const std::list<uint64_t>& positions);
+    uint64_t next();
   };
 
   /**
@@ -62,9 +62,9 @@ namespace orc {
   private:
     std::unique_ptr<DataBuffer<char> > ownedData;
     const char* data;
-    unsigned long length;
-    unsigned long position;
-    unsigned long blockSize;
+    uint64_t length;
+    uint64_t position;
+    uint64_t blockSize;
 
   public:
 
@@ -74,10 +74,10 @@ namespace orc {
     #endif // __cplusplus
 
     SeekableArrayInputStream(const unsigned char* list,
-                             unsigned long length,
+                             uint64_t length,
                              long block_size = -1);
     SeekableArrayInputStream(const char* list,
-                             unsigned long length,
+                             uint64_t length,
                              long block_size = -1);
     virtual ~SeekableArrayInputStream();
     virtual bool Next(const void** data, int*size) override;
@@ -103,8 +103,8 @@ namespace orc {
 
   public:
     SeekableFileInputStream(InputStream* input,
-                            unsigned long offset,
-                            unsigned long byteCount,
+                            uint64_t offset,
+                            uint64_t byteCount,
                             long blockSize = -1);
     virtual ~SeekableFileInputStream();
 
@@ -126,7 +126,7 @@ namespace orc {
   std::unique_ptr<SeekableInputStream> 
      createDecompressor(CompressionKind kind,
                         std::unique_ptr<SeekableInputStream> input,
-                        unsigned long bufferSize,
+                        uint64_t bufferSize,
                         MemoryPool& pool);
 }
 

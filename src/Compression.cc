@@ -37,12 +37,12 @@ namespace orc {
 
   void printBuffer(std::ostream& out,
                    const char *buffer,
-                   unsigned long length) {
-    const unsigned long width = 24;
+                   uint64_t length) {
+    const uint64_t width = 24;
     out << std::hex;
-    for(unsigned long line = 0; line < (length + width - 1) / width; ++line) {
+    for(uint64_t line = 0; line < (length + width - 1) / width; ++line) {
       out << std::setfill('0') << std::setw(7) << (line * width);
-      for(unsigned long byte = 0;
+      for(uint64_t byte = 0;
           byte < width && line * width + byte < length; ++byte) {
         out << " " << std::setfill('0') << std::setw(2)
                   << static_cast<unsigned int>(0xff & buffer[line * width +
@@ -53,12 +53,12 @@ namespace orc {
     out << std::dec;
   }
 
-  PositionProvider::PositionProvider(const std::list<unsigned long>& posns) {
+  PositionProvider::PositionProvider(const std::list<uint64_t>& posns) {
     position = posns.begin();
   }
 
-  unsigned long PositionProvider::next() {
-    unsigned long result = *position;
+  uint64_t PositionProvider::next() {
+    uint64_t result = *position;
     ++position;
     return result;
   }
@@ -80,31 +80,31 @@ namespace orc {
       length = values.size();
       memcpy(ownedData->data(), values.begin(), values.size());
       position = 0;
-      blockSize = blkSize == -1 ? length : static_cast<unsigned long>(blkSize);
+      blockSize = blkSize == -1 ? length : static_cast<uint64_t>(blkSize);
     }
   #endif // __cplusplus
 
   SeekableArrayInputStream::SeekableArrayInputStream
                (const unsigned char* values,
-                unsigned long size,
+                uint64_t size,
                 long blkSize
                 ): data(reinterpret_cast<const char*>(values)) {
     length = size;
     position = 0;
-    blockSize = blkSize == -1 ? length : static_cast<unsigned long>(blkSize);
+    blockSize = blkSize == -1 ? length : static_cast<uint64_t>(blkSize);
   }
 
   SeekableArrayInputStream::SeekableArrayInputStream(const char* values,
-                                                     unsigned long size,
+                                                     uint64_t size,
                                                      long blkSize
                                                      ): data(values) {
     length = size;
     position = 0;
-    blockSize = blkSize == -1 ? length : static_cast<unsigned long>(blkSize);
+    blockSize = blkSize == -1 ? length : static_cast<uint64_t>(blkSize);
   }
 
   bool SeekableArrayInputStream::Next(const void** buffer, int*size) {
-    unsigned long currentSize = std::min(length - position, blockSize);
+    uint64_t currentSize = std::min(length - position, blockSize);
     if (currentSize > 0) {
       *buffer = (data ? data : ownedData->data()) + position;
       *size = static_cast<int>(currentSize);
@@ -117,7 +117,7 @@ namespace orc {
 
   void SeekableArrayInputStream::BackUp(int count) {
     if (count >= 0) {
-      unsigned long unsignedCount = static_cast<unsigned long>(count);
+      uint64_t unsignedCount = static_cast<uint64_t>(count);
       if (unsignedCount <= blockSize && unsignedCount <= position) {
         position -= unsignedCount;
       } else {
@@ -128,7 +128,7 @@ namespace orc {
 
   bool SeekableArrayInputStream::Skip(int count) {
     if (count >= 0) {
-      unsigned long unsignedCount = static_cast<unsigned long>(count);
+      uint64_t unsignedCount = static_cast<uint64_t>(count);
       if (unsignedCount + position <= length) {
         position += unsignedCount;
         return true;
@@ -160,8 +160,8 @@ namespace orc {
   }
 
   SeekableFileInputStream::SeekableFileInputStream(InputStream* stream,
-                                                   unsigned long offset,
-                                                   unsigned long byteCount,
+                                                   uint64_t offset,
+                                                   uint64_t byteCount,
                                                    long _blockSize
                                                    ): input(stream),
                                                       start(offset),
@@ -746,7 +746,7 @@ namespace orc {
   std::unique_ptr<SeekableInputStream>
      createDecompressor(CompressionKind kind,
                         std::unique_ptr<SeekableInputStream> input,
-                        unsigned long blockSize,
+                        uint64_t blockSize,
                         MemoryPool& pool) {
     switch (static_cast<int>(kind)) {
     case CompressionKind_NONE:
