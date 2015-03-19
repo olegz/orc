@@ -64,62 +64,6 @@ public:
 
 TestMemoryPool::~TestMemoryPool() {}
 
-uint64_t orcTypeSizeInBatch(const orc::Type& type) {
-    switch (static_cast<unsigned int>(type.getKind())) {
-        case orc::BOOLEAN:
-        case orc::BYTE:
-        case orc::SHORT:
-        case orc::INT:
-        case orc::LONG:
-        case orc::DATE: {
-            return sizeof(int64_t) + sizeof(char) ;
-        }
-        case orc::TIMESTAMP: {
-            return sizeof(int64_t) + sizeof(char)
-                    + 2*sizeof(int64_t); // TimestampColumnReader uses temp buffers
-        }
-        case orc::FLOAT:
-        case orc::DOUBLE: {
-            return sizeof(double) + sizeof(char) ;
-        }
-        case orc::STRING:
-        case orc::BINARY:
-        case orc::CHAR:
-        case orc::VARCHAR: {
-            return sizeof(char*) + sizeof(int64_t) + sizeof(char) ;
-        }
-        case orc::DECIMAL: {
-            if (type.getPrecision() == 0 || type.getPrecision() > 18) {
-                return sizeof(orc::Int128) + sizeof(int64_t) + sizeof(char);
-            } else {
-                return 2*sizeof(int64_t) + sizeof(char);
-            }
-        }
-        case orc::STRUCT:
-        case orc::LIST:
-        case orc::MAP:
-        case orc::UNION:
-        default: {
-            // Silently skip this step; schema validation, etc is performed later.
-            return 0;
-            break;
-        }
-    }
-}
-
-uint64_t estimateBatchMemory(const orc::Reader* reader, int batchSize) {
-    uint64_t memory = batchSize * sizeof(char);  // batch->notNull
-    const orc::Type& schema = reader->getType();
-    const std::vector<bool> selectedColumns = reader->getSelectedColumns();
-    for (unsigned int i=0; i < schema.getSubtypeCount(); i++) {
-        if (selectedColumns[i+1]) {
-            memory += batchSize * orcTypeSizeInBatch(schema.getSubtype(i));
-        }
-    };
-    return memory;
-}
-
-
 int main(int argc, char* argv[]) {
   if (argc < 2) {
     std::cout << "Usage: file-memory <filename> "
@@ -133,7 +77,7 @@ int main(int argc, char* argv[]) {
 
   // Default parameters
   std::list<int> cols;
-  int batchSize = 1000;
+  uint32_t batchSize = 1000;
 
   // Read command-line options
   char* param ;
