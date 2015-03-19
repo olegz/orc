@@ -1317,7 +1317,8 @@ namespace orc {
 
     virtual std::unique_ptr<SeekableInputStream>
     getStream(int columnId,
-              proto::Stream_Kind kind) const override;
+              proto::Stream_Kind kind,
+	      bool shouldStream) const override;
 
     MemoryPool& getMemoryPool() const override;
   };
@@ -1353,20 +1354,23 @@ namespace orc {
 
   std::unique_ptr<SeekableInputStream>
   StripeStreamsImpl::getStream(int columnId,
-                               proto::Stream_Kind kind) const {
+                               proto::Stream_Kind kind,
+			       bool shouldStream) const {
     unsigned long offset = stripeStart;
     for(int i = 0; i < footer.streams_size(); ++i) {
       const proto::Stream& stream = footer.streams(i);
       if (stream.kind() == kind &&
           stream.column() == static_cast<unsigned int>(columnId)) {
+	long myBlock = static_cast<long>(shouldStream ?
+					 reader.getCompressionSize() :
+					 stream.length());
         return createDecompressor(reader.getCompression(),
                                   std::unique_ptr<SeekableInputStream>
                                   (new SeekableFileInputStream
                                    (&input,
                                     offset,
-                                    stream.length(),
-                                    static_cast<long>
-                                    (reader.getCompressionSize()))),
+				    stream.length(),
+				    myBlock)),
                                   reader.getCompressionSize(),
                                   memoryPool);
       }
