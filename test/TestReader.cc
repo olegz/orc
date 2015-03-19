@@ -498,4 +498,39 @@ TEST(Reader, noStripeStatistics) {
   EXPECT_EQ(0, reader->getNumberOfStripeStatistics());  
 }
 
+TEST(Reader, memoryEstimates) {
+  orc::ReaderOptions opts;
+  std::ostringstream filename;
+
+  // Test on a file with no compression
+  filename << exampleDirectory << "/demo-11-none.orc";
+  std::unique_ptr<orc::Reader> reader =
+    orc::createReader(orc::readLocalFile(filename.str()), opts);
+  EXPECT_EQ(73828, reader->memoryEstimate());
+
+  uint64_t batchSize = 1 ;
+  std::unique_ptr<orc::ColumnVectorBatch> batch =
+      reader->createRowBatch(batchSize);
+  EXPECT_EQ(114, batch->memoryUse());
+
+  batchSize = 1000 ;
+  batch = reader->createRowBatch(batchSize);
+  EXPECT_EQ(114000, batch->memoryUse());
+
+  // Test on a file with compression
+  std::ostringstream filename2;
+  filename2 << exampleDirectory << "/demo-12-zlib.orc";
+  reader = orc::createReader(orc::readLocalFile(filename2.str()), opts);
+  EXPECT_EQ(6847140, reader->memoryEstimate());
+
+  batchSize = 1 ;
+  batch = reader->createRowBatch(batchSize);
+  EXPECT_EQ(114, batch->memoryUse());
+
+  batchSize = 1000 ;
+  batch = reader->createRowBatch(batchSize);
+  EXPECT_EQ(114000, batch->memoryUse());
+}
+
+
 }  // namespace
