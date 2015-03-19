@@ -300,18 +300,14 @@ namespace orc {
                                  char *notNull) {
     ColumnReader::next(rowBatch, numValues, notNull);
 
-//    std::vector<int64_t> seconds(rowBatch.capacity);
-//    std::vector<int64_t> nanoseconds(rowBatch.capacity);
-    DataBuffer<int64_t> seconds(rowBatch.capacity, memoryPool);
-    DataBuffer<int64_t> nanoseconds(rowBatch.capacity, memoryPool);
-
-    rle->next(seconds.data(),
+    int64_t* pStamp = dynamic_cast<LongVectorBatch&>(rowBatch).data.data();
+    rle->next(pStamp,
               numValues, rowBatch.hasNulls ? rowBatch.notNull.data() : 0);
+    DataBuffer<int64_t> nanoseconds(rowBatch.capacity, rowBatch.memoryPool);
     nanos->next(nanoseconds.data(),
               numValues, rowBatch.hasNulls ? rowBatch.notNull.data() : 0);
 
     // Construct the values
-    int64_t* pStamp = dynamic_cast<LongVectorBatch&>(rowBatch).data.data();
     int zeroes = 0;
     int64_t nanosec = 0;
     for(unsigned int i=0; i<rowBatch.capacity; i++) {
@@ -321,7 +317,7 @@ namespace orc {
         nanosec *=10 ;
         zeroes--;
       }
-      pStamp[i] =  seconds[i]*1000000000 + nanosec // ns since 1/1/2015 (ORC)
+      pStamp[i] =  pStamp[i]*1000000000 + nanosec // ns since 1/1/2015 (ORC)
           + 1420070400000000000; // ns between 1/1/1970 and 1/1/2015
     }
   }

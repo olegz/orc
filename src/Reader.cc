@@ -990,14 +990,16 @@ namespace orc {
     stream->read(buffer.data(), size - readSize, readSize);
     readPostscript(buffer.data(), readSize);
     readFooter(buffer.data(), readSize, size);
-    
+    buffer.clear();
+
     // read metadata
     unsigned long position = size - 1 - postscriptLength
         - postscript.footerlength() - postscript.metadatalength();
+
     buffer.resize(postscript.metadatalength());
     stream->read(buffer.data(), position, postscript.metadatalength());
-
     readMetadata(buffer.data(), postscript.metadatalength(), size);
+    buffer.clear();
 
     currentStripe = static_cast<uint64_t>(footer.stripes_size());
     lastStripe = 0;
@@ -1365,8 +1367,8 @@ namespace orc {
     }
 
     // Do we need even more memory to read the footer or the metadata?
-    if (memory < postscript.footerlength()) {
-      memory =  postscript.footerlength();
+    if (memory < postscript.footerlength() + 16*1024) {
+      memory =  postscript.footerlength() + 16*1024;
     }
     if (memory < postscript.metadatalength()) {
       memory =  postscript.metadatalength();
@@ -1503,6 +1505,10 @@ namespace orc {
   }
 
   void ReaderImpl::startNextStripe() {
+    // Do not remove the following line!
+    // It halves the amount of memory used by column readers.
+    reader.reset();
+
     currentStripeInfo = footer.stripes(static_cast<int>(currentStripe));
     currentStripeFooter = getStripeFooter(currentStripeInfo);
     rowsInCurrentStripe = currentStripeInfo.numberofrows();
@@ -1510,9 +1516,6 @@ namespace orc {
                                     currentStripeInfo.offset(),
                                     *(stream.get()));
 
-    // Do not remove the following line!
-    // It halves the amount of memory used by column readers.
-    reader.reset();
     reader = buildReader(*(schema.get()), stripeStreams, memoryPool);
   }
 
@@ -1555,9 +1558,11 @@ namespace orc {
     case SHORT:
     case INT:
     case LONG:
-    case TIMESTAMP:
     case DATE:
       result = new LongVectorBatch(capacity, memoryPool);
+      break;
+    case TIMESTAMP:
+      result = new TimestampVectorBatch(capacity, memoryPool);
       break;
     case FLOAT:
     case DOUBLE:

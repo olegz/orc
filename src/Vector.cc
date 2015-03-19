@@ -43,6 +43,10 @@ namespace orc {
     }
   }
 
+  uint64_t ColumnVectorBatch::memoryUse() {
+    return capacity * sizeof(char);  // notNull
+  }
+
   ColumnVectorBatch::ColumnVectorBatch(const ColumnVectorBatch&) {
     throw NotImplementedYet("should not call");
   }
@@ -74,6 +78,24 @@ namespace orc {
     }
   }
 
+  uint64_t LongVectorBatch::memoryUse() {
+    return ColumnVectorBatch::memoryUse() + capacity * sizeof(int64_t);
+  }
+
+  TimestampVectorBatch::TimestampVectorBatch(uint64_t capacity, MemoryPool* pool
+                     ): LongVectorBatch(capacity, pool) {
+    // PASS
+  }
+
+  TimestampVectorBatch::~TimestampVectorBatch() {
+    // PASS
+  }
+
+  uint64_t TimestampVectorBatch::memoryUse() {
+    // TimestampColumnReader uses a temp buffer
+    return LongVectorBatch::memoryUse() + capacity * sizeof(int64_t);
+  }
+
   DoubleVectorBatch::DoubleVectorBatch(uint64_t capacity, MemoryPool* pool
                    ): ColumnVectorBatch(capacity, pool),
                        data(capacity, pool) {
@@ -95,6 +117,10 @@ namespace orc {
       ColumnVectorBatch::resize(cap);
       data.resize(cap);
     }
+  }
+
+  uint64_t DoubleVectorBatch::memoryUse() {
+    return ColumnVectorBatch::memoryUse() + capacity * sizeof(double);
   }
 
   StringVectorBatch::StringVectorBatch(uint64_t capacity, MemoryPool* pool
@@ -120,6 +146,11 @@ namespace orc {
       data.resize(cap);
       length.resize(cap);
     }
+  }
+
+  uint64_t StringVectorBatch::memoryUse() {
+    return ColumnVectorBatch::memoryUse()
+          + capacity * (sizeof(char*) + sizeof(int64_t));
   }
 
   StructVectorBatch::StructVectorBatch(uint64_t cap, MemoryPool* pool
@@ -149,6 +180,16 @@ namespace orc {
     ColumnVectorBatch::resize(cap);
   }
 
+  uint64_t StructVectorBatch::memoryUse() {
+    uint64_t memory = ColumnVectorBatch::memoryUse();
+
+    for (std::vector<ColumnVectorBatch*>::iterator it = fields.begin();
+        it != fields.end(); it++) {
+      memory += (*it)->memoryUse();
+    }
+    return memory;
+  }
+
   ListVectorBatch::ListVectorBatch(uint64_t cap, MemoryPool* pool
                    ): ColumnVectorBatch(cap, pool),
                    offsets(cap+1, pool) {
@@ -171,6 +212,10 @@ namespace orc {
       ColumnVectorBatch::resize(cap);
       offsets.resize(cap + 1);
     }
+  }
+
+  uint64_t ListVectorBatch::memoryUse() {
+    throw NotImplementedYet("ListVectorBatch::memoryUse");
   }
 
   MapVectorBatch::MapVectorBatch(uint64_t cap, MemoryPool* pool
@@ -196,6 +241,10 @@ namespace orc {
       ColumnVectorBatch::resize(cap);
       offsets.resize(cap + 1);
     }
+  }
+
+  uint64_t MapVectorBatch::memoryUse() {
+    throw NotImplementedYet("MapVectorBatch::memoryUse");
   }
 
   Decimal64VectorBatch::Decimal64VectorBatch(uint64_t cap, MemoryPool* pool
@@ -224,6 +273,10 @@ namespace orc {
     }
   }
 
+  uint64_t Decimal64VectorBatch::memoryUse() {
+    return ColumnVectorBatch::memoryUse() + capacity * 2 * sizeof(int64_t);
+  }
+
   Decimal128VectorBatch::Decimal128VectorBatch(uint64_t cap, MemoryPool* pool
                ): ColumnVectorBatch(cap, pool),
                    values(cap, pool),
@@ -248,6 +301,11 @@ namespace orc {
       values.resize(cap);
       readScales->resize(cap);
     }
+  }
+
+  uint64_t Decimal128VectorBatch::memoryUse() {
+    return ColumnVectorBatch::memoryUse()
+        + capacity * (sizeof(Int128) + sizeof(int64_t));
   }
 
   Decimal::Decimal(const Int128& _value, 

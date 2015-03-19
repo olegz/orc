@@ -91,3 +91,13 @@ target_link_libraries (file-statistics
   orc
   ${PROTOBUF_LIBRARIES}
   ) 
+ 
+ add_executable (file-memory
+  FileMemory.cc
+  )
+
+target_link_libraries (file-memory
+  orc
+  ${PROTOBUF_LIBRARIES}
+  ) 
+  

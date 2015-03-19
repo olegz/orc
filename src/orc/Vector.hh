@@ -116,6 +116,12 @@ namespace orc {
     uint64_t capacity() { return _capacity; }
     T& operator[](uint64_t i) { return buf[i]; }
 
+    void clear() {
+      memoryPool->free(buf);
+      buf = nullptr;
+      _capacity = _size = 0;
+    }
+
     void resize(uint64_t size){
       if (size > _capacity) {  // re-allocate memory only if required
         if (buf) {
@@ -189,6 +195,11 @@ namespace orc {
      */
     virtual void resize(uint64_t capacity);
 
+    /**
+     * Calculate heap memory use by this batch.
+     */
+    virtual uint64_t memoryUse();
+
   private:
     ColumnVectorBatch(const ColumnVectorBatch&);
     ColumnVectorBatch& operator=(const ColumnVectorBatch&);
@@ -201,13 +212,21 @@ namespace orc {
     DataBuffer<int64_t> data;
     std::string toString() const;
     void resize(uint64_t capacity);
+    virtual uint64_t memoryUse();
   };
+
+  struct TimestampVectorBatch: public LongVectorBatch {
+    TimestampVectorBatch(uint64_t capacity, MemoryPool* pool = nullptr);
+    virtual ~TimestampVectorBatch();
+    uint64_t memoryUse();
+   };
 
   struct DoubleVectorBatch: public ColumnVectorBatch {
     DoubleVectorBatch(uint64_t capacity, MemoryPool* pool = nullptr);
     virtual ~DoubleVectorBatch();
     std::string toString() const;
     void resize(uint64_t capacity);
+    uint64_t memoryUse();
 
 //    std::vector<double> data;
     DataBuffer<double> data;
@@ -218,6 +237,7 @@ namespace orc {
     virtual ~StringVectorBatch();
     std::string toString() const;
     void resize(uint64_t capacity);
+    uint64_t memoryUse();
 
     // pointers to the start of each string
 //    std::vector<char*> data;
@@ -232,6 +252,7 @@ namespace orc {
     virtual ~StructVectorBatch();
     std::string toString() const;
     void resize(uint64_t capacity);
+    uint64_t memoryUse();
 
     std::vector<ColumnVectorBatch*> fields;
   };
@@ -241,6 +262,7 @@ namespace orc {
     virtual ~ListVectorBatch();
     std::string toString() const;
     void resize(uint64_t capacity);
+    uint64_t memoryUse();
 
     /**
      * The offset of the first element of each list.
@@ -258,6 +280,7 @@ namespace orc {
     virtual ~MapVectorBatch();
     std::string toString() const;
     void resize(uint64_t capacity);
+    uint64_t memoryUse();
 
     /**
      * The offset of the first element of each list.
@@ -286,6 +309,7 @@ namespace orc {
     virtual ~Decimal64VectorBatch();
     std::string toString() const;
     void resize(uint64_t capacity);
+    uint64_t memoryUse();
 
     // total number of digits
     int32_t precision;
@@ -311,6 +335,7 @@ namespace orc {
     virtual ~Decimal128VectorBatch();
     std::string toString() const;
     void resize(uint64_t capacity);
+    uint64_t memoryUse();
 
     // total number of digits
     int32_t precision;
