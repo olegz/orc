@@ -39,18 +39,12 @@ public:
     if (maxMemory < totalMemory) {
       maxMemory = totalMemory;
     }
-//    std::cout << "Allocated " << size << " bytes. Total: "
-//          << totalMemory << ". Max: " << maxMemory <<  std::endl;
     return p;
   }
 
   void free(void* p) override {
     std::free(p);
     totalMemory -= blocks[p] ;
-
-//    std::cout << "Freed " << blocks[p] << " bytes. Total: "
-//          << totalMemory << ". Max: " << maxMemory <<  std::endl;
-
     blocks.erase(p);
   }
 
@@ -90,7 +84,7 @@ int main(int argc, char* argv[]) {
         value = std::strtok(nullptr, "," );
       }
     } else if ( (param=strstr(argv[i], BATCH_PREFIX.c_str())) ) {
-      batchSize = std::atoi(param+BATCH_PREFIX.length());
+      batchSize = static_cast<uint32_t>(std::atoi(param+BATCH_PREFIX.length()));
     } else {
       std::cout << "Unknown option " << argv[i] << std::endl ;
     }
