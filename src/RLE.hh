@@ -51,7 +51,7 @@ namespace orc {
      * @param notNull If the pointer is null, all values are read. If the
      *    pointer is not null, positions that are false are skipped.
      */
-    virtual void next(int64_t* data, unsigned long numValues, 
+    virtual void next(int64_t* data, unsigned long numValues,
                       const char* notNull) = 0;
   };
 

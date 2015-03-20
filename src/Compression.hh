@@ -123,7 +123,7 @@ namespace orc {
    * @param bufferSize the maximum size of the buffer
    * @param pool the memory pool
    */
-  std::unique_ptr<SeekableInputStream> 
+  std::unique_ptr<SeekableInputStream>
      createDecompressor(CompressionKind kind,
                         std::unique_ptr<SeekableInputStream> input,
                         uint64_t bufferSize,

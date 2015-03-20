@@ -617,7 +617,7 @@ TEST(RLEv1, testSigned) {
   }
   rle->next(data.data(), 30, nullptr);
   for(size_t i = 0; i < 30; ++i) {
-    EXPECT_EQ(16 - 100 - static_cast<long>(i), data[i]) 
+    EXPECT_EQ(16 - 100 - static_cast<long>(i), data[i])
       << "Wrong output at " << (i + 100);
   }
 }

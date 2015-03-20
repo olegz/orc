@@ -68,7 +68,7 @@ namespace orc {
      *    of this buffer passes to the InputStream object.
      * @return the buffer with the requested data. The client owns the Buffer.
      */
-    virtual Buffer* read(uint64_t offset, 
+    virtual Buffer* read(uint64_t offset,
                          uint64_t length,
                          Buffer* buffer) = 0;
 

@@ -51,7 +51,7 @@ namespace orc {
     DataBuffer(MemoryPool& pool, uint64_t _size = 0);
     virtual ~DataBuffer();
 
-    T* data() { 
+    T* data() {
       return buf;
     }
 

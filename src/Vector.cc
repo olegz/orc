@@ -55,7 +55,7 @@ namespace orc {
   LongVectorBatch::~LongVectorBatch() {
     // PASS
   }
-  
+
   std::string LongVectorBatch::toString() const {
     std::ostringstream buffer;
     buffer << "Long vector <" << numElements << " of " << capacity << ">";
@@ -129,7 +129,7 @@ namespace orc {
 
   std::string StructVectorBatch::toString() const {
     std::ostringstream buffer;
-    buffer << "Struct vector <" << numElements << " of " << capacity 
+    buffer << "Struct vector <" << numElements << " of " << capacity
            << "; ";
     for(std::vector<ColumnVectorBatch*>::const_iterator ptr=fields.begin();
         ptr != fields.end(); ++ptr) {
@@ -245,7 +245,7 @@ namespace orc {
     }
   }
 
-  Decimal::Decimal(const Int128& _value, 
+  Decimal::Decimal(const Int128& _value,
                    int32_t _scale): value(_value), scale(_scale) {
     // PASS
   }

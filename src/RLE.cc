@@ -34,7 +34,7 @@ namespace orc {
     switch (static_cast<int>(version)) {
     case RleVersion_1:
       // We don't have std::make_unique() yet.
-      return std::unique_ptr<RleDecoder>(new RleDecoderV1(std::move(input), 
+      return std::unique_ptr<RleDecoder>(new RleDecoderV1(std::move(input),
                                                           isSigned));
     case RleVersion_2:
       return std::unique_ptr<RleDecoder>(new RleDecoderV2(std::move(input),

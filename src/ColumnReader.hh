@@ -54,7 +54,7 @@ namespace orc {
      * @param shouldStream should the reading page the stream in
      * @return the new stream
      */
-    virtual std::unique_ptr<SeekableInputStream> 
+    virtual std::unique_ptr<SeekableInputStream>
                     getStream(int columnId,
                               proto::Stream_Kind kind,
                               bool shouldStream) const = 0;
@@ -90,11 +90,11 @@ namespace orc {
      * Read the next group of values into this rowBatch.
      * @param rowBatch the memory to read into.
      * @param numValues the number of values to read
-     * @param notNull if null, all values are not null. Otherwise, it is 
-     *           a mask (with at least numValues bytes) for which values to 
+     * @param notNull if null, all values are not null. Otherwise, it is
+     *           a mask (with at least numValues bytes) for which values to
      *           set.
      */
-    virtual void next(ColumnVectorBatch& rowBatch, 
+    virtual void next(ColumnVectorBatch& rowBatch,
                       unsigned long numValues,
                       char* notNull);
   };

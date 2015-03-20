@@ -196,7 +196,7 @@ namespace orc {
   void checkBytes(const char*data, int length,
                   unsigned int startValue) {
     for(unsigned int i=0; static_cast<int>(i) < length; ++i) {
-      EXPECT_EQ(startValue + i, static_cast<unsigned char>(data[i])) 
+      EXPECT_EQ(startValue + i, static_cast<unsigned char>(data[i]))
         << "Output wrong at " << startValue << " + " << i;
     }
   }
@@ -368,7 +368,7 @@ namespace orc {
                           ({0x19, 0x0, 0x0, 0x0, 0x1,
                               0x2, 0x3, 0x4, 0x5, 0x6,
                               0x7, 0x8, 0x9, 0xa, 0xb,
-                              0xb, 0x0, 0x0, 0xc, 0xd, 
+                              0xb, 0x0, 0x0, 0xc, 0xd,
                               0xe, 0xf, 0x10}, 5)),
                          5, *getDefaultPool());
     EXPECT_EQ("zlib(SeekableArrayInputStream 0 of 23)", result->getName());
@@ -466,7 +466,7 @@ namespace orc {
                           ({0x19, 0x0, 0x0, 0x0, 0x1,
                               0x2, 0x3, 0x4, 0x5, 0x6,
                               0x7, 0x8, 0x9, 0xa, 0xb,
-                              0xb, 0x0, 0x0, 0xc, 0xd, 
+                              0xb, 0x0, 0x0, 0xc, 0xd,
                               0xe, 0xf, 0x10}, 5)),
                          5, *getDefaultPool());
     const void *ptr;

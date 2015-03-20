@@ -482,7 +482,7 @@ TEST(Reader, corruptStatistics) {
     dynamic_cast<const orc::StringColumnStatistics&> (*(col_2.get()));
   EXPECT_EQ(false, strStats.hasMinimum());
   EXPECT_EQ(false, strStats.hasMaximum());
-  
+
   // stripe statistics
   unsigned long stripeIdx = 1;
   std::unique_ptr<orc::Statistics> stripeStats =
@@ -504,7 +504,7 @@ TEST(Reader, noStripeStatistics) {
   std::unique_ptr<orc::Reader> reader =
     orc::createReader(orc::readLocalFile(filename.str()), opts);
 
-  EXPECT_EQ(0, reader->getNumberOfStripeStatistics());  
+  EXPECT_EQ(0, reader->getNumberOfStripeStatistics());
 }
 
 }  // namespace
