@@ -275,7 +275,7 @@ namespace orc {
     } else {
       char numBuffer[64];
       snprintf(numBuffer, sizeof(numBuffer), "%lld",
-	       static_cast<long long int>(data[rowId]));
+               static_cast<long long int>(data[rowId]));
       writeString(buffer, numBuffer);
     }
   }
@@ -590,7 +590,7 @@ namespace orc {
           writeString(buffer, ", ");
         }
         char numBuffer[64];
-        snprintf(numBuffer, sizeof(numBuffer), "%d", 
+        snprintf(numBuffer, sizeof(numBuffer), "%d",
                  (static_cast<const int>(start[rowId][i]) & 0xff));
         writeString(buffer, numBuffer);
       }
@@ -653,7 +653,7 @@ namespace orc {
       char numBuffer[64];
       snprintf(numBuffer, sizeof(numBuffer), "%0*lld\"",
                static_cast<int>(NANO_DIGITS - zeroDigits),
-	       static_cast<long long int>(nanos));
+               static_cast<long long int>(nanos));
       writeString(buffer, numBuffer);
     }
   }

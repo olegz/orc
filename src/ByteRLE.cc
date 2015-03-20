@@ -313,7 +313,7 @@ namespace orc {
     // fill in the remaining values
     if (nonNulls == 0) {
       while (position < numValues) {
-	data[position++] = 0;
+        data[position++] = 0;
       }
     } else if (position < numValues) {
       // read the new bytes into the array

@@ -69,7 +69,7 @@ namespace orc {
      * @return true if has total length
      */
     virtual bool hasTotalLength() const = 0;
-    
+
     virtual uint64_t getTotalLength() const = 0;
   };
 
@@ -102,7 +102,7 @@ namespace orc {
      * @return true if has minimum
      */
     virtual bool hasMinimum() const = 0;
-      
+
     /**
      * check whether column has maximum
      * @return true if has maximum
@@ -134,7 +134,7 @@ namespace orc {
      * @return true if has minimum
      */
     virtual bool hasMinimum() const = 0;
-      
+
     /**
      * check whether column has maximum
      * @return true if has maximum
@@ -178,7 +178,7 @@ namespace orc {
      * @return true if has minimum
      */
     virtual bool hasMinimum() const = 0;
-      
+
     /**
      * check whether column has maximum
      * @return true if has maximum
@@ -225,7 +225,7 @@ namespace orc {
      * @return true if has minimum
      */
     virtual bool hasMinimum() const = 0;
-      
+
     /**
      * check whether column has maximum
      * @return true if has maximum
@@ -271,7 +271,7 @@ namespace orc {
      * @return true if has minimum
      */
     virtual bool hasMinimum() const = 0;
-      
+
     /**
      * check whether column has maximum
      * @return true if has maximum
@@ -279,7 +279,7 @@ namespace orc {
     virtual bool hasMaximum() const = 0;
 
     /**
-     * check whether column 
+     * check whether column
      * @return true if has maximum
      */
     virtual bool hasTotalLength() const = 0;
@@ -315,7 +315,7 @@ namespace orc {
      * @return true if has minimum
      */
     virtual bool hasMinimum() const = 0;
-      
+
     /**
      * check whether column maximum
      * @return true if has maximum
@@ -385,7 +385,7 @@ namespace orc {
      * @return one column's statistics
      */
     virtual const ColumnStatistics* getColumnStatistics(uint32_t colId
-							) const = 0;
+                                                        ) const = 0;
 
     /**
      * Get the number of columns

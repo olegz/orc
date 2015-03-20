@@ -85,8 +85,8 @@ TEST(ByteRle, simpleRuns) {
   for (size_t i = 0; i < 3; ++i) {
     rle->next(data.data(), data.size(), nullptr);
     for (size_t j = 0; j < data.size(); ++j) {
-      EXPECT_EQ(static_cast<char>(-1 - static_cast<int>(i)), data[j]) 
-	<< "Output wrong at " << (16 * i + j);
+      EXPECT_EQ(static_cast<char>(-1 - static_cast<int>(i)), data[j])
+        << "Output wrong at " << (16 * i + j);
     }
   }
 }
@@ -135,8 +135,8 @@ TEST(ByteRle, splitRuns) {
   for(size_t i = 0; i < 2; ++i) {
     rle->next(data.data(), data.size(), nullptr);
     for(size_t j = 0; j < data.size(); ++j) {
-      EXPECT_EQ(5 * i + j + data.size(), data[j]) 
-	<< "Output wrong at " << (20 + data.size() * i + j);
+      EXPECT_EQ(5 * i + j + data.size(), data[j])
+        << "Output wrong at " << (20 + data.size() * i + j);
     }
   }
   rle->next(data.data(), 2, nullptr);

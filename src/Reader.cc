@@ -269,7 +269,7 @@ namespace orc {
              << "Values: " << valueCount << std::endl;
       if(_hasCount){
         buffer << "(true: " << trueCount << "; false: "
-	       << valueCount - trueCount << ")" << std::endl;
+               << valueCount - trueCount << ")" << std::endl;
       } else {
         buffer << "(true: not defined; false: not defined)" << std::endl;
         buffer << "True and false count are not defined" << std::endl;
@@ -810,7 +810,7 @@ namespace orc {
     }
 
     virtual const ColumnStatistics* getColumnStatistics(uint32_t columnId
-							) const {
+                                                        ) const {
       std::list<ColumnStatistics*>::const_iterator it = colStats.begin();
       std::advance(it, static_cast<long>(columnId));
       return *it;
@@ -825,8 +825,8 @@ namespace orc {
 
   StatisticsImpl::~StatisticsImpl() {
     for(std::list<ColumnStatistics*>::iterator ptr = colStats.begin();
-	ptr != colStats.end();
-	++ptr) {
+        ptr != colStats.end();
+        ++ptr) {
       delete *ptr;
     }
   }
@@ -933,7 +933,7 @@ namespace orc {
     std::unique_ptr<Statistics> getStatistics() const override;
 
     std::unique_ptr<ColumnStatistics> getColumnStatistics(uint32_t columnId
-							  ) const override;
+                                                          ) const override;
 
     const Type& getType() const override;
 
@@ -949,7 +949,7 @@ namespace orc {
     void seekToRow(unsigned long rowNumber) override;
 
     MemoryPool* getMemoryPool() const ;
-    
+
     bool hasCorrectStatistics() const override;
   };
 
@@ -1143,7 +1143,7 @@ namespace orc {
       // If there is no magic string at the end, check the beginning.
       // Only files written by Hive 0.11.0 don't have the tail ORC string.
       Buffer *frontBuffer = stream->read(0, magicLength, nullptr);
-      bool foundMatch = 
+      bool foundMatch =
         memcmp(frontBuffer->getStart(), MAGIC.c_str(), magicLength) == 0;
       delete frontBuffer;
       if (!foundMatch) {
@@ -1235,7 +1235,7 @@ namespace orc {
     char *footerStart;
 
     if (tailSize > readSize) {
-      buffer = stream->read(fileLength - tailSize, 
+      buffer = stream->read(fileLength - tailSize,
                             metadataSize + footerSize, buffer);
       metadataStart = buffer->getStart();
     } else {
@@ -1318,7 +1318,7 @@ namespace orc {
     virtual std::unique_ptr<SeekableInputStream>
     getStream(int columnId,
               proto::Stream_Kind kind,
-	      bool shouldStream) const override;
+              bool shouldStream) const override;
 
     MemoryPool& getMemoryPool() const override;
   };
@@ -1355,22 +1355,22 @@ namespace orc {
   std::unique_ptr<SeekableInputStream>
   StripeStreamsImpl::getStream(int columnId,
                                proto::Stream_Kind kind,
-			       bool shouldStream) const {
+                               bool shouldStream) const {
     unsigned long offset = stripeStart;
     for(int i = 0; i < footer.streams_size(); ++i) {
       const proto::Stream& stream = footer.streams(i);
       if (stream.kind() == kind &&
           stream.column() == static_cast<unsigned int>(columnId)) {
-	long myBlock = static_cast<long>(shouldStream ?
-					 reader.getCompressionSize() :
-					 stream.length());
+        long myBlock = static_cast<long>(shouldStream ?
+                                         1024 * 1024 :
+                                         stream.length());
         return createDecompressor(reader.getCompression(),
                                   std::unique_ptr<SeekableInputStream>
                                   (new SeekableFileInputStream
                                    (&input,
                                     offset,
-				    stream.length(),
-				    myBlock)),
+                                    stream.length(),
+                                    myBlock)),
                                   reader.getCompressionSize(),
                                   memoryPool);
       }
