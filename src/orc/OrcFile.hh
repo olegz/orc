@@ -65,13 +65,27 @@ namespace orc {
   std::unique_ptr<InputStream> readLocalFile(const std::string& path);
 
   /**
-   * Create a reader to the for the ORC file.
+   * Create a reader for the ORC file.
    * @param stream the stream to read
    * @param options the options for reading the file
+   * @param pool custom memory allocator
    */
   std::unique_ptr<Reader> createReader(std::unique_ptr<InputStream> stream,
                                        const ReaderOptions& options,
                                        MemoryPool* pool = nullptr);
+
+  /**
+   * Create a copy of a reader for the ORC file
+   * @param stream the stream to read
+   * @param options the options for reading the file
+   * @param reader ORC file reader
+   * @param pool custom memory allocator
+   */
+  std::unique_ptr<Reader> createReaderCopy(std::unique_ptr<InputStream> stream,
+                                       const ReaderOptions& options,
+                                       const Reader* reader,
+                                       MemoryPool* pool = nullptr
+                                       );
 }
 
 #endif

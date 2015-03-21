@@ -905,10 +905,24 @@ namespace orc {
      * Constructor that lets the user specify additional options.
      * @param stream the stream to read from
      * @param options options for reading
+     * @param pool custom memory allocator
      */
     ReaderImpl(std::unique_ptr<InputStream> stream,
                const ReaderOptions& options,
                MemoryPool* pool);
+
+    /**
+     * Constructor that lets the user specify additional options.
+     * @param stream the stream to read from
+     * @param options options for reading
+     * @param reader ORC file reader
+     * @param pool custom memory allocator
+     */
+    ReaderImpl(std::unique_ptr<InputStream> stream,
+               const ReaderOptions& options,
+               const ReaderImpl* readerImpl,
+               MemoryPool* pool);
+
 
     const ReaderOptions& getReaderOptions() const;
     CompressionKind getCompression() const override;
@@ -962,7 +976,19 @@ namespace orc {
     
     bool hasCorrectStatistics() const override;
 
-    virtual uint64_t memoryEstimate(int stripeIx = -1) override;
+    uint64_t memoryEstimate(int stripeIx = -1) override;
+
+    proto::PostScript getPostscript() const {
+      return postscript;
+    }
+
+    proto::Footer getFooter() const {
+      return footer;
+    }
+
+    proto::Metadata getMetadata() const {
+      return metadata;
+    }
   };
 
   InputStream::~InputStream() {
@@ -1041,6 +1067,68 @@ namespace orc {
       }
     }
   }
+
+  ReaderImpl::ReaderImpl(std::unique_ptr<InputStream> input,
+                             const ReaderOptions& opts,
+                             const ReaderImpl* readerImpl,
+                             MemoryPool* pool):
+                                 stream(std::move(input)), options(opts), memoryPool(pool) {
+      isMetadataLoaded = false;
+
+      postscript = readerImpl->getPostscript();
+      if (postscript.has_compressionblocksize()) {
+        blockSize = postscript.compressionblocksize();
+      } else {
+        blockSize = 256 * 1024;
+      }
+      compression = static_cast<CompressionKind>(postscript.compression());
+
+      footer = readerImpl->getFooter();
+      numberOfStripes = static_cast<unsigned long>(footer.stripes_size());
+
+      metadata = readerImpl->getMetadata();
+      numberOfStripeStatistics = static_cast<unsigned long>(metadata.stripestats_size());
+
+      currentStripe = static_cast<uint64_t>(footer.stripes_size());
+      lastStripe = 0;
+      currentRowInStripe = 0;
+      unsigned long rowTotal = 0;
+
+      // firstRowOfStripe.resize(static_cast<size_t>(footer.stripes_size()));
+      firstRowOfStripe.reset(new DataBuffer<uint64_t>(
+          static_cast<size_t>(footer.stripes_size()), memoryPool));
+
+      for(size_t i=0; i < static_cast<size_t>(footer.stripes_size()); ++i) {
+        (*firstRowOfStripe)[i] = rowTotal;
+        proto::StripeInformation stripeInfo = footer.stripes(static_cast<int>(i));
+        rowTotal += stripeInfo.numberofrows();
+        bool isStripeInRange = stripeInfo.offset() >= opts.getOffset() &&
+          stripeInfo.offset() < opts.getOffset() + opts.getLength();
+        if (isStripeInRange) {
+          if (i < currentStripe) {
+            currentStripe = i;
+          }
+          if (i > lastStripe) {
+            lastStripe = i;
+          }
+        }
+      }
+
+      schema = convertType(footer.types(0), footer);
+      schema->assignIds(0);
+      previousRow = (std::numeric_limits<uint64_t>::max)();
+
+      selectedColumns.assign(static_cast<size_t>(footer.types_size()), false);
+
+      const std::list<int>& included = options.getInclude();
+      for(std::list<int>::const_iterator columnId = included.begin();
+          columnId != included.end(); ++columnId) {
+        if (*columnId <= static_cast<int>(schema->getSubtypeCount())) {
+          selectTypeParent(static_cast<size_t>(*columnId));
+          selectTypeChildren(static_cast<size_t>(*columnId));
+        }
+      }
+    }
 
   const ReaderOptions& ReaderImpl::getReaderOptions() const {
     return options;
@@ -1628,6 +1716,18 @@ namespace orc {
                                        const ReaderOptions& options,
                                        MemoryPool* pool) {
     return std::unique_ptr<Reader>(new ReaderImpl(std::move(stream), options, pool));
+  }
+
+  std::unique_ptr<Reader> createReaderCopy(std::unique_ptr<InputStream> stream,
+                                       const ReaderOptions& options,
+                                       const Reader* reader,
+                                       MemoryPool* pool) {
+    return std::unique_ptr<Reader>(
+        new ReaderImpl(std::move(stream),
+                       options,
+                       dynamic_cast<const ReaderImpl*>(reader),
+                       pool)
+    );
   }
 
   ColumnStatistics::~ColumnStatistics() {
