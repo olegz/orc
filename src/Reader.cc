@@ -915,7 +915,7 @@ namespace orc {
      * Constructor that lets the user specify additional options.
      * @param stream the stream to read from
      * @param options options for reading
-     * @param reader ORC file reader
+     * @param readerImpl ORC file reader
      * @param pool custom memory allocator
      */
     ReaderImpl(std::unique_ptr<InputStream> stream,
