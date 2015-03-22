@@ -978,15 +978,15 @@ namespace orc {
 
     uint64_t memoryEstimate(int stripeIx = -1) override;
 
-    proto::PostScript getPostscript() const {
+    const proto::PostScript& getPostscript() const {
       return postscript;
     }
 
-    proto::Footer getFooter() const {
+    const proto::Footer& getFooter() const {
       return footer;
     }
 
-    proto::Metadata getMetadata() const {
+    const proto::Metadata& getMetadata() const {
       return metadata;
     }
   };
