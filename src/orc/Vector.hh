@@ -117,8 +117,10 @@ namespace orc {
     T& operator[](uint64_t i) { return buf[i]; }
 
     void clear() {
-      memoryPool->free(buf);
-      buf = nullptr;
+      if (buf) {
+        memoryPool->free(buf);
+        buf = nullptr;
+      }
       _capacity = _size = 0;
     }
 
