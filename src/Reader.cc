@@ -912,7 +912,7 @@ namespace orc {
                MemoryPool* pool);
 
     /**
-     * Constructor that lets the user specify additional options.
+     * Copy constructor
      * @param stream the stream to read from
      * @param options options for reading
      * @param readerImpl ORC file reader
@@ -923,6 +923,21 @@ namespace orc {
                const ReaderImpl* readerImpl,
                MemoryPool* pool);
 
+    /**
+     * Constructor that uses serialized strings for setup
+     * @param stream the stream to read from
+     * @param options options for reading
+     * @param serializedPostscript ORC file postscript
+     * @param serializedFooter ORC file footer
+     * @param serializedMetadata ORC file metadata
+     * @param pool custom memory allocator
+     */
+    ReaderImpl(std::unique_ptr<InputStream> stream,
+               const ReaderOptions& options,
+               const std::string* serializedPostscript,
+               const std::string* serializedFooter,
+               const std::string* serializedMetadata,
+               MemoryPool* pool);
 
     const ReaderOptions& getReaderOptions() const;
     CompressionKind getCompression() const override;
@@ -977,6 +992,18 @@ namespace orc {
     bool hasCorrectStatistics() const override;
 
     uint64_t memoryEstimate(int stripeIx = -1) override;
+
+    bool serializePostscript(std::string* output) override {
+      return postscript.SerializeToString(output);
+    }
+
+    bool serializeFooter(std::string* output) override {
+      return footer.SerializeToString(output);
+    }
+
+    bool serializeMetadata(std::string* output) override {
+      return metadata.SerializeToString(output);
+    }
 
     const proto::PostScript& getPostscript() const {
       return postscript;
@@ -1073,9 +1100,81 @@ namespace orc {
                              const ReaderImpl* readerImpl,
                              MemoryPool* pool):
                                  stream(std::move(input)), options(opts), memoryPool(pool) {
-      isMetadataLoaded = false;
+    isMetadataLoaded = false;
 
-      postscript = readerImpl->getPostscript();
+    postscript = readerImpl->getPostscript();
+    if (postscript.has_compressionblocksize()) {
+      blockSize = postscript.compressionblocksize();
+    } else {
+      blockSize = 256 * 1024;
+    }
+    compression = static_cast<CompressionKind>(postscript.compression());
+
+    footer = readerImpl->getFooter();
+    numberOfStripes = static_cast<unsigned long>(footer.stripes_size());
+
+    metadata = readerImpl->getMetadata();
+    numberOfStripeStatistics = static_cast<unsigned long>(metadata.stripestats_size());
+
+    currentStripe = static_cast<uint64_t>(footer.stripes_size());
+    lastStripe = 0;
+    currentRowInStripe = 0;
+    unsigned long rowTotal = 0;
+
+    // firstRowOfStripe.resize(static_cast<size_t>(footer.stripes_size()));
+    firstRowOfStripe.reset(new DataBuffer<uint64_t>(
+        static_cast<size_t>(footer.stripes_size()), memoryPool));
+
+    for(size_t i=0; i < static_cast<size_t>(footer.stripes_size()); ++i) {
+      (*firstRowOfStripe)[i] = rowTotal;
+      proto::StripeInformation stripeInfo = footer.stripes(static_cast<int>(i));
+      rowTotal += stripeInfo.numberofrows();
+      bool isStripeInRange = stripeInfo.offset() >= opts.getOffset() &&
+        stripeInfo.offset() < opts.getOffset() + opts.getLength();
+      if (isStripeInRange) {
+        if (i < currentStripe) {
+          currentStripe = i;
+        }
+        if (i > lastStripe) {
+          lastStripe = i;
+        }
+      }
+    }
+
+    schema = convertType(footer.types(0), footer);
+    schema->assignIds(0);
+    previousRow = (std::numeric_limits<uint64_t>::max)();
+
+    selectedColumns.assign(static_cast<size_t>(footer.types_size()), false);
+
+    const std::list<int>& included = options.getInclude();
+    for(std::list<int>::const_iterator columnId = included.begin();
+        columnId != included.end(); ++columnId) {
+      if (*columnId <= static_cast<int>(schema->getSubtypeCount())) {
+        selectTypeParent(static_cast<size_t>(*columnId));
+        selectTypeChildren(static_cast<size_t>(*columnId));
+      }
+    }
+  }
+
+  ReaderImpl::ReaderImpl(std::unique_ptr<InputStream> input,
+                             const ReaderOptions& opts,
+                             const std::string* serializedPostscript,
+                             const std::string* serializedFooter,
+                             const std::string* serializedMetadata,
+                             MemoryPool* pool):
+                                 stream(std::move(input)), options(opts), memoryPool(pool) {
+    isMetadataLoaded = false;
+    DataBuffer<char> buffer(0, memoryPool);
+    unsigned long size = 0;
+    unsigned long readSize = 0;
+
+    // Postscript and footer must be both provided
+    if (serializedPostscript && serializedFooter) {
+      postscriptLength = serializedPostscript->length();
+      if(!postscript.ParseFromArray(serializedPostscript->data(), postscriptLength)) {
+        throw ParseError("Failed to parse the postscript");
+      }
       if (postscript.has_compressionblocksize()) {
         blockSize = postscript.compressionblocksize();
       } else {
@@ -1083,52 +1182,87 @@ namespace orc {
       }
       compression = static_cast<CompressionKind>(postscript.compression());
 
-      footer = readerImpl->getFooter();
+      if(postscript.footerlength() != serializedFooter->length() ||
+          !footer.ParseFromArray(serializedFooter->data(), serializedFooter->length())) {
+        throw ParseError("Failed to parse the footer");
+      }
       numberOfStripes = static_cast<unsigned long>(footer.stripes_size());
+    } else {
+      size = std::min(options.getTailLocation(),
+                                    static_cast<unsigned long>
+                                    (stream->getLength()));
+      readSize = std::min(size, DIRECTORY_SIZE_GUESS);
 
-      metadata = readerImpl->getMetadata();
-      numberOfStripeStatistics = static_cast<unsigned long>(metadata.stripestats_size());
-
-      currentStripe = static_cast<uint64_t>(footer.stripes_size());
-      lastStripe = 0;
-      currentRowInStripe = 0;
-      unsigned long rowTotal = 0;
-
-      // firstRowOfStripe.resize(static_cast<size_t>(footer.stripes_size()));
-      firstRowOfStripe.reset(new DataBuffer<uint64_t>(
-          static_cast<size_t>(footer.stripes_size()), memoryPool));
-
-      for(size_t i=0; i < static_cast<size_t>(footer.stripes_size()); ++i) {
-        (*firstRowOfStripe)[i] = rowTotal;
-        proto::StripeInformation stripeInfo = footer.stripes(static_cast<int>(i));
-        rowTotal += stripeInfo.numberofrows();
-        bool isStripeInRange = stripeInfo.offset() >= opts.getOffset() &&
-          stripeInfo.offset() < opts.getOffset() + opts.getLength();
-        if (isStripeInRange) {
-          if (i < currentStripe) {
-            currentStripe = i;
-          }
-          if (i > lastStripe) {
-            lastStripe = i;
-          }
-        }
+      if (readSize < 1) {
+        throw ParseError("File size too small");
       }
 
-      schema = convertType(footer.types(0), footer);
-      schema->assignIds(0);
-      previousRow = (std::numeric_limits<uint64_t>::max)();
+      buffer.resize(readSize);
+      stream->read(buffer.data(), size - readSize, readSize);
+      readPostscript(buffer.data(), readSize);
+      readFooter(buffer.data(), readSize, size);
+      buffer.clear();
+    }
 
-      selectedColumns.assign(static_cast<size_t>(footer.types_size()), false);
+    // Metadata may not be provided or included in the file
+    if (serializedMetadata) {
+      if(!metadata.ParseFromArray(serializedMetadata->data(), serializedMetadata->length())) {
+        throw ParseError("Failed to parse the postscript");
+      }
+    } else {
+      size = std::min(options.getTailLocation(),
+                                    static_cast<unsigned long>
+                                    (stream->getLength()));
 
-      const std::list<int>& included = options.getInclude();
-      for(std::list<int>::const_iterator columnId = included.begin();
-          columnId != included.end(); ++columnId) {
-        if (*columnId <= static_cast<int>(schema->getSubtypeCount())) {
-          selectTypeParent(static_cast<size_t>(*columnId));
-          selectTypeChildren(static_cast<size_t>(*columnId));
+      unsigned long position = size - 1 - postscriptLength
+          - postscript.footerlength() - postscript.metadatalength();
+      buffer.resize(postscript.metadatalength());
+      stream->read(buffer.data(), position, postscript.metadatalength());
+      readMetadata(buffer.data(), postscript.metadatalength(), size);
+      buffer.clear();
+    }
+    numberOfStripeStatistics = static_cast<unsigned long>(metadata.stripestats_size());
+
+    currentStripe = static_cast<uint64_t>(footer.stripes_size());
+    lastStripe = 0;
+    currentRowInStripe = 0;
+    unsigned long rowTotal = 0;
+
+    // firstRowOfStripe.resize(static_cast<size_t>(footer.stripes_size()));
+    firstRowOfStripe.reset(new DataBuffer<uint64_t>(
+        static_cast<size_t>(footer.stripes_size()), memoryPool));
+
+    for(size_t i=0; i < static_cast<size_t>(footer.stripes_size()); ++i) {
+      (*firstRowOfStripe)[i] = rowTotal;
+      proto::StripeInformation stripeInfo = footer.stripes(static_cast<int>(i));
+      rowTotal += stripeInfo.numberofrows();
+      bool isStripeInRange = stripeInfo.offset() >= opts.getOffset() &&
+        stripeInfo.offset() < opts.getOffset() + opts.getLength();
+      if (isStripeInRange) {
+        if (i < currentStripe) {
+          currentStripe = i;
+        }
+        if (i > lastStripe) {
+          lastStripe = i;
         }
       }
     }
+
+    schema = convertType(footer.types(0), footer);
+    schema->assignIds(0);
+    previousRow = (std::numeric_limits<uint64_t>::max)();
+
+    selectedColumns.assign(static_cast<size_t>(footer.types_size()), false);
+
+    const std::list<int>& included = options.getInclude();
+    for(std::list<int>::const_iterator columnId = included.begin();
+        columnId != included.end(); ++columnId) {
+      if (*columnId <= static_cast<int>(schema->getSubtypeCount())) {
+        selectTypeParent(static_cast<size_t>(*columnId));
+        selectTypeChildren(static_cast<size_t>(*columnId));
+      }
+    }
+  }
 
   const ReaderOptions& ReaderImpl::getReaderOptions() const {
     return options;
@@ -1729,6 +1863,23 @@ namespace orc {
                        pool)
     );
   }
+
+  std::unique_ptr<Reader> createReaderSerialized(std::unique_ptr<InputStream> stream,
+                                       const ReaderOptions& options,
+                                       const std::string* strPostscript,
+                                       const std::string* strFooter,
+                                       const std::string* strMetadata,
+                                       MemoryPool* pool) {
+    return std::unique_ptr<Reader>(
+        new ReaderImpl(std::move(stream),
+                       options,
+                       strPostscript,
+                       strFooter,
+                       strMetadata,
+                       pool)
+    );
+  }
+
 
   ColumnStatistics::~ColumnStatistics() {
     // PASS

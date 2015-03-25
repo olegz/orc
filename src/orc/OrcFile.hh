@@ -86,6 +86,24 @@ namespace orc {
                                        const Reader* reader,
                                        MemoryPool* pool = nullptr
                                        );
+
+  /**
+   * Create a reader for the ORC file using provided serialized data
+   * @param stream the stream to read
+   * @param options the options for reading the file
+   * @param strPostscript serialized postscript
+   * @param strFooter serialized footer
+   * @param strMetadata serialized metadata
+   * @param pool custom memory allocator
+   */
+  std::unique_ptr<Reader> createReaderSerialized(std::unique_ptr<InputStream> stream,
+                                       const ReaderOptions& options,
+                                       const std::string* strPostscript,
+                                       const std::string* strFooter,
+                                       const std::string* strMetadata,
+                                       MemoryPool* pool = nullptr
+                                       );
+
 }
 
 #endif

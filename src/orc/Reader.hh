@@ -686,6 +686,21 @@ namespace orc {
      * @return memory estimate
      */
     virtual uint64_t memoryEstimate(int stripeIx = -1) = 0;
+
+    /*
+     * Serialize the postscript
+     */
+    virtual bool serializePostscript(std::string* output) = 0;
+
+    /*
+     * Serialize the footer
+     */
+    virtual bool serializeFooter(std::string* output) = 0;
+
+    /*
+     * Serialize the metadata
+     */
+    virtual bool serializeMetadata(std::string* output) = 0;
   };
 }
 
