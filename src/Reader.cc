@@ -1099,7 +1099,9 @@ namespace orc {
                              const ReaderOptions& opts,
                              const ReaderImpl* readerImpl,
                              MemoryPool* pool):
-                                 stream(std::move(input)), options(opts), memoryPool(pool) {
+                                 stream(std::move(input)),
+                                 options(opts),
+                                 memoryPool(pool) {
     isMetadataLoaded = false;
 
     postscript = readerImpl->getPostscript();
@@ -1114,7 +1116,8 @@ namespace orc {
     numberOfStripes = static_cast<unsigned long>(footer.stripes_size());
 
     metadata = readerImpl->getMetadata();
-    numberOfStripeStatistics = static_cast<unsigned long>(metadata.stripestats_size());
+    numberOfStripeStatistics =
+        static_cast<unsigned long>(metadata.stripestats_size());
 
     currentStripe = static_cast<uint64_t>(footer.stripes_size());
     lastStripe = 0;
@@ -1127,7 +1130,8 @@ namespace orc {
 
     for(size_t i=0; i < static_cast<size_t>(footer.stripes_size()); ++i) {
       (*firstRowOfStripe)[i] = rowTotal;
-      proto::StripeInformation stripeInfo = footer.stripes(static_cast<int>(i));
+      proto::StripeInformation stripeInfo =
+          footer.stripes(static_cast<int>(i));
       rowTotal += stripeInfo.numberofrows();
       bool isStripeInRange = stripeInfo.offset() >= opts.getOffset() &&
         stripeInfo.offset() < opts.getOffset() + opts.getLength();
@@ -1163,7 +1167,9 @@ namespace orc {
                              const std::string* serializedFooter,
                              const std::string* serializedMetadata,
                              MemoryPool* pool):
-                                 stream(std::move(input)), options(opts), memoryPool(pool) {
+                                 stream(std::move(input)),
+                                 options(opts),
+                                 memoryPool(pool) {
     isMetadataLoaded = false;
     DataBuffer<char> buffer(0, memoryPool);
     unsigned long size = 0;
@@ -1172,7 +1178,9 @@ namespace orc {
     // Postscript and footer must be both provided
     if (serializedPostscript && serializedFooter) {
       postscriptLength = serializedPostscript->length();
-      if(!postscript.ParseFromArray(serializedPostscript->data(), postscriptLength)) {
+      if(!postscript.ParseFromArray(
+                        serializedPostscript->data(),
+                        static_cast<int>(postscriptLength))) {
         throw ParseError("Failed to parse the postscript");
       }
       if (postscript.has_compressionblocksize()) {
@@ -1182,8 +1190,9 @@ namespace orc {
       }
       compression = static_cast<CompressionKind>(postscript.compression());
 
-      if(postscript.footerlength() != serializedFooter->length() ||
-          !footer.ParseFromArray(serializedFooter->data(), serializedFooter->length())) {
+      if(!footer.ParseFromArray(
+                        serializedFooter->data(),
+                        static_cast<int>(serializedFooter->length()))) {
         throw ParseError("Failed to parse the footer");
       }
       numberOfStripes = static_cast<unsigned long>(footer.stripes_size());
@@ -1206,8 +1215,10 @@ namespace orc {
 
     // Metadata may not be provided or included in the file
     if (serializedMetadata) {
-      if(!metadata.ParseFromArray(serializedMetadata->data(), serializedMetadata->length())) {
-        throw ParseError("Failed to parse the postscript");
+      if(!metadata.ParseFromArray(
+                        serializedMetadata->data(),
+                        static_cast<int>(serializedMetadata->length()))) {
+        throw ParseError("Failed to parse the metadata");
       }
     } else {
       size = std::min(options.getTailLocation(),
