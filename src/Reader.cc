@@ -1392,7 +1392,7 @@ namespace orc {
 
     // Look for the magic string at the end of the postscript.
     if (memcmp(buffer+readSize-1-len, MAGIC.c_str(), len) != 0) {
-      // if there is no magic string at the end, check the beginning of the file
+      // if there is no magic string at the end, check at the front
       DataBuffer<char> frontBuffer(len, memoryPool);
       stream->read(frontBuffer.data(), 0, len);
       if (memcmp(frontBuffer.data(), MAGIC.c_str(), len) != 0) {
@@ -1414,7 +1414,8 @@ namespace orc {
   }
 
   std::unique_ptr<Statistics> ReaderImpl::getStatistics() const {
-    return std::unique_ptr<Statistics>(new StatisticsImpl(footer, hasCorrectStatistics()));
+    return std::unique_ptr<Statistics>(
+        new StatisticsImpl(footer, hasCorrectStatistics()));
   }
 
   std::unique_ptr<ColumnStatistics>
@@ -1437,12 +1438,26 @@ namespace orc {
     }
     return std::unique_ptr<Statistics>
       (new StatisticsImpl(metadata.stripestats
-                          (static_cast<int>(stripeIndex)), hasCorrectStatistics()));
+                    (static_cast<int>(stripeIndex)), hasCorrectStatistics()));
   }
 
 
-  void ReaderImpl::seekToRow(unsigned long) {
-    throw NotImplementedYet("seekToRow");
+  void ReaderImpl::seekToRow(unsigned long rowNumber) {
+    if (rowNumber >= footer.numberofrows()) {
+      currentStripe = static_cast<uint64_t>(footer.stripes_size())+1;
+      previousRow = footer.numberofrows();
+      currentRowInStripe = 0;
+    } else {
+      currentStripe = 0;
+      while (currentStripe+1 < static_cast<uint64_t>(footer.stripes_size()) &&
+                    (*firstRowOfStripe)[currentStripe+1] <= rowNumber) {
+        currentStripe++;
+      }
+      currentRowInStripe = 0;
+      std::unique_ptr<orc::ColumnVectorBatch> batch =
+          createRowBatch(rowNumber-(*firstRowOfStripe)[currentStripe]);
+      next(*batch);
+    }
   }
 
   MemoryPool* ReaderImpl::getMemoryPool() const {
