@@ -1359,7 +1359,8 @@ namespace orc {
     unsigned long offset = stripeStart;
     for(int i = 0; i < footer.streams_size(); ++i) {
       const proto::Stream& stream = footer.streams(i);
-      if (stream.kind() == kind &&
+      if (stream.has_kind() &&
+          stream.kind() == kind &&
           stream.column() == static_cast<unsigned int>(columnId)) {
         long myBlock = static_cast<long>(shouldStream ?
                                          1024 * 1024 :
