@@ -40,6 +40,32 @@ TEST(ByteRle, simpleTest) {
   EXPECT_EQ(0x46, data[102]);
 }
 
+TEST(ByteRle, nullTest) {
+  char buffer[258];
+  char notNull[266];
+  char result[266];
+  buffer[0] = -128;
+  buffer[129] = -128;
+  for(int i=0; i < 128; ++i) {
+    buffer[1 + i] = static_cast<char>(i);
+    buffer[130 + i] = static_cast<char>(128 + i);
+  }
+  for(int i=0; i < 266; ++i) {
+    notNull[i] = static_cast<char>(i >= 10);
+  }
+  std::unique_ptr<ByteRleDecoder> rle =
+    createByteRleDecoder(std::unique_ptr<SeekableInputStream>
+                         (new SeekableArrayInputStream(buffer,
+                                                       sizeof(buffer))));
+  rle->next(result, sizeof(result), notNull);
+  for(size_t i = 0; i < sizeof(result); ++i) {
+    if (i >= 10) {
+      EXPECT_EQ((i - 10) & 0xff,
+                static_cast<int>(result[i]) & 0xff) << "Output wrong at " << i;
+    }
+  }
+}
+
 TEST(ByteRle, literalCrossBuffer) {
   std::unique_ptr<ByteRleDecoder> rle =
       createByteRleDecoder(
