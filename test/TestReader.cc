@@ -250,6 +250,16 @@ namespace orc {
                                        2,
                                        CompressionKind_ZLIB,
                                        262144,
+                                       10000),
+                    OrcFileDescription("union-timestamp.orc",
+                                       "union-timestamp.jsn.gz",
+                                       "struct<time:timestamp,union:uniontype"
+                                       "<int,string>,decimal:decimal(38,18)>",
+                                       5309,
+                                       26473,
+                                       2,
+                                       CompressionKind_NONE,
+                                       262144,
                                        10000)
                     ));
 

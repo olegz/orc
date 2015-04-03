@@ -208,6 +208,26 @@ namespace orc {
     std::unique_ptr<ColumnVectorBatch> elements;
   };
 
+  struct UnionVectorBatch: public ColumnVectorBatch {
+    UnionVectorBatch(uint64_t capacity, MemoryPool& pool);
+    virtual ~UnionVectorBatch();
+    std::string toString() const;
+    void resize(uint64_t capacity);
+
+    /**
+     * For each value, which element of children has the value.
+     */
+    DataBuffer<unsigned char> tags;
+
+    /**
+     * For each value, the index inside of the child ColumnVectorBatch.
+     */
+    DataBuffer<uint64_t> offsets;
+
+    // the sub-columns
+    std::vector<ColumnVectorBatch*> children;
+  };
+
   struct Decimal {
     Decimal(const Int128& value, int32_t scale);
     explicit Decimal(const std::string& value);

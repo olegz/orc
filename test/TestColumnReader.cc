@@ -3565,11 +3565,11 @@ TEST(DecimalColumnReader, testDecimalHive11BigBatches) {
   }
 }
 
-TEST(TestColumnReader, testUnimplementedTypes) {
+TEST(TestColumnReader, testUnion) {
   MockStripeStreams streams;
 
   // set getSelectedColumns()
-  std::vector<bool> selectedColumns = { true, true };
+  std::vector<bool> selectedColumns = { true, true, true, true };
   EXPECT_CALL(streams, getSelectedColumns())
       .WillRepeatedly(testing::Return(selectedColumns));
 
@@ -3580,16 +3580,539 @@ TEST(TestColumnReader, testUnimplementedTypes) {
       .WillRepeatedly(testing::Return(directEncoding));
 
   // set getStream
-  EXPECT_CALL(streams, getStreamProxy(0, proto::Stream_Kind_PRESENT, true))
+  EXPECT_CALL(streams, getStreamProxy(testing::_,
+          proto::Stream_Kind_PRESENT, true))
       .WillRepeatedly(testing::Return(nullptr));
 
+  // [0] * 1000 + [1] * 1000 + [0] * 200 + [1] * 200
+  EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_DATA, true))
+      .WillRepeatedly(testing::Return(new SeekableArrayInputStream
+                                      ( { 0x7f, 0x00,
+                                          0x7f, 0x00,
+                                          0x7f, 0x00,
+                                          0x7f, 0x00,
+                                          0x7f, 0x00,
+                                          0x7f, 0x00,
+                                          0x7f, 0x00,
+                                          0x57, 0x00,
+                                          0x7f, 0x01,
+                                          0x7f, 0x01,
+                                          0x7f, 0x01,
+                                          0x7f, 0x01,
+                                          0x7f, 0x01,
+                                          0x7f, 0x01,
+                                          0x7f, 0x01,
+                                          0x57, 0x01,
+                                          0x7f, 0x00,
+                                          0x43, 0x00,
+                                          0x7f, 0x01,
+                                          0x43, 0x01 })));
+
+  // range(1200)
+  EXPECT_CALL(streams, getStreamProxy(2, proto::Stream_Kind_DATA, true))
+      .WillRepeatedly(testing::Return(new SeekableArrayInputStream
+      ( { 0x7f, 0x01, 0x00,
+          0x7f, 0x01, 0x84, 0x02,
+          0x7f, 0x01, 0x88, 0x04,
+          0x7f, 0x01, 0x8c, 0x06,
+          0x7f, 0x01, 0x90, 0x08,
+          0x7f, 0x01, 0x94, 0x0a,
+          0x7f, 0x01, 0x98, 0x0c,
+          0x7f, 0x01, 0x9c, 0x0e,
+          0x7f, 0x01, 0xa0, 0x10,
+          0x1b, 0x01, 0xa4, 0x12 })));
+
+  // range(8, 1208)
+  EXPECT_CALL(streams, getStreamProxy(3, proto::Stream_Kind_DATA, true))
+      .WillRepeatedly(testing::Return(new SeekableArrayInputStream
+      ( { 0x7f, 0x01, 0x10,
+          0x7f, 0x01, 0x94, 0x02,
+          0x7f, 0x01, 0x98, 0x04,
+          0x7f, 0x01, 0x9c, 0x06,
+          0x7f, 0x01, 0xa0, 0x08,
+          0x7f, 0x01, 0xa4, 0x0a,
+          0x7f, 0x01, 0xa8, 0x0c,
+          0x7f, 0x01, 0xac, 0x0e,
+          0x7f, 0x01, 0xb0, 0x10,
+          0x1b, 0x01, 0xb4, 0x12 })));
+
   // create the row type
-  std::unique_ptr<Type> rowType;
-
-  rowType = createStructType( { createPrimitiveType(UNION) }, { "col0" });
+  std::vector<Type*> childrenTypes;
+  childrenTypes.push_back(createPrimitiveType(LONG).release());
+  childrenTypes.push_back(createPrimitiveType(INT).release());
+  std::unique_ptr<Type> rowType =
+    createStructType( { createUnionType(childrenTypes)}, { "col0" });
   rowType->assignIds(0);
-  EXPECT_THROW(buildReader(*rowType, streams), NotImplementedYet);
 
+  std::unique_ptr<ColumnReader> reader = buildReader(*rowType, streams);
+
+  StructVectorBatch batch(512, *getDefaultPool());
+  UnionVectorBatch *unions = new UnionVectorBatch(512, *getDefaultPool());
+  LongVectorBatch *child1 = new LongVectorBatch(512, *getDefaultPool());
+  LongVectorBatch *child2 = new LongVectorBatch(512, *getDefaultPool());
+  batch.fields.push_back(unions);
+  unions->children.push_back(child1);
+  unions->children.push_back(child2);
+  reader->next(batch, 512, 0);
+  ASSERT_EQ(512, batch.numElements);
+  ASSERT_EQ(false, batch.hasNulls);
+  ASSERT_EQ(512, unions->numElements);
+  ASSERT_EQ(false, unions->hasNulls);
+  ASSERT_EQ(512, child1->numElements);
+  ASSERT_EQ(false, child1->hasNulls);
+  ASSERT_EQ(0, child2->numElements);
+  ASSERT_EQ(false, child2->hasNulls);
+  for (size_t i = 0; i < batch.numElements; ++i) {
+    EXPECT_EQ(0, unions->tags[i]);
+    EXPECT_EQ(i, unions->offsets[i]);
+    EXPECT_EQ(i, child1->data[i]);
+  }
+
+  reader->next(batch, 511, 0);
+  ASSERT_EQ(511, batch.numElements);
+  ASSERT_EQ(false, batch.hasNulls);
+  ASSERT_EQ(511, unions->numElements);
+  ASSERT_EQ(false, unions->hasNulls);
+  ASSERT_EQ(488, child1->numElements);
+  ASSERT_EQ(false, child1->hasNulls);
+  ASSERT_EQ(23, child2->numElements);
+  ASSERT_EQ(false, child2->hasNulls);
+  for (size_t i = 0; i < 488; ++i) {
+    EXPECT_EQ(0, unions->tags[i]);
+    EXPECT_EQ(i, unions->offsets[i]);
+    EXPECT_EQ(i + 512, child1->data[i]);
+  }
+  for (size_t i = 488; i < 511; ++i) {
+    EXPECT_EQ(1, unions->tags[i]);
+    EXPECT_EQ(i - 488, unions->offsets[i]);
+    EXPECT_EQ(i - 480, child2->data[i - 488]);
+  }
+
+  reader->next(batch, 1, 0);
+  ASSERT_EQ(1, batch.numElements);
+  ASSERT_EQ(false, batch.hasNulls);
+  ASSERT_EQ(1, unions->numElements);
+  ASSERT_EQ(false, unions->hasNulls);
+  ASSERT_EQ(0, child1->numElements);
+  ASSERT_EQ(false, child1->hasNulls);
+  ASSERT_EQ(1, child2->numElements);
+  ASSERT_EQ(false, child2->hasNulls);
+  EXPECT_EQ(1, unions->tags[0]);
+  EXPECT_EQ(0, unions->offsets[0]);
+  EXPECT_EQ(31, child2->data[0]);
+
+  batch.resize(1500);
+  reader->next(batch, 1376, 0);
+  ASSERT_EQ(1376, batch.numElements);
+  ASSERT_EQ(false, batch.hasNulls);
+  ASSERT_EQ(1376, unions->numElements);
+  ASSERT_EQ(false, unions->hasNulls);
+  ASSERT_EQ(200, child1->numElements);
+  ASSERT_EQ(false, child1->hasNulls);
+  ASSERT_EQ(1176, child2->numElements);
+  ASSERT_EQ(false, child2->hasNulls);
+  for (size_t i = 0; i < 1376; ++i) {
+    if (i < 976) {
+      EXPECT_EQ(1, unions->tags[i]);
+      EXPECT_EQ(i, unions->offsets[i]);
+      EXPECT_EQ(i + 32, child2->data[i]);
+    } else if (i < 1176) {
+      EXPECT_EQ(0, unions->tags[i]);
+      EXPECT_EQ(i - 976, unions->offsets[i]);
+      EXPECT_EQ(i + 24, child1->data[i - 976]);
+    } else {
+      EXPECT_EQ(1, unions->tags[i]);
+      EXPECT_EQ(i - 200, unions->offsets[i]);
+      EXPECT_EQ(i - 168, child2->data[i - 200]);
+    }
+  }
+  EXPECT_EQ(("Struct vector <1376 of 1500;"
+             " Union vector <Long vector <200 of 512>,"
+             " Long vector <1176 of 1176>; with 1376 of 1376>; >"),
+            batch.toString());
+}
+
+TEST(TestColumnReader, testUnionWithNulls) {
+  MockStripeStreams streams;
+
+  // set getSelectedColumns()
+  std::vector<bool> selectedColumns = { true, true, true, true };
+  EXPECT_CALL(streams, getSelectedColumns())
+      .WillRepeatedly(testing::Return(selectedColumns));
+
+  // set getEncoding
+  proto::ColumnEncoding directEncoding;
+  directEncoding.set_kind(proto::ColumnEncoding_Kind_DIRECT);
+  EXPECT_CALL(streams, getEncoding(testing::_))
+      .WillRepeatedly(testing::Return(directEncoding));
+
+  // set getStream
+  EXPECT_CALL(streams, getStreamProxy(testing::_,
+          proto::Stream_Kind_PRESENT, true))
+      .WillRepeatedly(testing::Return(nullptr));
+
+  // [0] * 3 + [255] * 6 + [0] * 3
+  EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_PRESENT, true))
+      .WillRepeatedly(testing::Return(new SeekableArrayInputStream
+                                      ( { 0x00, 0x00,
+                                          0x03, 0xff,
+                                          0x00, 0x00 })));
+
+  // [0, 1] * 24
+  EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_DATA, true))
+      .WillRepeatedly(testing::Return(new SeekableArrayInputStream
+                                      ( { 0xd0,
+                                          0x00, 0x01, 0x00, 0x01,
+                                          0x00, 0x01, 0x00, 0x01,
+                                          0x00, 0x01, 0x00, 0x01,
+                                          0x00, 0x01, 0x00, 0x01,
+                                          0x00, 0x01, 0x00, 0x01,
+                                          0x00, 0x01, 0x00, 0x01,
+                                          0x00, 0x01, 0x00, 0x01,
+                                          0x00, 0x01, 0x00, 0x01,
+                                          0x00, 0x01, 0x00, 0x01,
+                                          0x00, 0x01, 0x00, 0x01,
+                                          0x00, 0x01, 0x00, 0x01,
+                                          0x00, 0x01, 0x00, 0x01 })));
+
+  // range(24)
+  EXPECT_CALL(streams, getStreamProxy(2, proto::Stream_Kind_DATA, true))
+      .WillRepeatedly(testing::Return(new SeekableArrayInputStream
+                                      ( { 0x15, 0x01, 0x00 } )));
+
+  // range(8, 32)
+  EXPECT_CALL(streams, getStreamProxy(3, proto::Stream_Kind_DATA, true))
+      .WillRepeatedly(testing::Return(new SeekableArrayInputStream
+                                      ( { 0x15, 0x01, 0x10 } )));
+
+  // create the row type
+  std::vector<Type*> childrenTypes;
+  childrenTypes.push_back(createPrimitiveType(LONG).release());
+  childrenTypes.push_back(createPrimitiveType(INT).release());
+  std::unique_ptr<Type> rowType =
+    createStructType( { createUnionType(childrenTypes)}, { "col0" });
+  rowType->assignIds(0);
+
+  std::unique_ptr<ColumnReader> reader = buildReader(*rowType, streams);
+
+  StructVectorBatch batch(512, *getDefaultPool());
+  UnionVectorBatch *unions = new UnionVectorBatch(512, *getDefaultPool());
+  LongVectorBatch *child1 = new LongVectorBatch(512, *getDefaultPool());
+  LongVectorBatch *child2 = new LongVectorBatch(512, *getDefaultPool());
+  batch.fields.push_back(unions);
+  unions->children.push_back(child1);
+  unions->children.push_back(child2);
+  reader->next(batch, 96, 0);
+  ASSERT_EQ(96, batch.numElements);
+  ASSERT_EQ(false, batch.hasNulls);
+  ASSERT_EQ(96, unions->numElements);
+  ASSERT_EQ(true, unions->hasNulls);
+  ASSERT_EQ(24, child1->numElements);
+  ASSERT_EQ(false, child1->hasNulls);
+  ASSERT_EQ(24, child2->numElements);
+  ASSERT_EQ(false, child2->hasNulls);
+  for (size_t i = 0; i < batch.numElements; ++i) {
+    if (i < 24) {
+      EXPECT_EQ(false, unions->notNull[i]);
+    } else if (i < 72) {
+      EXPECT_EQ(true, unions->notNull[i]);
+      EXPECT_EQ(i % 2, unions->tags[i]);
+      EXPECT_EQ((i - 24) / 2, unions->offsets[i]);
+      if (i % 2 == 0) {
+        EXPECT_EQ((i - 24) / 2, child1->data[unions->offsets[i]]);
+      } else {
+        EXPECT_EQ((i - 24) / 2 + 8, child2->data[unions->offsets[i]]);
+      }
+    } else {
+      EXPECT_EQ(false, unions->notNull[i]);
+    }
+  }
+}
+
+TEST(TestColumnReader, testUnionSkips) {
+  MockStripeStreams streams;
+
+  // set getSelectedColumns()
+  std::vector<bool> selectedColumns = { true, true, false, true };
+  EXPECT_CALL(streams, getSelectedColumns())
+      .WillRepeatedly(testing::Return(selectedColumns));
+
+  // set getEncoding
+  proto::ColumnEncoding directEncoding;
+  directEncoding.set_kind(proto::ColumnEncoding_Kind_DIRECT);
+  EXPECT_CALL(streams, getEncoding(testing::_))
+      .WillRepeatedly(testing::Return(directEncoding));
+
+  // set getStream
+  EXPECT_CALL(streams, getStreamProxy(testing::_,
+          proto::Stream_Kind_PRESENT, true))
+      .WillRepeatedly(testing::Return(nullptr));
+
+  // [0] * 3 + [255] * 6 + [0] * 3
+  EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_PRESENT, true))
+      .WillRepeatedly(testing::Return(new SeekableArrayInputStream
+                                      ( { 0x00, 0x00,
+                                          0x03, 0xff,
+                                          0x00, 0x00 })));
+
+  // [0, 1] * 24
+  EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_DATA, true))
+      .WillRepeatedly(testing::Return(new SeekableArrayInputStream
+                                      ( { 0xd0,
+                                          0x00, 0x01, 0x00, 0x01,
+                                          0x00, 0x01, 0x00, 0x01,
+                                          0x00, 0x01, 0x00, 0x01,
+                                          0x00, 0x01, 0x00, 0x01,
+                                          0x00, 0x01, 0x00, 0x01,
+                                          0x00, 0x01, 0x00, 0x01,
+                                          0x00, 0x01, 0x00, 0x01,
+                                          0x00, 0x01, 0x00, 0x01,
+                                          0x00, 0x01, 0x00, 0x01,
+                                          0x00, 0x01, 0x00, 0x01,
+                                          0x00, 0x01, 0x00, 0x01,
+                                          0x00, 0x01, 0x00, 0x01 })));
+
+  // range(8, 32)
+  EXPECT_CALL(streams, getStreamProxy(3, proto::Stream_Kind_DATA, true))
+      .WillRepeatedly(testing::Return(new SeekableArrayInputStream
+                                      ( { 0x15, 0x01, 0x10 } )));
+
+  // create the row type
+  std::vector<Type*> childrenTypes;
+  childrenTypes.push_back(createPrimitiveType(LONG).release());
+  childrenTypes.push_back(createPrimitiveType(INT).release());
+  std::unique_ptr<Type> rowType =
+    createStructType( { createUnionType(childrenTypes)}, { "col0" });
+  rowType->assignIds(0);
+
+  std::unique_ptr<ColumnReader> reader = buildReader(*rowType, streams);
+
+  StructVectorBatch batch(512, *getDefaultPool());
+  UnionVectorBatch *unions = new UnionVectorBatch(512, *getDefaultPool());
+  LongVectorBatch *child2 = new LongVectorBatch(512, *getDefaultPool());
+  batch.fields.push_back(unions);
+  unions->children.push_back(nullptr);
+  unions->children.push_back(child2);
+
+  reader->next(batch, 26, 0);
+  ASSERT_EQ(26, batch.numElements);
+  ASSERT_EQ(false, batch.hasNulls);
+  ASSERT_EQ(26, unions->numElements);
+  ASSERT_EQ(true, unions->hasNulls);
+  ASSERT_EQ(1, child2->numElements);
+  ASSERT_EQ(false, child2->hasNulls);
+  for (size_t i = 0; i < 24; ++i) {
+    EXPECT_EQ(false, unions->notNull[i]);
+  }
+  EXPECT_EQ(true, unions->notNull[24]);
+  EXPECT_EQ(0, unions->tags[24]);
+  EXPECT_EQ(true, unions->notNull[25]);
+  EXPECT_EQ(1, unions->tags[25]);
+  EXPECT_EQ(0, unions->offsets[25]);
+  EXPECT_EQ(8, child2->data[unions->offsets[25]]);
+
+  reader->skip(44);
+
+  reader->next(batch, 26, 0);
+  ASSERT_EQ(26, batch.numElements);
+  ASSERT_EQ(false, batch.hasNulls);
+  ASSERT_EQ(26, unions->numElements);
+  ASSERT_EQ(true, unions->hasNulls);
+  ASSERT_EQ(1, child2->numElements);
+  ASSERT_EQ(false, child2->hasNulls);
+  EXPECT_EQ(true, unions->notNull[0]);
+  EXPECT_EQ(0, unions->tags[0]);
+  EXPECT_EQ(true, unions->notNull[1]);
+  EXPECT_EQ(1, unions->tags[1]);
+  EXPECT_EQ(0, unions->offsets[1]);
+  EXPECT_EQ(31, child2->data[unions->offsets[1]]);
+  for (size_t i = 2; i < 26; ++i) {
+    EXPECT_EQ(false, unions->notNull[i]);
+  }
+}
+
+TEST(TestColumnReader, testUnionLongSkip) {
+  MockStripeStreams streams;
+
+  // set getSelectedColumns()
+  std::vector<bool> selectedColumns = { true, true, true, false };
+  EXPECT_CALL(streams, getSelectedColumns())
+      .WillRepeatedly(testing::Return(selectedColumns));
+
+  // set getEncoding
+  proto::ColumnEncoding directEncoding;
+  directEncoding.set_kind(proto::ColumnEncoding_Kind_DIRECT);
+  EXPECT_CALL(streams, getEncoding(testing::_))
+      .WillRepeatedly(testing::Return(directEncoding));
+
+  // set getStream
+  EXPECT_CALL(streams, getStreamProxy(testing::_,
+          proto::Stream_Kind_PRESENT, true))
+      .WillRepeatedly(testing::Return(nullptr));
+
+  // [1] * 1300 + [0] * 1300
+  EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_DATA, true))
+      .WillRepeatedly(testing::Return(new SeekableArrayInputStream
+                                      ( { 0x7f, 0x01, 0x7f, 0x01,
+                                          0x7f, 0x01, 0x7f, 0x01,
+                                          0x7f, 0x01, 0x7f, 0x01,
+                                          0x7f, 0x01, 0x7f, 0x01,
+                                          0x7f, 0x01, 0x7f, 0x01,
+                                          0x7f, 0x00, 0x7f, 0x00,
+                                          0x7f, 0x00, 0x7f, 0x00,
+                                          0x7f, 0x00, 0x7f, 0x00,
+                                          0x7f, 0x00, 0x7f, 0x00,
+                                          0x7f, 0x00, 0x7f, 0x00})));
+
+  // range(0, 1300)
+  EXPECT_CALL(streams, getStreamProxy(2, proto::Stream_Kind_DATA, true))
+      .WillRepeatedly(testing::Return(new SeekableArrayInputStream
+                                      ( { 0x7f, 0x01, 0x00,
+                                          0x7f, 0x01, 0x84, 0x02,
+                                          0x7f, 0x01, 0x88, 0x04,
+                                          0x7f, 0x01, 0x8c, 0x06,
+                                          0x7f, 0x01, 0x90, 0x08,
+                                          0x7f, 0x01, 0x94, 0x0a,
+                                          0x7f, 0x01, 0x98, 0x0c,
+                                          0x7f, 0x01, 0x9c, 0x0e,
+                                          0x7f, 0x01, 0xa0, 0x10,
+                                          0x7f, 0x01, 0xa4, 0x12} )));
+
+  // create the row type
+  std::vector<Type*> childrenTypes;
+  childrenTypes.push_back(createPrimitiveType(LONG).release());
+  childrenTypes.push_back(createPrimitiveType(INT).release());
+  std::unique_ptr<Type> rowType =
+    createStructType( { createUnionType(childrenTypes)}, { "col0" });
+  rowType->assignIds(0);
+
+  std::unique_ptr<ColumnReader> reader = buildReader(*rowType, streams);
+
+  StructVectorBatch batch(512, *getDefaultPool());
+  UnionVectorBatch *unions = new UnionVectorBatch(512, *getDefaultPool());
+  LongVectorBatch *child1 = new LongVectorBatch(512, *getDefaultPool());
+  batch.fields.push_back(unions);
+  unions->children.push_back(child1);
+  unions->children.push_back(nullptr);
+
+  reader->next(batch, 10, 0);
+  ASSERT_EQ(10, batch.numElements);
+  ASSERT_EQ(false, batch.hasNulls);
+  ASSERT_EQ(10, unions->numElements);
+  ASSERT_EQ(false, unions->hasNulls);
+  ASSERT_EQ(0, child1->numElements);
+  ASSERT_EQ(false, child1->hasNulls);
+  for (size_t i = 0; i < batch.numElements; ++i) {
+    EXPECT_EQ(1, unions->tags[i]);
+    EXPECT_EQ(i, unions->offsets[i]);
+  }
+  reader->skip(2490);
+
+  reader->next(batch, 100, 0);
+  ASSERT_EQ(100, batch.numElements);
+  ASSERT_EQ(false, batch.hasNulls);
+  ASSERT_EQ(100, unions->numElements);
+  ASSERT_EQ(false, unions->hasNulls);
+  ASSERT_EQ(100, child1->numElements);
+  ASSERT_EQ(false, child1->hasNulls);
+  for (size_t i = 0; i < batch.numElements; ++i) {
+    EXPECT_EQ(0, unions->tags[i]);
+    EXPECT_EQ(i, unions->offsets[i]);
+    EXPECT_EQ(i + 1200, child1->data[unions->offsets[i]]);
+  }
+}
+
+TEST(TestColumnReader, testUnionWithManyVariants) {
+  MockStripeStreams streams;
+
+  // set getSelectedColumns()
+  std::vector<bool> selectedColumns(132, true);
+  EXPECT_CALL(streams, getSelectedColumns())
+      .WillRepeatedly(testing::Return(selectedColumns));
+
+  // set getEncoding
+  proto::ColumnEncoding directEncoding;
+  directEncoding.set_kind(proto::ColumnEncoding_Kind_DIRECT);
+  EXPECT_CALL(streams, getEncoding(testing::_))
+      .WillRepeatedly(testing::Return(directEncoding));
+
+  // set getStream
+  EXPECT_CALL(streams, getStreamProxy(testing::_,
+          proto::Stream_Kind_PRESENT, true))
+      .WillRepeatedly(testing::Return(nullptr));
+
+  // list(range(130)) * 2
+  char tagBuffer[264];
+  // four literal runs of length 65
+  tagBuffer[0] = static_cast<char>(0xbf);
+  tagBuffer[66] = tagBuffer[0];
+  tagBuffer[132] = tagBuffer[0];
+  tagBuffer[198] = tagBuffer[0];
+  for(size_t i=0; i <65; ++i) {
+    tagBuffer[i+1] = static_cast<char>(i);
+    tagBuffer[i+67] = static_cast<char>(i + 65);
+    tagBuffer[i+133] = tagBuffer[i+1];
+    tagBuffer[i+199] = tagBuffer[i+67];
+  }
+  EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_DATA, true))
+    .WillRepeatedly(testing::Return(new SeekableArrayInputStream
+                                    (tagBuffer, sizeof(tagBuffer))));
+
+  // for variant in range(0, 130):
+  //   [variant & 0x3f, (variant & 0x3f) + 1, (variant & 0x3f) + 2]
+  for(int variant = 0; variant < 130; ++variant) {
+    EXPECT_CALL(streams, getStreamProxy(variant + 2, proto::Stream_Kind_DATA,
+                                        true))
+      .WillRepeatedly(testing::Return(new SeekableArrayInputStream
+                                      ( { 0x00, 0x01,
+                                          static_cast<unsigned char>((variant * 2) &
+                                                             0x7f) })));
+  }
+
+  // create the row type
+  std::vector<Type*> childrenTypes;
+  for(size_t variant=0; variant < 130; ++variant) {
+    childrenTypes.push_back(createPrimitiveType(LONG).release());
+  }
+  std::unique_ptr<Type> rowType =
+    createStructType( { createUnionType(childrenTypes)}, { "col0" });
+  rowType->assignIds(0);
+
+  std::unique_ptr<ColumnReader> reader = buildReader(*rowType, streams);
+
+  StructVectorBatch batch(512, *getDefaultPool());
+  UnionVectorBatch *unions = new UnionVectorBatch(512, *getDefaultPool());
+  batch.fields.push_back(unions);
+  for(size_t variant=0; variant < 130; ++variant) {
+    unions->children.push_back(new LongVectorBatch(512, *getDefaultPool()));
+  }
+
+  reader->next(batch, 130, 0);
+  ASSERT_EQ(130, batch.numElements);
+  ASSERT_EQ(false, batch.hasNulls);
+  ASSERT_EQ(130, unions->numElements);
+  ASSERT_EQ(false, unions->hasNulls);
+  for(size_t variant=0; variant < 130; ++variant) {
+    ASSERT_EQ(1, unions->children[variant]->numElements);
+    ASSERT_EQ(false, unions->children[variant]->hasNulls);
+  }
+  for (size_t i = 0; i < batch.numElements; ++i) {
+    EXPECT_EQ(i, unions->tags[i]);
+    EXPECT_EQ(0, unions->offsets[i]);
+  }
+  reader->skip(30);
+
+  reader->next(batch, 100, 0);
+  ASSERT_EQ(100, batch.numElements);
+  ASSERT_EQ(false, batch.hasNulls);
+  ASSERT_EQ(100, unions->numElements);
+  ASSERT_EQ(false, unions->hasNulls);
+  for(size_t variant=30; variant < 130; ++variant) {
+    ASSERT_EQ(variant, unions->tags[variant - 30]);
+    ASSERT_EQ(0, unions->offsets[variant - 30]);
+    ASSERT_EQ(1, unions->children[variant]->numElements);
+    ASSERT_EQ(false, unions->children[variant]->hasNulls);
+  }
 }
 
 }  // namespace orc

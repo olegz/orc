@@ -123,8 +123,9 @@ namespace orc {
   }
 
   StructVectorBatch::~StructVectorBatch() {
-    for (unsigned int i=0; i<this->fields.size(); i++)
+    for (unsigned int i=0; i<this->fields.size(); i++) {
       delete this->fields[i];
+    }
   }
 
   std::string StructVectorBatch::toString() const {
@@ -190,6 +191,40 @@ namespace orc {
     if (capacity < cap) {
       ColumnVectorBatch::resize(cap);
       offsets.resize(cap + 1);
+    }
+  }
+
+  UnionVectorBatch::UnionVectorBatch(uint64_t cap, MemoryPool& pool
+                                     ): ColumnVectorBatch(cap, pool),
+                                        tags(pool, cap),
+                                        offsets(pool, cap) {
+    // PASS
+  }
+
+  UnionVectorBatch::~UnionVectorBatch() {
+    for (unsigned int i=0; i < children.size(); i++) {
+      delete children[i];
+    }
+  }
+
+  std::string UnionVectorBatch::toString() const {
+    std::ostringstream buffer;
+    buffer << "Union vector <";
+    for(size_t i=0; i < children.size(); ++i) {
+      if (i != 0) {
+        buffer << ", ";
+      }
+      buffer << children[i]->toString();
+    }
+    buffer << "; with " << numElements << " of " << capacity << ">";
+    return buffer.str();
+  }
+
+  void UnionVectorBatch::resize(uint64_t cap) {
+    if (capacity < cap) {
+      ColumnVectorBatch::resize(cap);
+      tags.resize(cap);
+      offsets.resize(cap);
     }
   }
 

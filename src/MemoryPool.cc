@@ -189,6 +189,24 @@ namespace orc {
     currentSize = newSize;
   }
 
+  // Specializations for unsigned char
+
+  template <>
+  DataBuffer<unsigned char>::~DataBuffer(){
+    if (buf) {
+      memoryPool.free(reinterpret_cast<char*>(buf));
+    }
+  }
+
+  template <>
+  void DataBuffer<unsigned char>::resize(uint64_t newSize) {
+    reserve(newSize);
+    if (newSize > currentSize) {
+      memset(buf + currentSize, 0, newSize - currentSize);
+    }
+    currentSize = newSize;
+  }
+
   #ifdef __clang__
     #pragma clang diagnostic ignored "-Wweak-template-vtables"
   #endif
@@ -199,6 +217,7 @@ namespace orc {
   template class DataBuffer<Int128>;
   template class DataBuffer<int64_t>;
   template class DataBuffer<uint64_t>;
+  template class DataBuffer<unsigned char>;
 
   #ifdef __clang__
     #pragma clang diagnostic ignored "-Wexit-time-destructors"

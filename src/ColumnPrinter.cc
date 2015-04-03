@@ -154,6 +154,19 @@ namespace orc {
     void reset(const ColumnVectorBatch& batch) override;
   };
 
+  class UnionColumnPrinter: public ColumnPrinter {
+  private:
+    const unsigned char *tags;
+    const uint64_t* offsets;
+    std::vector<ColumnPrinter*> fieldPrinter;
+
+  public:
+    UnionColumnPrinter(std::string&, const Type& type);
+    virtual ~UnionColumnPrinter();
+    void printRow(unsigned long rowId) override;
+    void reset(const ColumnVectorBatch& batch) override;
+  };
+
   class StructColumnPrinter: public ColumnPrinter {
   private:
     std::vector<ColumnPrinter*> fieldPrinter;
@@ -251,8 +264,11 @@ namespace orc {
       result = new DateColumnPrinter(buffer, type);
       break;
 
-    default:
     case UNION:
+      result = new UnionColumnPrinter(buffer, type);
+      break;
+
+    default:
       throw std::logic_error("unknown batch type");
     }
     return std::unique_ptr<ColumnPrinter>(result);
@@ -484,6 +500,47 @@ namespace orc {
         writeChar(buffer, '}');
       }
       writeChar(buffer, ']');
+    }
+  }
+
+  UnionColumnPrinter::UnionColumnPrinter(std::string& buffer,
+                                           const Type& type
+                                           ): ColumnPrinter(buffer, type) {
+    for(unsigned i=0; i < type.getSubtypeCount(); ++i) {
+      fieldPrinter.push_back(createColumnPrinter(buffer, type.getSubtype(i))
+                             .release());
+    }
+  }
+
+  UnionColumnPrinter::~UnionColumnPrinter() {
+    for (size_t i = 0; i < fieldPrinter.size(); i++) {
+      delete fieldPrinter[i];
+    }
+  }
+
+  void UnionColumnPrinter::reset(const ColumnVectorBatch& batch) {
+    ColumnPrinter::reset(batch);
+    const UnionVectorBatch& unionBatch =
+      dynamic_cast<const UnionVectorBatch&>(batch);
+    tags = unionBatch.tags.data();
+    offsets = unionBatch.offsets.data();
+    for(size_t i=0; i < fieldPrinter.size(); ++i) {
+      fieldPrinter[i]->reset(*(unionBatch.children[i]));
+    }
+  }
+
+  void UnionColumnPrinter::printRow(unsigned long rowId) {
+    if (hasNulls && !notNull[rowId]) {
+      writeString(buffer, "null");
+    } else {
+      writeString(buffer, "{\"tag\": ");
+      char numBuffer[64];
+      snprintf(numBuffer, sizeof(numBuffer), "%d",
+               static_cast<int>(tags[rowId]));
+      writeString(buffer, numBuffer);
+      writeString(buffer, ", \"value\": ");
+      fieldPrinter[tags[rowId]]->printRow(offsets[rowId]);
+      writeChar(buffer, '}');
     }
   }
 

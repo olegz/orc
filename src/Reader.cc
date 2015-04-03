@@ -1487,6 +1487,15 @@ namespace orc {
       }
       break;
     case UNION:
+      result = new UnionVectorBatch(capacity, memoryPool);
+      for(unsigned int i=0; i < type.getSubtypeCount(); ++i) {
+        subtype = &(type.getSubtype(i));
+        if (selectedColumns[static_cast<size_t>(subtype->getColumnId())]) {
+          dynamic_cast<UnionVectorBatch*>(result)->children.push_back
+            (createRowBatch(*subtype, capacity).release());
+        }
+      }
+      break;
     default:
       throw NotImplementedYet("not supported yet");
     }

@@ -911,7 +911,7 @@ namespace orc {
   MapColumnReader::MapColumnReader(const Type& type,
                                    StripeStreams& stripe
                                    ): ColumnReader(type, stripe) {
-    // count the number of selected sub-columns
+    // Determine if the key and/or value columns are selected
     const std::vector<bool> selectedColumns = stripe.getSelectedColumns();
     RleVersion vers = convertRleVersion(stripe.getEncoding(columnId).kind());
     rle = createRleDecoder(stripe.getStream(columnId,
@@ -995,6 +995,108 @@ namespace orc {
     ColumnReader *rawElementReader = elementReader.get();
     if (rawElementReader) {
       rawElementReader->next(*(mapBatch.elements.get()), totalChildren, 0);
+    }
+  }
+
+  class UnionColumnReader: public ColumnReader {
+  private:
+    std::unique_ptr<ByteRleDecoder> rle;
+    std::vector<ColumnReader*> childrenReader;
+    std::vector<int64_t> childrenCounts;
+    uint64_t numChildren;
+
+  public:
+    UnionColumnReader(const Type& type, StripeStreams& stipe);
+    ~UnionColumnReader();
+
+    unsigned long skip(unsigned long numValues) override;
+
+    void next(ColumnVectorBatch& rowBatch,
+              unsigned long numValues,
+              char *notNull) override;
+  };
+
+  UnionColumnReader::UnionColumnReader(const Type& type,
+                                       StripeStreams& stripe
+                                       ): ColumnReader(type, stripe) {
+    numChildren = type.getSubtypeCount();
+    childrenReader.resize(numChildren);
+    childrenCounts.resize(numChildren);
+
+    rle = createByteRleDecoder(stripe.getStream(columnId,
+                                                proto::Stream_Kind_DATA,
+                                                true));
+    // figure out which types are selected
+    const std::vector<bool> selectedColumns = stripe.getSelectedColumns();
+    for(uint i=0; i < numChildren; ++i) {
+      const Type &child = type.getSubtype(i);
+      if (selectedColumns[static_cast<size_t>(child.getColumnId())]) {
+        childrenReader[i] = buildReader(child, stripe).release();
+      }
+    }
+  }
+
+  UnionColumnReader::~UnionColumnReader() {
+    for(std::vector<ColumnReader*>::iterator itr = childrenReader.begin();
+        itr != childrenReader.end(); ++itr) {
+      delete *itr;
+    }
+  }
+
+  unsigned long UnionColumnReader::skip(unsigned long numValues) {
+    numValues = ColumnReader::skip(numValues);
+    const uint64_t BUFFER_SIZE = 1024;
+    char buffer[BUFFER_SIZE];
+    uint64_t lengthsRead = 0;
+    int64_t *counts = childrenCounts.data();
+    memset(counts, 0, sizeof(int64_t) * numChildren);
+    while (lengthsRead < numValues) {
+      unsigned long chunk = std::min(numValues - lengthsRead, BUFFER_SIZE);
+      rle->next(buffer, chunk, 0);
+      for(size_t i=0; i < chunk; ++i) {
+        counts[static_cast<size_t>(buffer[i])] += 1;
+      }
+      lengthsRead += chunk;
+    }
+    for(size_t i=0; i < numChildren; ++i) {
+      if (counts[i] != 0 && childrenReader[i] != NULL) {
+        childrenReader[i]->skip(static_cast<uint64_t>(counts[i]));
+      }
+    }
+    return numValues;
+  }
+
+  void UnionColumnReader::next(ColumnVectorBatch& rowBatch,
+                               unsigned long numValues,
+                               char *notNull) {
+    ColumnReader::next(rowBatch, numValues, notNull);
+    UnionVectorBatch &unionBatch = dynamic_cast<UnionVectorBatch&>(rowBatch);
+    uint64_t* offsets = unionBatch.offsets.data();
+    int64_t* counts = childrenCounts.data();
+    memset(counts, 0, sizeof(int64_t) * numChildren);
+    unsigned char* tags = unionBatch.tags.data();
+    notNull = unionBatch.hasNulls ? unionBatch.notNull.data() : 0;
+    rle->next(reinterpret_cast<char *>(tags), numValues, notNull);
+    // set the offsets for each row
+    if (notNull) {
+      for(size_t i=0; i < numValues; ++i) {
+        if (notNull[i]) {
+          offsets[i] =
+            static_cast<uint64_t>(counts[static_cast<size_t>(tags[i])]++);
+        }
+      }
+    } else {
+      for(size_t i=0; i < numValues; ++i) {
+        offsets[i] =
+          static_cast<uint64_t>(counts[static_cast<size_t>(tags[i])]++);
+      }
+    }
+    // read the right number of each child column
+    for(size_t i=0; i < numChildren; ++i) {
+      if (childrenReader[i] != nullptr) {
+        childrenReader[i]->next(*(unionBatch.children[i]),
+                                static_cast<uint64_t>(counts[i]), nullptr);
+      }
     }
   }
 
@@ -1399,6 +1501,10 @@ namespace orc {
       return std::unique_ptr<ColumnReader>(
           new MapColumnReader(type, stripe));
 
+    case UNION:
+      return std::unique_ptr<ColumnReader>(
+          new UnionColumnReader(type, stripe));
+
     case STRUCT:
       return std::unique_ptr<ColumnReader>(
           new StructColumnReader(type, stripe));
@@ -1430,7 +1536,6 @@ namespace orc {
           (new Decimal128ColumnReader(type, stripe));
       }
 
-    case UNION:
     default:
       throw NotImplementedYet("buildReader unhandled type");
     }
