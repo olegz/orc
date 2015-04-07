@@ -298,25 +298,30 @@ namespace orc {
 
     DataBuffer<int64_t> seconds(memoryPool, rowBatch.capacity);
     DataBuffer<int64_t> nanoseconds(memoryPool, rowBatch.capacity);
+    notNull = rowBatch.hasNulls ? rowBatch.notNull.data() : nullptr;
 
-    rle->next(seconds.data(),
-              numValues, rowBatch.hasNulls ? rowBatch.notNull.data() : 0);
-    nanos->next(nanoseconds.data(),
-              numValues, rowBatch.hasNulls ? rowBatch.notNull.data() : 0);
+    rle->next(seconds.data(), numValues, notNull);
+    nanos->next(nanoseconds.data(), numValues, notNull);
 
     // Construct the values
     int64_t* pStamp = dynamic_cast<LongVectorBatch&>(rowBatch).data.data();
-    int zeroes = 0;
     int64_t nanosec = 0;
-    for(unsigned int i=0; i<rowBatch.capacity; i++) {
-      nanosec =  nanoseconds[i] >> 3 ;
-      zeroes = nanoseconds[i] & 0x7 ;
-      while(zeroes>=0) {
-        nanosec *=10 ;
-        zeroes--;
+    for(unsigned int i=0; i < numValues; i++) {
+      if (notNull == nullptr || notNull[i]) {
+        nanosec =  nanoseconds[i] >> 3;
+        uint64_t zeros = nanoseconds[i] & 0x7;
+        if (zeros != 0) {
+          for(uint64_t j = 0; j <= zeros; ++j) {
+            nanosec *= 10;
+          }
+        }
+        pStamp[i] =  seconds[i] * 1000000000 + 1420070400000000000;
+        if (pStamp[i] >= 0) {
+          pStamp[i] += nanosec;
+        } else {
+          pStamp[i] -= nanosec;
+        }
       }
-      pStamp[i] =  seconds[i]*1000000000 + nanosec // ns since 1/1/2015 (ORC)
-          + 1420070400000000000; // ns between 1/1/1970 and 1/1/2015
     }
   }
 

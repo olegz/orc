@@ -630,8 +630,8 @@ namespace orc {
         static_cast<time_t>(data[rowId] / NANOS_PER_SECOND) + epoch;
       // make sure the nanos are positive
       if (nanos < 0) {
-        nanos += NANOS_PER_SECOND;
         seconds -= 1;
+        nanos = -nanos;
       }
       struct tm tmValue;
       localtime_r(&seconds, &tmValue);

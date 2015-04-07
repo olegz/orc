@@ -2521,7 +2521,7 @@ TEST(TestColumnReader, testTimestampSkipWithNulls) {
       EXPECT_EQ(0, longBatch->notNull[i]);
     } else {
       EXPECT_EQ(1, longBatch->notNull[i]);
-      EXPECT_DOUBLE_EQ(test_vals[vals_ix], longBatch->data[i]);
+      EXPECT_EQ(test_vals[vals_ix], longBatch->data[i]);
       vals_ix++;
     }
   }
@@ -2541,6 +2541,90 @@ TEST(TestColumnReader, testTimestampSkipWithNulls) {
       EXPECT_DOUBLE_EQ(test_vals[vals_ix], longBatch->data[i]);
       vals_ix++;
     }
+  }
+}
+
+TEST(TestColumnReader, testTimestamp) {
+  MockStripeStreams streams;
+
+  // set getSelectedColumns()
+  std::vector<bool> selectedColumns = { true, true };
+  EXPECT_CALL(streams, getSelectedColumns())
+      .WillRepeatedly(testing::Return(selectedColumns));
+
+  // set getEncoding
+  proto::ColumnEncoding directEncoding;
+  directEncoding.set_kind(proto::ColumnEncoding_Kind_DIRECT);
+  EXPECT_CALL(streams, getEncoding(testing::_))
+      .WillRepeatedly(testing::Return(directEncoding));
+
+  // set getStream
+  EXPECT_CALL(streams, getStreamProxy(testing::_,
+                                      proto::Stream_Kind_PRESENT, true))
+      .WillRepeatedly(testing::Return(nullptr));
+
+  EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_DATA, true))
+      .WillRepeatedly(testing::Return(new SeekableArrayInputStream
+      ( { 0xf6,
+          0x9f, 0xf4, 0xc6, 0xbd, 0x03,
+          0xff, 0xec, 0xf3, 0xbc, 0x03,
+          0xff, 0xb1, 0xf8, 0x84, 0x1b,
+          0x9d, 0x86, 0xd7, 0xfa, 0x1a,
+          0x9d, 0xb8, 0xcd, 0xdc, 0x1a,
+          0x9d, 0xea, 0xc3, 0xbe, 0x1a,
+          0x9d, 0x9c, 0xba, 0xa0, 0x1a,
+          0x9d, 0x88, 0xa6, 0x82, 0x1a,
+          0x9d, 0xba, 0x9c, 0xe4, 0x19,
+          0x9d, 0xee, 0xe1, 0xcd, 0x18 })));
+
+
+  EXPECT_CALL(streams, getStreamProxy(1, proto::Stream_Kind_SECONDARY, true))
+      .WillRepeatedly(testing::Return(new SeekableArrayInputStream
+                                      ( { 0xf6,
+                                          0x00,
+                                          0xa8, 0xd1, 0xf9, 0xd6, 0x03,
+                                          0x00,
+                                          0x9e, 0x01,
+                                          0xec, 0x76,
+                                          0xf4, 0x76,
+                                          0xfc, 0x76,
+                                          0x84, 0x77,
+                                          0x8c, 0x77,
+                                          0xfd, 0x0b})));
+
+  // create the row type
+  std::unique_ptr<Type> rowType =
+      createStructType( { createPrimitiveType(TIMESTAMP) }, { "myTimestamp" });
+  rowType->assignIds(0);
+
+  std::unique_ptr<ColumnReader> reader =
+      buildReader(*rowType, streams);
+
+  LongVectorBatch *longBatch = new LongVectorBatch(1024, *getDefaultPool());
+  StructVectorBatch batch(1024, *getDefaultPool());
+  batch.fields.push_back(longBatch);
+
+  // Test values are nanoseconds since 1970-01-01 00:00:00.0
+  int64_t expected[] = {952873200000000000,    // 2000-03-12 15:00:00.0
+                        953553600123456789,    // 2000-03-20 12:00:00.123456789
+                        -2208988800000000000,  // 1900-01-01 00:00:00.0
+                        -2198229903190000000,  // 1900-05-05 12:34:56.19
+                        -2166693903190100000,  // 1901-05-05 12:34:56.1901
+                        -2135157903190200000,  // 1902-05-05 12:34:56.1902
+                        -2103621903190300000,  // 1903-05-05 12:34:56.1903
+                        -2071999503190400000,  // 1904-05-05 12:34:56.1904
+                        -2040463503190500000,  // 1905-05-05 12:34:56.1905
+                        -1882697103191000000   // 1910-05-05 12:34:56.191
+                        };
+
+  reader->next(batch, 10, 0);
+  ASSERT_EQ(10, batch.numElements);
+  ASSERT_EQ(false, batch.hasNulls);
+  ASSERT_EQ(10, longBatch->numElements);
+  ASSERT_EQ(false, longBatch->hasNulls);
+
+  for (size_t i = 0; i < batch.numElements; ++i) {
+    EXPECT_EQ(expected[i], longBatch->data[i]) << "Wrong value at " << i;
   }
 }
 
