@@ -256,7 +256,8 @@ namespace orc {
 
   class TimestampColumnReader: public IntegerColumnReader {
   private:
-    std::unique_ptr<orc::RleDecoder> nanos;
+    std::unique_ptr<orc::RleDecoder> nanoRle;
+    DataBuffer<int64_t> nanoBuffer;
 
   public:
     TimestampColumnReader(const Type& type, StripeStreams& stripe);
@@ -273,12 +274,13 @@ namespace orc {
   TimestampColumnReader::TimestampColumnReader(const Type& type,
                                                StripeStreams& stripe
                                                ): IntegerColumnReader(type,
-                                                                      stripe) {
+                                                                      stripe),
+                                                  nanoBuffer(memoryPool, 1024){
     RleVersion vers = convertRleVersion(stripe.getEncoding(columnId).kind());
-    nanos = createRleDecoder(stripe.getStream(columnId,
-                                              proto::Stream_Kind_SECONDARY,
-                                              true),
-                             false, vers, memoryPool);
+    nanoRle = createRleDecoder(stripe.getStream(columnId,
+                                                proto::Stream_Kind_SECONDARY,
+                                                true),
+                               false, vers, memoryPool);
   }
 
   TimestampColumnReader::~TimestampColumnReader() {
@@ -287,7 +289,7 @@ namespace orc {
 
   unsigned long TimestampColumnReader::skip(unsigned long numValues) {
     numValues = IntegerColumnReader::skip(numValues);
-    nanos->skip(numValues);
+    nanoRle->skip(numValues);
     return numValues;
   }
 
@@ -295,27 +297,28 @@ namespace orc {
                                  unsigned long numValues,
                                  char *notNull) {
     ColumnReader::next(rowBatch, numValues, notNull);
-
-    DataBuffer<int64_t> seconds(memoryPool, rowBatch.capacity);
-    DataBuffer<int64_t> nanoseconds(memoryPool, rowBatch.capacity);
     notNull = rowBatch.hasNulls ? rowBatch.notNull.data() : nullptr;
+    int64_t* pStamp = dynamic_cast<LongVectorBatch&>(rowBatch).data.data();
 
-    rle->next(seconds.data(), numValues, notNull);
-    nanos->next(nanoseconds.data(), numValues, notNull);
+    // make sure that nanoBuffer is large enough
+    if (numValues > nanoBuffer.size()) {
+      nanoBuffer.resize(numValues);
+    }
+
+    rle->next(pStamp, numValues, notNull);
+    nanoRle->next(nanoBuffer.data(), numValues, notNull);
 
     // Construct the values
-    int64_t* pStamp = dynamic_cast<LongVectorBatch&>(rowBatch).data.data();
-    int64_t nanosec = 0;
     for(unsigned int i=0; i < numValues; i++) {
       if (notNull == nullptr || notNull[i]) {
-        nanosec =  nanoseconds[i] >> 3;
-        uint64_t zeros = nanoseconds[i] & 0x7;
+        int64_t nanosec =  nanoBuffer[i] >> 3;
+        uint64_t zeros = nanoBuffer[i] & 0x7;
         if (zeros != 0) {
           for(uint64_t j = 0; j <= zeros; ++j) {
             nanosec *= 10;
           }
         }
-        pStamp[i] =  seconds[i] * 1000000000 + 1420070400000000000;
+        pStamp[i] =  pStamp[i] * 1000000000 + 1420070400000000000;
         if (pStamp[i] >= 0) {
           pStamp[i] += nanosec;
         } else {
