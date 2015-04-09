@@ -18,7 +18,6 @@
 
 #include "RLEv2.hh"
 #include "Compression.hh"
-#include "Exceptions.hh"
 
 #define MIN_REPEAT 3
 
@@ -80,55 +79,6 @@ inline uint32_t getClosestFixedBits(uint32_t n) {
   } else {
     return 64;
   }
-}
-
-uint64_t RleDecoderV2::readLongs(int64_t *data, uint64_t offset,
-                                 uint64_t len, uint64_t fb,
-                                 const char *notNull) {
-  unsigned long ret = 0;
-
-  // TODO: unroll to improve performance
-  for(unsigned long i = offset; i < (offset + len); i++) {
-    // skip null positions
-    if (notNull && !notNull[i]) {
-      continue;
-    }
-    uint64_t result = 0;
-    uint64_t bitsLeftToRead = fb;
-    while (bitsLeftToRead > bitsLeft) {
-      result <<= bitsLeft;
-      result |= curByte & ((1 << bitsLeft) - 1);
-      bitsLeftToRead -= bitsLeft;
-      curByte = readByte();
-      bitsLeft = 8;
-    }
-
-    // handle the left over bits
-    if (bitsLeftToRead > 0) {
-      result <<= bitsLeftToRead;
-      bitsLeft -= bitsLeftToRead;
-      result |= (curByte >> bitsLeft) & ((1 << bitsLeftToRead) - 1);
-    }
-    data[i] = static_cast<long>(result);
-    ++ret;
-  }
-
-  return ret;
-}
-
-unsigned char RleDecoderV2::readByte() {
-  if (bufferStart == bufferEnd) {
-    int bufferLength;
-    const void* bufferPointer;
-    if (!inputStream->Next(&bufferPointer, &bufferLength)) {
-      throw ParseError("bad read in RleDecoderV2::readByte");
-    }
-    bufferStart = static_cast<const char*>(bufferPointer);
-    bufferEnd = bufferStart + bufferLength;
-  }
-
-  unsigned char result = static_cast<unsigned char>(*bufferStart++);
-  return result;
 }
 
 long RleDecoderV2::readLongBE(unsigned bsz) {
