@@ -20,6 +20,7 @@
 #define ORC_RLEV2_HH
 
 #include "RLE.hh"
+#include "Exceptions.hh"
 
 #include <vector>
 
@@ -81,12 +82,57 @@ private:
     bitSize = 0;
   }
 
-  unsigned char readByte();
+  unsigned char readByte() {
+  if (bufferStart == bufferEnd) {
+    int bufferLength;
+    const void* bufferPointer;
+    if (!inputStream->Next(&bufferPointer, &bufferLength)) {
+      throw ParseError("bad read in RleDecoderV2::readByte");
+    }
+    bufferStart = static_cast<const char*>(bufferPointer);
+    bufferEnd = bufferStart + bufferLength;
+  }
+
+  unsigned char result = static_cast<unsigned char>(*bufferStart++);
+  return result;
+}
+
   long readLongBE(uint32_t bsz);
   int64_t readVslong();
   uint64_t readVulong();
   uint64_t readLongs(int64_t *data, uint64_t offset, uint64_t len,
-                     uint64_t fb, const char* notNull = nullptr);
+                     uint64_t fb, const char* notNull = nullptr) {
+  unsigned long ret = 0;
+
+  // TODO: unroll to improve performance
+  for(unsigned long i = offset; i < (offset + len); i++) {
+    // skip null positions
+    if (notNull && !notNull[i]) {
+      continue;
+    }
+    uint64_t result = 0;
+    uint64_t bitsLeftToRead = fb;
+    while (bitsLeftToRead > bitsLeft) {
+      result <<= bitsLeft;
+      result |= curByte & ((1 << bitsLeft) - 1);
+      bitsLeftToRead -= bitsLeft;
+      curByte = readByte();
+      bitsLeft = 8;
+    }
+
+    // handle the left over bits
+    if (bitsLeftToRead > 0) {
+      result <<= bitsLeftToRead;
+      bitsLeft -= bitsLeftToRead;
+      result |= (curByte >> bitsLeft) & ((1 << bitsLeftToRead) - 1);
+    }
+    data[i] = static_cast<long>(result);
+    ++ret;
+  }
+
+  return ret;
+}
+
 
   uint64_t nextShortRepeats(int64_t* data, uint64_t offset, uint64_t numValues,
                             const char* notNull);
