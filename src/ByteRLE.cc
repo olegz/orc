@@ -178,7 +178,7 @@ namespace orc {
       } else {
         if (notNull) {
           for(unsigned long i=0; i < count; ++i) {
-            if (notNull[i]) {
+            if (notNull[position+i]) {
               data[position + i] = readByte();
               consumed += 1;
             }
