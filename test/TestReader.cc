@@ -228,7 +228,20 @@ namespace orc {
                                        1,
                                        CompressionKind_NONE,
                                        262144,
-                                       10000)
+                                       10000),
+                     OrcFileDescription("over1k_bloom.orc",
+                                      "over1k_bloom.jsn.gz",
+                                      "struct<_col0:tinyint,_col1:smallint,"
+                                      "_col2:int,_col3:bigint,_col4:float,"
+                                      "_col5:double,_col6:boolean,"
+                                      "_col7:string,_col8:timestamp,"
+                                      "_col9:decimal(4,2),_col10:binary>",
+                                      2098,
+                                      41780,
+                                      2,
+                                      CompressionKind_ZLIB,
+                                      262144,
+                                      10000)
                     ));
 
   TEST(Reader, columnSelectionTest) {
