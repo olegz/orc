@@ -53,7 +53,7 @@ namespace orc {
   class DoubleColumnPrinter: public ColumnPrinter {
   private:
     const double* data;
-    const int32_t digits;
+    const bool isFloat;
 
   public:
     DoubleColumnPrinter(std::string&, const Type&);
@@ -299,8 +299,7 @@ namespace orc {
   DoubleColumnPrinter::DoubleColumnPrinter(std::string& buffer,
                                            const Type& type
                                            ): ColumnPrinter(buffer, type),
-                                              digits(type.getKind() == FLOAT
-                                                     ? 7 : 15) {
+                                              isFloat(type.getKind() == FLOAT){
     // PASS
   }
 
@@ -314,7 +313,7 @@ namespace orc {
       writeString(buffer, "null");
     } else {
       char numBuffer[64];
-      snprintf(numBuffer, sizeof(numBuffer), digits == 7 ? "%.7g" : "%.15g",
+      snprintf(numBuffer, sizeof(numBuffer), isFloat ? "%.7g" : "%.14g",
                data[rowId]);
       writeString(buffer, numBuffer);
     }
