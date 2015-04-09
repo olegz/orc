@@ -260,6 +260,22 @@ namespace orc {
                                        2,
                                        CompressionKind_NONE,
                                        262144,
+                                       10000),
+                    OrcFileDescription("TestOrcFile.emptyFile.orc",
+                                       "TestOrcFile.emptyFile.jsn.gz",
+                                       "struct<boolean1:boolean,byte1:tinyint,"
+                                       "short1:smallint,int1:int,long1:bigint,"
+                                       "float1:float,double1:double,bytes1:"
+                                       "binary,string1:string,middle:struct<"
+                                       "list:array<struct<int1:int,string1:"
+                                       "string>>>,list:array<struct<int1:int,"
+                                       "string1:string>>,map:map<string,struct"
+                                       "<int1:int,string1:string>>>",
+                                       0,
+                                       3,
+                                       0,
+                                       CompressionKind_NONE,
+                                       262144,
                                        10000)
                     ));
 

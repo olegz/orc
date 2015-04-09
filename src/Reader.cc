@@ -871,6 +871,7 @@ namespace orc {
     // reading state
     uint64_t previousRow;
     uint64_t currentStripe;
+    // the stripe after the last one
     uint64_t lastStripe;
     uint64_t currentRowInStripe;
     uint64_t rowsInCurrentStripe;
@@ -998,8 +999,8 @@ namespace orc {
         if (i < currentStripe) {
           currentStripe = i;
         }
-        if (i > lastStripe) {
-          lastStripe = i;
+        if (i >= lastStripe) {
+          lastStripe = i + 1;
         }
       }
     }
@@ -1400,10 +1401,14 @@ namespace orc {
   }
 
   bool ReaderImpl::next(ColumnVectorBatch& data) {
-    if (currentStripe > lastStripe) {
+    if (currentStripe >= lastStripe) {
       data.numElements = 0;
-      previousRow = firstRowOfStripe[lastStripe] +
-        footer.stripes(static_cast<int>(lastStripe)).numberofrows();
+      if (lastStripe > 0) {
+        previousRow = firstRowOfStripe[lastStripe - 1] +
+          footer.stripes(static_cast<int>(lastStripe - 1)).numberofrows();
+      } else {
+        previousRow = 0;
+      }
       return false;
     }
     if (currentRowInStripe == 0) {
