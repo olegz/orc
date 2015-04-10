@@ -1249,6 +1249,69 @@ TEST(TestColumnReader, testList) {
   }
 }
 
+TEST(TestColumnReader, testListPropagateNulls) {
+  MockStripeStreams streams;
+
+  // set getSelectedColumns()
+  std::vector<bool> selectedColumns = { true, true, true, true };
+  EXPECT_CALL(streams, getSelectedColumns())
+      .WillRepeatedly(testing::Return(selectedColumns));
+
+  std::unique_ptr<Type> rowType =
+    createStructType( { createStructType( {
+            createListType(createPrimitiveType(LONG)) }, {"col0_0"})},
+          { "col0" });
+  rowType->assignIds(0);
+
+  // set getEncoding
+  proto::ColumnEncoding directEncoding;
+  directEncoding.set_kind(proto::ColumnEncoding_Kind_DIRECT);
+  EXPECT_CALL(streams, getEncoding(testing::_))
+      .WillRepeatedly(testing::Return(directEncoding));
+
+
+  // set getStream
+  EXPECT_CALL(streams, getStreamProxy(testing::_,
+          proto::Stream_Kind_PRESENT, true))
+      .WillRepeatedly(testing::Return(nullptr));
+
+  // set getStream
+  EXPECT_CALL(streams, getStreamProxy(1,proto::Stream_Kind_PRESENT, true))
+    .WillRepeatedly(testing::Return
+                    (new SeekableArrayInputStream({0xff, 0x00})));
+
+  EXPECT_CALL(streams, getStreamProxy(2, proto::Stream_Kind_LENGTH, true))
+                    .WillRepeatedly(testing::Return
+                                    (new SeekableArrayInputStream({})));
+
+  EXPECT_CALL(streams, getStreamProxy(3, proto::Stream_Kind_DATA, true))
+                    .WillRepeatedly(testing::Return
+                                    (new SeekableArrayInputStream({})));
+
+  // create the row type
+  std::unique_ptr<ColumnReader> reader = buildReader(*rowType, streams);
+
+  StructVectorBatch batch(512, *getDefaultPool());
+  StructVectorBatch *structs = new StructVectorBatch(512, *getDefaultPool());
+  ListVectorBatch *lists = new ListVectorBatch(512, *getDefaultPool());
+  LongVectorBatch *longs = new LongVectorBatch(512, *getDefaultPool());
+  batch.fields.push_back(structs);
+  structs->fields.push_back(lists);
+  lists->elements = std::unique_ptr < ColumnVectorBatch > (longs);
+  reader->next(batch, 8, 0);
+  ASSERT_EQ(8, batch.numElements);
+  ASSERT_EQ(false, batch.hasNulls);
+  ASSERT_EQ(8, structs->numElements);
+  ASSERT_EQ(true, structs->hasNulls);
+  ASSERT_EQ(8, lists->numElements);
+  ASSERT_EQ(true, lists->hasNulls);
+  ASSERT_EQ(0, longs->numElements);
+  ASSERT_EQ(false, longs->hasNulls);
+  for(size_t i=0; i < 8; ++i) {
+    EXPECT_EQ(false, structs->notNull[i]);
+  }
+}
+
 TEST(TestColumnReader, testListWithNulls) {
   MockStripeStreams streams;
 

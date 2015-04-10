@@ -103,6 +103,11 @@ namespace orc {
           return;
         }
       }
+    } else if (incomingMask) {
+      // If we don't have a notNull stream, copy the incomingMask
+      rowBatch.hasNulls = true;
+      memcpy(rowBatch.notNull.data(), incomingMask, numValues);
+      return;
     }
     rowBatch.hasNulls = false;
   }
