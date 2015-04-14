@@ -707,6 +707,7 @@ namespace orc {
         throw ParseError("SnappyDecompressionStream choked on corrupt input");
       }
 
+      inputBuffer->clear();
       remainingLength = 0;
       state = DECOMPRESS_HEADER;
       *data = outputBuffer->data();

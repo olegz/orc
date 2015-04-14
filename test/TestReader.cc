@@ -534,7 +534,7 @@ TEST(Reader, memoryEstimates) {
   std::ostringstream filename2;
   filename2 << exampleDirectory << "/demo-12-zlib.orc";
   reader = orc::createReader(orc::readLocalFile(filename2.str()), opts);
-  EXPECT_EQ(6847140, reader->memoryEstimate());
+  EXPECT_EQ(7109284, reader->memoryEstimate());
 
   batchSize = 1 ;
   batch = reader->createRowBatch(batchSize);
