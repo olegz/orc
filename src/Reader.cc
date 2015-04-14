@@ -1568,6 +1568,36 @@ namespace orc {
     numberOfStripeStatistics = static_cast<unsigned long>(metadata.stripestats_size());
   }
 
+  uint64_t maxStreamsForType(TypeKind kind) {
+    switch (static_cast<unsigned int>(kind)) {
+    case STRUCT:
+      return 1;
+    case INT:
+    case LONG:
+    case SHORT:
+    case FLOAT:
+    case DOUBLE:
+    case BOOLEAN:
+    case BYTE:
+    case DATE:
+    case LIST:
+    case MAP:
+    case UNION:
+      return 2;
+    case BINARY:
+    case DECIMAL:
+    case TIMESTAMP:
+      return 3;
+    case CHAR:
+    case STRING:
+    case VARCHAR:
+      return 4;
+    default:
+        return 0;
+    }
+  }
+
+
   uint64_t ReaderImpl::memoryEstimate(int stripeIx) {
     uint64_t memory = 0;
 
@@ -1625,49 +1655,21 @@ namespace orc {
     // Account for firstRowOfStripe.
     memory += firstRowOfStripe->capacity() * sizeof(uint64_t);
 
-    // The decompressor needs a buffer for each stream
+    // Decompressors need buffers for each stream
+    uint64_t decompressorMemory = 0;
     if (compression != CompressionKind_NONE) {
+      decompressorMemory += maxStreamsForType(schema->getKind()) * blockSize ;
       for (unsigned int i=0; i < schema->getSubtypeCount(); i++) {
         if (selectedColumns[i+1]) {
-          switch (static_cast<unsigned int>(schema->getSubtype(i).getKind())) {
-          case STRUCT: {
-            memory += blockSize ;
-            break;
-          }
-          case INT:
-          case LONG:
-          case SHORT:
-          case FLOAT:
-          case DOUBLE:
-          case BOOLEAN:
-          case BYTE:
-          case DATE:
-          case LIST:
-          case MAP:
-          case UNION: {
-            memory += 2*blockSize ;
-            break;
-          }
-          case BINARY:
-          case DECIMAL:
-          case TIMESTAMP: {
-            memory += 3*blockSize ;
-            break;
-          }
-          case CHAR:
-          case STRING:
-          case VARCHAR: {
-            memory += 4*blockSize ;
-            break;
-          }
-          default:
-            break;
-          }
+          decompressorMemory += maxStreamsForType(schema->getSubtype(i).getKind()) * blockSize ;
         }
+      }
+      if (compression == CompressionKind_SNAPPY) {
+        decompressorMemory *= 2;  // Snappy decompressor can allocate an additional buffer
       }
     }
 
-    return memory ;
+    return memory + decompressorMemory ;
   }
 
 
