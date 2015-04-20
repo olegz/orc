@@ -1622,11 +1622,12 @@ namespace orc {
 
     // If no string columns are selected, we can potentially tighten the estimate.
     bool hasStringColumn = false;
-    uint64_t nSelectedColumns = 0;
-    for (unsigned int i=0; i < schema->getSubtypeCount(); i++) {
+    uint64_t nSelectedStreams = 0;
+    for (unsigned int i=0; !hasStringColumn && i < schema->getSubtypeCount(); i++) {
       if (selectedColumns[i+1]) {
-        nSelectedColumns++ ;
-        switch (static_cast<unsigned int>(schema->getSubtype(i).getKind())) {
+        TypeKind kind = schema->getSubtype(i).getKind();
+        nSelectedStreams += maxStreamsForType(kind) ;
+        switch (static_cast<unsigned int>(kind)) {
           case CHAR:
           case STRING:
           case VARCHAR:
@@ -1640,8 +1641,8 @@ namespace orc {
         }
       }
     }
-    if (!hasStringColumn && memory > nSelectedColumns * options.getFileBlockSize()) {
-      memory = nSelectedColumns * options.getFileBlockSize() ;
+    if (!hasStringColumn && memory > nSelectedStreams * options.getFileBlockSize()) {
+      memory = nSelectedStreams * options.getFileBlockSize() ;
     }
 
     // Do we need even more memory to read the footer or the metadata?
