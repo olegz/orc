@@ -1597,7 +1597,6 @@ namespace orc {
     }
   }
 
-
   uint64_t ReaderImpl::memoryEstimate(int stripeIx) {
     uint64_t memory = 0;
 
@@ -1776,6 +1775,12 @@ namespace orc {
   }
 
   bool ReaderImpl::next(ColumnVectorBatch& data) {
+    if (numberOfStripes == 0) {
+      data.numElements = 0;
+      previousRow = 0;
+      return false;
+    }
+
     if (currentStripe > lastStripe) {
       data.numElements = 0;
       previousRow = (*firstRowOfStripe)[lastStripe] +
