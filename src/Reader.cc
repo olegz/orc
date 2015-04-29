@@ -874,6 +874,7 @@ namespace orc {
     // reading state
     uint64_t previousRow;
     uint64_t currentStripe;
+    // the stripe after the last one
     uint64_t lastStripe;
     uint64_t currentRowInStripe;
     uint64_t rowsInCurrentStripe;
@@ -899,6 +900,7 @@ namespace orc {
     std::unique_ptr<ColumnVectorBatch> createRowBatch(const Type& type,
                                                       uint64_t capacity
                                                       ) const;
+    void finishReaderConstruction(const ReaderOptions& opts) ;
 
   public:
     /**
@@ -1022,6 +1024,49 @@ namespace orc {
     // PASS
   };
 
+  void ReaderImpl::finishReaderConstruction(const ReaderOptions& opts) {
+    currentStripe = static_cast<uint64_t>(footer.stripes_size());
+    lastStripe = 0;
+    currentRowInStripe = 0;
+    unsigned long rowTotal = 0;
+
+    // firstRowOfStripe.resize(static_cast<size_t>(footer.stripes_size()));
+    firstRowOfStripe.reset(new DataBuffer<uint64_t>(
+       static_cast<size_t>(footer.stripes_size()), memoryPool));
+
+    for(size_t i=0; i < static_cast<size_t>(footer.stripes_size()); ++i) {
+     (*firstRowOfStripe)[i] = rowTotal;
+     proto::StripeInformation stripeInfo =
+         footer.stripes(static_cast<int>(i));
+     rowTotal += stripeInfo.numberofrows();
+     bool isStripeInRange = stripeInfo.offset() >= opts.getOffset() &&
+       stripeInfo.offset() < opts.getOffset() + opts.getLength();
+     if (isStripeInRange) {
+       if (i < currentStripe) {
+         currentStripe = i;
+       }
+       if (i >= lastStripe) {
+         lastStripe = i+1;
+       }
+     }
+    }
+
+    schema = convertType(footer.types(0), footer);
+    schema->assignIds(0);
+    previousRow = (std::numeric_limits<uint64_t>::max)();
+
+    selectedColumns.assign(static_cast<size_t>(footer.types_size()), false);
+
+    const std::list<int>& included = options.getInclude();
+    for(std::list<int>::const_iterator columnId = included.begin();
+       columnId != included.end(); ++columnId) {
+     if (*columnId <= static_cast<int>(schema->getSubtypeCount())) {
+       selectTypeParent(static_cast<size_t>(*columnId));
+       selectTypeChildren(static_cast<size_t>(*columnId));
+     }
+    }
+  }
+
   ReaderImpl::ReaderImpl(std::unique_ptr<InputStream> input,
                            const ReaderOptions& opts,
                            MemoryPool* pool):
@@ -1054,45 +1099,7 @@ namespace orc {
     readMetadata(buffer.data(), postscript.metadatalength(), size);
     buffer.clear();
 
-    currentStripe = static_cast<uint64_t>(footer.stripes_size());
-    lastStripe = 0;
-    currentRowInStripe = 0;
-    unsigned long rowTotal = 0;
-
-    // firstRowOfStripe.resize(static_cast<size_t>(footer.stripes_size()));
-    firstRowOfStripe.reset(new DataBuffer<uint64_t>(
-        static_cast<size_t>(footer.stripes_size()), memoryPool));
-
-    for(size_t i=0; i < static_cast<size_t>(footer.stripes_size()); ++i) {
-      (*firstRowOfStripe)[i] = rowTotal;
-      proto::StripeInformation stripeInfo = footer.stripes(static_cast<int>(i));
-      rowTotal += stripeInfo.numberofrows();
-      bool isStripeInRange = stripeInfo.offset() >= opts.getOffset() &&
-        stripeInfo.offset() < opts.getOffset() + opts.getLength();
-      if (isStripeInRange) {
-        if (i < currentStripe) {
-          currentStripe = i;
-        }
-        if (i > lastStripe) {
-          lastStripe = i;
-        }
-      }
-    }
-
-    schema = convertType(footer.types(0), footer);
-    schema->assignIds(0);
-    previousRow = (std::numeric_limits<uint64_t>::max)();
-
-    selectedColumns.assign(static_cast<size_t>(footer.types_size()), false);
-
-    const std::list<int>& included = options.getInclude();
-    for(std::list<int>::const_iterator columnId = included.begin();
-        columnId != included.end(); ++columnId) {
-      if (*columnId <= static_cast<int>(schema->getSubtypeCount())) {
-        selectTypeParent(static_cast<size_t>(*columnId));
-        selectTypeChildren(static_cast<size_t>(*columnId));
-      }
-    }
+    finishReaderConstruction(opts);
   }
 
   ReaderImpl::ReaderImpl(std::unique_ptr<InputStream> input,
@@ -1119,46 +1126,7 @@ namespace orc {
     numberOfStripeStatistics =
         static_cast<unsigned long>(metadata.stripestats_size());
 
-    currentStripe = static_cast<uint64_t>(footer.stripes_size());
-    lastStripe = 0;
-    currentRowInStripe = 0;
-    unsigned long rowTotal = 0;
-
-    // firstRowOfStripe.resize(static_cast<size_t>(footer.stripes_size()));
-    firstRowOfStripe.reset(new DataBuffer<uint64_t>(
-        static_cast<size_t>(footer.stripes_size()), memoryPool));
-
-    for(size_t i=0; i < static_cast<size_t>(footer.stripes_size()); ++i) {
-      (*firstRowOfStripe)[i] = rowTotal;
-      proto::StripeInformation stripeInfo =
-          footer.stripes(static_cast<int>(i));
-      rowTotal += stripeInfo.numberofrows();
-      bool isStripeInRange = stripeInfo.offset() >= opts.getOffset() &&
-        stripeInfo.offset() < opts.getOffset() + opts.getLength();
-      if (isStripeInRange) {
-        if (i < currentStripe) {
-          currentStripe = i;
-        }
-        if (i > lastStripe) {
-          lastStripe = i;
-        }
-      }
-    }
-
-    schema = convertType(footer.types(0), footer);
-    schema->assignIds(0);
-    previousRow = (std::numeric_limits<uint64_t>::max)();
-
-    selectedColumns.assign(static_cast<size_t>(footer.types_size()), false);
-
-    const std::list<int>& included = options.getInclude();
-    for(std::list<int>::const_iterator columnId = included.begin();
-        columnId != included.end(); ++columnId) {
-      if (*columnId <= static_cast<int>(schema->getSubtypeCount())) {
-        selectTypeParent(static_cast<size_t>(*columnId));
-        selectTypeChildren(static_cast<size_t>(*columnId));
-      }
-    }
+    finishReaderConstruction(opts);
   }
 
   ReaderImpl::ReaderImpl(std::unique_ptr<InputStream> input,
@@ -1234,45 +1202,7 @@ namespace orc {
     }
     numberOfStripeStatistics = static_cast<unsigned long>(metadata.stripestats_size());
 
-    currentStripe = static_cast<uint64_t>(footer.stripes_size());
-    lastStripe = 0;
-    currentRowInStripe = 0;
-    unsigned long rowTotal = 0;
-
-    // firstRowOfStripe.resize(static_cast<size_t>(footer.stripes_size()));
-    firstRowOfStripe.reset(new DataBuffer<uint64_t>(
-        static_cast<size_t>(footer.stripes_size()), memoryPool));
-
-    for(size_t i=0; i < static_cast<size_t>(footer.stripes_size()); ++i) {
-      (*firstRowOfStripe)[i] = rowTotal;
-      proto::StripeInformation stripeInfo = footer.stripes(static_cast<int>(i));
-      rowTotal += stripeInfo.numberofrows();
-      bool isStripeInRange = stripeInfo.offset() >= opts.getOffset() &&
-        stripeInfo.offset() < opts.getOffset() + opts.getLength();
-      if (isStripeInRange) {
-        if (i < currentStripe) {
-          currentStripe = i;
-        }
-        if (i > lastStripe) {
-          lastStripe = i;
-        }
-      }
-    }
-
-    schema = convertType(footer.types(0), footer);
-    schema->assignIds(0);
-    previousRow = (std::numeric_limits<uint64_t>::max)();
-
-    selectedColumns.assign(static_cast<size_t>(footer.types_size()), false);
-
-    const std::list<int>& included = options.getInclude();
-    for(std::list<int>::const_iterator columnId = included.begin();
-        columnId != included.end(); ++columnId) {
-      if (*columnId <= static_cast<int>(schema->getSubtypeCount())) {
-        selectTypeParent(static_cast<size_t>(*columnId));
-        selectTypeChildren(static_cast<size_t>(*columnId));
-      }
-    }
+    finishReaderConstruction(opts);
   }
 
   const ReaderOptions& ReaderImpl::getReaderOptions() const {
@@ -1775,16 +1705,14 @@ namespace orc {
   }
 
   bool ReaderImpl::next(ColumnVectorBatch& data) {
-    if (numberOfStripes == 0) {
+    if (currentStripe >= lastStripe) {
       data.numElements = 0;
-      previousRow = 0;
-      return false;
-    }
-
-    if (currentStripe > lastStripe) {
-      data.numElements = 0;
-      previousRow = (*firstRowOfStripe)[lastStripe] +
-        footer.stripes(static_cast<int>(lastStripe)).numberofrows();
+      if (lastStripe > 0) {
+        previousRow = (*firstRowOfStripe)[lastStripe - 1] +
+            footer.stripes(static_cast<int>(lastStripe - 1)).numberofrows();
+      } else {
+        previousRow = 0;
+      }
       return false;
     }
     if (currentRowInStripe == 0) {
