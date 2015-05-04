@@ -873,9 +873,9 @@ namespace orc {
 
     // reading state
     uint64_t previousRow;
+    uint64_t firstStripe;
     uint64_t currentStripe;
-    // the stripe after the last one
-    uint64_t lastStripe;
+    uint64_t lastStripe; // the stripe after the last one
     uint64_t currentRowInStripe;
     uint64_t rowsInCurrentStripe;
     proto::StripeInformation currentStripeInfo;
@@ -1025,7 +1025,7 @@ namespace orc {
   };
 
   void ReaderImpl::finishReaderConstruction(const ReaderOptions& opts) {
-    currentStripe = static_cast<uint64_t>(footer.stripes_size());
+    firstStripe = static_cast<uint64_t>(footer.stripes_size());
     lastStripe = 0;
     currentRowInStripe = 0;
     unsigned long rowTotal = 0;
@@ -1041,14 +1041,15 @@ namespace orc {
      bool isStripeInRange = stripeInfo.offset() >= opts.getOffset() &&
        stripeInfo.offset() < opts.getOffset() + opts.getLength();
      if (isStripeInRange) {
-       if (i < currentStripe) {
-         currentStripe = i;
+       if (i < firstStripe) {
+         firstStripe = i;
        }
        if (i >= lastStripe) {
          lastStripe = i+1;
        }
      }
     }
+    currentStripe = firstStripe;
 
     schema = convertType(footer.types(0), footer);
     schema->assignIds(0);
@@ -1372,28 +1373,39 @@ namespace orc {
 
 
   void ReaderImpl::seekToRow(unsigned long rowNumber) {
-    if (lastStripe == 0) {  // Empty file
+    // Empty file
+    if (lastStripe == 0) {
       return;
     }
+
+    // Seeking past the file portion of interest should return no data
     if ( (lastStripe == static_cast<uint64_t>(footer.stripes_size())
             && rowNumber >= footer.numberofrows())  ||
          (lastStripe < static_cast<uint64_t>(footer.stripes_size())
             && rowNumber >= (*firstRowOfStripe)[lastStripe])   ) {
-      // Seek past the stripes of interest
       currentStripe = static_cast<uint64_t>(footer.stripes_size());
       previousRow = footer.numberofrows();
-      currentRowInStripe = 0;
-    } else {
-      currentStripe = 0;
-      while (currentStripe+1 < lastStripe &&
-                    (*firstRowOfStripe)[currentStripe+1] <= rowNumber) {
-        currentStripe++;
-      }
-      currentRowInStripe = 0;
-      std::unique_ptr<orc::ColumnVectorBatch> batch =
-          createRowBatch(rowNumber-(*firstRowOfStripe)[currentStripe]);
-      next(*batch);
+      return;
     }
+
+    uint64_t seekToStripe = 0;
+    while (seekToStripe+1 < lastStripe &&
+                  (*firstRowOfStripe)[seekToStripe+1] <= rowNumber) {
+      seekToStripe++;
+    }
+
+    // Seeking before the file portion of interest should return no data
+    if (seekToStripe < firstStripe) {
+      currentStripe = static_cast<uint64_t>(footer.stripes_size());
+      previousRow = footer.numberofrows();
+      return;
+    }
+
+    currentStripe = seekToStripe;
+    currentRowInStripe = 0;
+    std::unique_ptr<orc::ColumnVectorBatch> batch =
+        createRowBatch(rowNumber-(*firstRowOfStripe)[currentStripe]);
+    next(*batch);
   }
 
   MemoryPool* ReaderImpl::getMemoryPool() const {

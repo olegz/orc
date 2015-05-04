@@ -546,51 +546,87 @@ TEST(Reader, memoryEstimates) {
 }
 
 TEST(Reader, seekToRow) {
-  orc::ReaderOptions opts;
+  /* Test with a regular file */
+  {
+    orc::ReaderOptions opts;
+    std::ostringstream filename;
+    filename << exampleDirectory << "/demo-11-none.orc";
+    std::unique_ptr<orc::Reader> reader =
+        orc::createReader(orc::readLocalFile(filename.str()), opts);
+    EXPECT_EQ(1920800, reader->getNumberOfRows());
 
-  /* Test on a regular file */
-  std::ostringstream filename;
-  filename << exampleDirectory << "/demo-11-none.orc";
-  std::unique_ptr<orc::Reader> reader =
-      orc::createReader(orc::readLocalFile(filename.str()), opts);
-  EXPECT_EQ(1920800, reader->getNumberOfRows());
+    std::unique_ptr<orc::ColumnVectorBatch> batch =
+        reader->createRowBatch(5000); // Stripe size
+    reader->next(*batch);
+    EXPECT_EQ(5000, batch->numElements);
 
-  std::unique_ptr<orc::ColumnVectorBatch> batch = reader->createRowBatch(5000); // Stripe size
-  reader->next(*batch);
-  EXPECT_EQ(5000, batch->numElements);
+    // We only load data till the end of the current stripe
+    reader->seekToRow(1000);
+    reader->next(*batch);
+    EXPECT_EQ(4000, batch->numElements);
 
-  // We only load data till the end of the current stripe
-  reader->seekToRow(1000);
-  reader->next(*batch);
-  EXPECT_EQ(4000, batch->numElements);
+    // We only load data till the end of the current stripe
+    reader->seekToRow(99999);
+    reader->next(*batch);
+    EXPECT_EQ(1, batch->numElements);
 
-  // We only load data till the end of the current stripe
-  reader->seekToRow(99999);
-  reader->next(*batch);
-  EXPECT_EQ(1, batch->numElements);
+    // Skip more rows than available
+    reader->seekToRow(1920800);
+    reader->next(*batch);
+    EXPECT_EQ(0, batch->numElements);
+  }
 
-  // Skip more rows than available
-  reader->seekToRow(1920800);
-  reader->next(*batch);
-  EXPECT_EQ(0, batch->numElements);
+  /* Test with a portion of the file */
+  {
+    orc::ReaderOptions opts;
+    std::ostringstream filename;
+    filename << exampleDirectory << "/demo-11-none.orc";
+    opts.range(13126, 13145);   // Read only the second stripe (rows 5000..9999)
 
-  /* Test on an empty file */
-  std::ostringstream filename2;
-  filename2 << exampleDirectory << "/TestOrcFile.emptyFile.orc";
-  reader = orc::createReader(orc::readLocalFile(filename2.str()), opts);
-  EXPECT_EQ(0, reader->getNumberOfRows());
+    std::unique_ptr<orc::Reader> reader =
+        orc::createReader(orc::readLocalFile(filename.str()), opts);
+    EXPECT_EQ(1920800, reader->getNumberOfRows());
 
-  batch = reader->createRowBatch(5000);
-  reader->next(*batch);
-  EXPECT_EQ(0, batch->numElements);
+    std::unique_ptr<orc::ColumnVectorBatch> batch =
+        reader->createRowBatch(5000); // Stripe size
+    reader->next(*batch);
+    EXPECT_EQ(5000, batch->numElements);
 
-  reader->seekToRow(0);
-  reader->next(*batch);
-  EXPECT_EQ(0, batch->numElements);
+    reader->seekToRow(7000);
+    reader->next(*batch);
+    EXPECT_EQ(3000, batch->numElements);
 
-  reader->seekToRow(1);
-  reader->next(*batch);
-  EXPECT_EQ(0, batch->numElements);
+    reader->seekToRow(1000);
+    reader->next(*batch);
+    EXPECT_EQ(0, batch->numElements);
+
+    reader->seekToRow(11000);
+    reader->next(*batch);
+    EXPECT_EQ(0, batch->numElements);
+  }
+
+  /* Test with an empty file */
+  {
+    orc::ReaderOptions opts;
+    std::ostringstream filename;
+    filename << exampleDirectory << "/TestOrcFile.emptyFile.orc";
+    std::unique_ptr<orc::Reader> reader =
+        orc::createReader(orc::readLocalFile(filename.str()), opts);
+    EXPECT_EQ(0, reader->getNumberOfRows());
+
+    std::unique_ptr<orc::ColumnVectorBatch> batch =
+        reader->createRowBatch(5000);
+    reader->next(*batch);
+    EXPECT_EQ(0, batch->numElements);
+
+    reader->seekToRow(0);
+    reader->next(*batch);
+    EXPECT_EQ(0, batch->numElements);
+
+    reader->seekToRow(1);
+    reader->next(*batch);
+    EXPECT_EQ(0, batch->numElements);
+  }
 }
 
 
