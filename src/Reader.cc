@@ -1036,8 +1036,7 @@ namespace orc {
 
     for(size_t i=0; i < static_cast<size_t>(footer.stripes_size()); ++i) {
      (*firstRowOfStripe)[i] = rowTotal;
-     proto::StripeInformation stripeInfo =
-         footer.stripes(static_cast<int>(i));
+     proto::StripeInformation stripeInfo = footer.stripes(static_cast<int>(i));
      rowTotal += stripeInfo.numberofrows();
      bool isStripeInRange = stripeInfo.offset() >= opts.getOffset() &&
        stripeInfo.offset() < opts.getOffset() + opts.getLength();
@@ -1373,13 +1372,20 @@ namespace orc {
 
 
   void ReaderImpl::seekToRow(unsigned long rowNumber) {
-    if (rowNumber >= footer.numberofrows()) {
-      currentStripe = static_cast<uint64_t>(footer.stripes_size())+1;
+    if (lastStripe == 0) {  // Empty file
+      return;
+    }
+    if ( (lastStripe == static_cast<uint64_t>(footer.stripes_size())
+            && rowNumber >= footer.numberofrows())  ||
+         (lastStripe < static_cast<uint64_t>(footer.stripes_size())
+            && rowNumber >= (*firstRowOfStripe)[lastStripe])   ) {
+      // Seek past the stripes of interest
+      currentStripe = static_cast<uint64_t>(footer.stripes_size());
       previousRow = footer.numberofrows();
       currentRowInStripe = 0;
     } else {
       currentStripe = 0;
-      while (currentStripe+1 < static_cast<uint64_t>(footer.stripes_size()) &&
+      while (currentStripe+1 < lastStripe &&
                     (*firstRowOfStripe)[currentStripe+1] <= rowNumber) {
         currentStripe++;
       }
