@@ -559,21 +559,25 @@ TEST(Reader, seekToRow) {
         reader->createRowBatch(5000); // Stripe size
     reader->next(*batch);
     EXPECT_EQ(5000, batch->numElements);
+    EXPECT_EQ(0, reader->getRowNumber());
 
     // We only load data till the end of the current stripe
-    reader->seekToRow(1000);
+    reader->seekToRow(11000);
     reader->next(*batch);
     EXPECT_EQ(4000, batch->numElements);
+    EXPECT_EQ(11000, reader->getRowNumber());
 
     // We only load data till the end of the current stripe
     reader->seekToRow(99999);
     reader->next(*batch);
     EXPECT_EQ(1, batch->numElements);
+    EXPECT_EQ(99999, reader->getRowNumber());
 
     // Skip more rows than available
     reader->seekToRow(1920800);
     reader->next(*batch);
     EXPECT_EQ(0, batch->numElements);
+    EXPECT_EQ(1920800, reader->getRowNumber());
   }
 
   /* Test with a portion of the file */
@@ -595,14 +599,17 @@ TEST(Reader, seekToRow) {
     reader->seekToRow(7000);
     reader->next(*batch);
     EXPECT_EQ(3000, batch->numElements);
+    EXPECT_EQ(7000, reader->getRowNumber());
 
     reader->seekToRow(1000);
     reader->next(*batch);
     EXPECT_EQ(0, batch->numElements);
+    EXPECT_EQ(10000, reader->getRowNumber());
 
     reader->seekToRow(11000);
     reader->next(*batch);
     EXPECT_EQ(0, batch->numElements);
+    EXPECT_EQ(10000, reader->getRowNumber());
   }
 
   /* Test with an empty file */
@@ -622,10 +629,12 @@ TEST(Reader, seekToRow) {
     reader->seekToRow(0);
     reader->next(*batch);
     EXPECT_EQ(0, batch->numElements);
+    EXPECT_EQ(0, reader->getRowNumber());
 
     reader->seekToRow(1);
     reader->next(*batch);
     EXPECT_EQ(0, batch->numElements);
+    EXPECT_EQ(0, reader->getRowNumber());
   }
 }
 

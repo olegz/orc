@@ -1050,10 +1050,16 @@ namespace orc {
      }
     }
     currentStripe = firstStripe;
+    if (currentStripe == 0) {
+      previousRow = (std::numeric_limits<uint64_t>::max)();
+    } else if (currentStripe == static_cast<uint64_t>(footer.stripes_size())) {
+      previousRow = footer.numberofrows();
+    } else {
+      previousRow = (*firstRowOfStripe)[firstStripe]-1;
+    }
 
     schema = convertType(footer.types(0), footer);
     schema->assignIds(0);
-    previousRow = (std::numeric_limits<uint64_t>::max)();
 
     selectedColumns.assign(static_cast<size_t>(footer.types_size()), false);
 
