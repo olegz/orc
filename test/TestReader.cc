@@ -547,9 +547,9 @@ TEST(Reader, memoryEstimates) {
 
 TEST(Reader, seekToRow) {
   orc::ReaderOptions opts;
-  std::ostringstream filename;
 
-  // Test on a file with compression
+  /* Test on a regular file */
+  std::ostringstream filename;
   filename << exampleDirectory << "/demo-11-none.orc";
   std::unique_ptr<orc::Reader> reader =
       orc::createReader(orc::readLocalFile(filename.str()), opts);
@@ -571,6 +571,24 @@ TEST(Reader, seekToRow) {
 
   // Skip more rows than available
   reader->seekToRow(1920800);
+  reader->next(*batch);
+  EXPECT_EQ(0, batch->numElements);
+
+  /* Test on an empty file */
+  std::ostringstream filename2;
+  filename2 << exampleDirectory << "/TestOrcFile.emptyFile.orc";
+  reader = orc::createReader(orc::readLocalFile(filename2.str()), opts);
+  EXPECT_EQ(0, reader->getNumberOfRows());
+
+  batch = reader->createRowBatch(5000);
+  reader->next(*batch);
+  EXPECT_EQ(0, batch->numElements);
+
+  reader->seekToRow(0);
+  reader->next(*batch);
+  EXPECT_EQ(0, batch->numElements);
+
+  reader->seekToRow(1);
   reader->next(*batch);
   EXPECT_EQ(0, batch->numElements);
 }
