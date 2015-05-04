@@ -545,5 +545,35 @@ TEST(Reader, memoryEstimates) {
   EXPECT_EQ(114000, batch->memoryUse());
 }
 
+TEST(Reader, seekToRow) {
+  orc::ReaderOptions opts;
+  std::ostringstream filename;
+
+  // Test on a file with compression
+  filename << exampleDirectory << "/demo-11-none.orc";
+  std::unique_ptr<orc::Reader> reader =
+      orc::createReader(orc::readLocalFile(filename.str()), opts);
+  EXPECT_EQ(1920800, reader->getNumberOfRows());
+
+  std::unique_ptr<orc::ColumnVectorBatch> batch = reader->createRowBatch(5000); // Stripe size
+  reader->next(*batch);
+  EXPECT_EQ(5000, batch->numElements);
+
+  // We only load data till the end of the current stripe
+  reader->seekToRow(1000);
+  reader->next(*batch);
+  EXPECT_EQ(4000, batch->numElements);
+
+  // We only load data till the end of the current stripe
+  reader->seekToRow(99999);
+  reader->next(*batch);
+  EXPECT_EQ(1, batch->numElements);
+
+  // Skip more rows than available
+  reader->seekToRow(1920800);
+  reader->next(*batch);
+  EXPECT_EQ(0, batch->numElements);
+}
+
 
 }  // namespace
