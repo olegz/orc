@@ -1768,7 +1768,13 @@ namespace orc {
   }
 
   void ReaderImpl::checkOrcVersion() {
-    // TODO
+    std::string version = getFormatVersion();
+    if (version != "0.11" && version != "0.12") {
+      *(options.getErrorStream())
+        << "Warning: ORC file " << stream->getName()
+        << " was written in an unknown format version "
+        << version << "\n";
+    }
   }
 
   bool ReaderImpl::next(ColumnVectorBatch& data) {

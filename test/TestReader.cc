@@ -908,6 +908,19 @@ TEST(Reader, seekToRow) {
   }
 }
 
+TEST(Reader, futureFormatVersion) {
+  std::ostringstream filename;
+  filename << exampleDirectory << "/version1999.orc";
+  orc::ReaderOptions opts;
+  std::ostringstream errorMsg;
+  opts.setErrorStream(errorMsg);
+  std::unique_ptr<orc::Reader> reader =
+    orc::createReader(orc::readLocalFile(filename.str()), opts);
+  EXPECT_EQ(("Warning: ORC file " + filename.str() +
+             " was written in an unknown format version 19.99\n"),
+            errorMsg.str());
+  EXPECT_EQ("19.99", reader->getFormatVersion());
+}
 
   std::map<std::string, std::string> makeMetadata() {
     std::map<std::string, std::string> result;
