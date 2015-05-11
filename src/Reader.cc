@@ -890,8 +890,7 @@ namespace orc {
     void readFooter(char *buffer, unsigned long readSize,
                     unsigned long fileLength);
     proto::StripeFooter getStripeFooter(const proto::StripeInformation& info);
-    void readMetadata(char *buffer, unsigned long length,
-                      unsigned long fileLength);
+    void readMetadata(char *buffer, unsigned long length);
     void startNextStripe();
     void ensureOrcFooter(char* buffer, unsigned long length);
     void checkOrcVersion();
@@ -1094,15 +1093,24 @@ namespace orc {
     stream->read(buffer.data(), size - readSize, readSize);
     readPostscript(buffer.data(), readSize);
     readFooter(buffer.data(), readSize, size);
-    buffer.clear();
 
     // read metadata
-    unsigned long position = size - 1 - postscriptLength
-        - postscript.footerlength() - postscript.metadatalength();
+    unsigned long metadataOffset = 1 + postscriptLength
+        + postscript.footerlength() + postscript.metadatalength();
 
-    buffer.resize(postscript.metadatalength());
-    stream->read(buffer.data(), position, postscript.metadatalength());
-    readMetadata(buffer.data(), postscript.metadatalength(), size);
+    char* pBuffer ;
+    if (metadataOffset < readSize) {
+      // Metadata is already in the buffer
+      pBuffer = buffer.data() + (readSize-metadataOffset)*sizeof(char) ;
+    } else {
+      buffer.clear();
+      buffer.resize(postscript.metadatalength());
+      stream->read(buffer.data(),
+                   size - metadataOffset,
+                   postscript.metadatalength());
+      pBuffer = buffer.data();
+    }
+    readMetadata(pBuffer, postscript.metadatalength());
     buffer.clear();
 
     finishReaderConstruction(opts);
@@ -1203,7 +1211,7 @@ namespace orc {
           - postscript.footerlength() - postscript.metadatalength();
       buffer.resize(postscript.metadatalength());
       stream->read(buffer.data(), position, postscript.metadatalength());
-      readMetadata(buffer.data(), postscript.metadatalength(), size);
+      readMetadata(buffer.data(), postscript.metadatalength());
       buffer.clear();
     }
     numberOfStripeStatistics = static_cast<unsigned long>(metadata.stripestats_size());
@@ -1499,7 +1507,7 @@ namespace orc {
     return result;
   }
 
-  void ReaderImpl::readMetadata(char* buffer, unsigned long readSize, unsigned long)
+  void ReaderImpl::readMetadata(char* buffer, unsigned long readSize)
   {
     unsigned long metadataSize = postscript.metadatalength();
 
