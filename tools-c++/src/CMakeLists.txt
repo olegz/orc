@@ -10,59 +10,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-configure_file (
-  "orc/orc-config.hh.in"
-  "orc/orc-config.hh"
-  )
-
 include_directories (
-  ${CMAKE_CURRENT_BINARY_DIR}
+  ${PROJECT_SOURCE_DIR}/orc-c++/include
+  ${PROJECT_SOURCE_DIR}/orc-c++/src
+  ${PROJECT_BINARY_DIR}/orc-c++/src
   ${PROTOBUF_INCLUDE_DIRS}
-  ${ZLIB_INCLUDE_DIRS}
-  ${SNAPPY_INCLUDE_DIRS}
   )
-
-protobuf_generate_cpp(PROTO_SRCS PROTO_HDRS orc_proto.proto)
 
 set (CMAKE_CXX_FLAGS "-O0 ${CMAKE_CXX_FLAGS} -g ${CXX11_FLAGS} ${WARN_FLAGS}")
-
-if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
-  set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wconversion")
-endif ()
-
-if (C09)
-  set (ADAPTOR_CLASS "C09Adapter.cc")
-endif (C09)
-
-add_library (orc STATIC
-  ${PROTO_HDRS}
-  wrap/orc-proto-wrapper.cc
-  ByteRLE.cc
-  ${ADAPTOR_CLASS}
-  ColumnReader.cc
-  Compression.cc
-  Exceptions.cc
-  Int128.cc
-  MemoryPool.cc
-  OrcFile.cc
-  Reader.cc
-  RLEv1.cc
-  RLEv2.cc
-  RLE.cc
-  TypeImpl.cc
-  Vector.cc
-  ColumnPrinter.cc
-  )
-
-if (MSVC)
-  add_dependencies (orc libprotobuf libprotobuf-lite protoc zlib zlibstatic)
-endif (MSVC)
-
-target_link_libraries (orc
-  ${PROTOBUF_LITE_LIBRARIES}
-  ${ZLIB_LIBRARIES}
-  ${SNAPPY_LIBRARIES}
-  )
 
 add_executable (file-contents
   FileContents.cc

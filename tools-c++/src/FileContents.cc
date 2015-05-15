@@ -16,20 +16,19 @@
  * limitations under the License.
  */
 
-#include "ColumnPrinter.hh"
-#include "Exceptions.hh"
+#include "orc/ColumnPrinter.hh"
+#include "orc/Exceptions.hh"
 
-#include <string>
 #include <memory>
+#include <string>
 #include <iostream>
 #include <string>
 
 int main(int argc, char* argv[]) {
   if (argc < 2) {
-    std::cout << "Usage: file-sca <filename>\n";
+    std::cout << "Usage: file-contents <filename>\n";
     return 1;
   }
-
   orc::ReaderOptions opts;
   std::list<int32_t> cols;
   cols.push_back(0);
@@ -44,17 +43,20 @@ int main(int argc, char* argv[]) {
     return -1;
   }
 
-  const int32_t BATCH_SIZE = 1000;
-  std::unique_ptr<orc::ColumnVectorBatch> batch = reader->createRowBatch(BATCH_SIZE);
+  std::unique_ptr<orc::ColumnVectorBatch> batch = reader->createRowBatch(1000);
+  std::string line;
+  std::unique_ptr<orc::ColumnPrinter> printer =
+    createColumnPrinter(line, reader->getType());
 
-  uint64_t rows = 0;
-  uint64_t batches = 0;
   while (reader->next(*batch)) {
-    batches += 1;
-    rows += batch->numElements;
+    printer->reset(*batch);
+    for(uint64_t i=0; i < batch->numElements; ++i) {
+      line.clear();
+      printer->printRow(i);
+      line += "\n";
+      const char* str = line.c_str();
+      fwrite(str, 1, strlen(str), stdout);
+    }
   }
-  std::cout << "Rows: " << rows << std::endl;
-  std::cout << "Batches: " << batches << std::endl;
-
   return 0;
 }
