@@ -53,7 +53,7 @@ namespace orc {
 
     ~FileInputStream();
 
-    uint64_t getLength() const {
+    uint64_t getLength() const override {
       return totalLength;
     }
 
