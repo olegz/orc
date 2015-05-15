@@ -64,3 +64,11 @@ target_link_libraries (file-memory
   ${PROTOBUF_LIBRARIES}
   ) 
   
+
+install(TARGETS
+   file-contents
+   file-metadata
+   file-scan
+   file-statistics
+   file-memory
+   DESTINATION bin)
