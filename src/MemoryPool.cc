@@ -16,35 +16,264 @@
  * limitations under the License.
  */
 
+#include "orc/Int128.hh"
 #include "orc/MemoryPool.hh"
+
 #include <cstdlib>
 #include <iostream>
+#include <string.h>
 
 namespace orc {
 
-  MemoryPool::~MemoryPool() {}
+  MemoryPool::~MemoryPool() {
+    // PASS
+  }
 
   class MemoryPoolImpl: public MemoryPool {
   public:
-    void* malloc(uint64_t size) override ;
-    void free(void* p) override ;
+    virtual ~MemoryPoolImpl();
 
-    MemoryPoolImpl();
-    ~MemoryPoolImpl();
+    char* malloc(uint64_t size) override;
+    void free(char* p) override;
   };
 
-  void* MemoryPoolImpl::malloc(uint64_t size) {
-    return std::malloc(size);
+  char* MemoryPoolImpl::malloc(uint64_t size) {
+    return static_cast<char*>(std::malloc(size));
   }
 
-  void MemoryPoolImpl::free(void* p) {
+  void MemoryPoolImpl::free(char* p) {
     std::free(p);
   }
 
-  MemoryPoolImpl::MemoryPoolImpl() {}
-  MemoryPoolImpl::~MemoryPoolImpl() {}
+  MemoryPoolImpl::~MemoryPoolImpl() {
+    // PASS
+  }
 
-  std::unique_ptr<MemoryPool> createDefaultMemoryPool() {
-    return std::unique_ptr<MemoryPool>(new MemoryPoolImpl());
+  template <class T>
+  DataBuffer<T>::DataBuffer(MemoryPool& pool,
+                            uint64_t newSize
+                            ): memoryPool(pool),
+                               buf(nullptr),
+                               currentSize(0),
+                               currentCapacity(0) {
+    resize(newSize);
+  }
+
+  template <class T>
+  DataBuffer<T>::~DataBuffer(){
+    clear();
+  }
+
+  template <class T>
+  void DataBuffer<T>::clear(){
+    for(uint64_t i=currentSize; i > 0; --i) {
+      (buf + i - 1)->~T();
+    }
+    if (buf) {
+      memoryPool.free(reinterpret_cast<char*>(buf));
+      buf = nullptr;
+    }
+    currentCapacity = currentSize = 0 ;
+  }
+
+  template <class T>
+  void DataBuffer<T>::resize(uint64_t newSize) {
+    reserve(newSize);
+    if (currentSize > newSize) {
+      for(uint64_t i=currentSize; i > newSize; --i) {
+        (buf + i - 1)->~T();
+      }
+    } else if (newSize > currentSize) {
+      for(uint64_t i=currentSize; i < newSize; ++i) {
+        new (buf + i) T();
+      }
+    }
+    currentSize = newSize;
+  }
+
+  template <class T>
+  void DataBuffer<T>::reserve(uint64_t newCapacity){
+    if (newCapacity > currentCapacity) {
+      if (buf) {
+        T* buf_old = buf;
+        buf = reinterpret_cast<T*>(memoryPool.malloc(sizeof(T) * newCapacity));
+        memcpy(buf, buf_old, sizeof(T) * currentSize);
+        memoryPool.free(reinterpret_cast<char*>(buf_old));
+      } else {
+        buf = reinterpret_cast<T*>(memoryPool.malloc(sizeof(T) * newCapacity));
+      }
+      currentCapacity = newCapacity;
+    }
+  }
+
+  // Specializations for char
+
+  template <>
+  void DataBuffer<char>::clear(){
+    if (buf) {
+      memoryPool.free(reinterpret_cast<char*>(buf));
+      buf = nullptr;
+    }
+    currentCapacity = currentSize = 0 ;
+  }
+
+  template <>
+  DataBuffer<char>::~DataBuffer(){
+    clear();
+  }
+
+  template <>
+  void DataBuffer<char>::resize(uint64_t newSize) {
+    reserve(newSize);
+    if (newSize > currentSize) {
+      memset(buf + currentSize, 0, newSize - currentSize);
+    }
+    currentSize = newSize;
+  }
+
+  // Specializations for char*
+
+  template <>
+  void DataBuffer<char*>::clear(){
+    if (buf) {
+      memoryPool.free(reinterpret_cast<char*>(buf));
+      buf = nullptr;
+    }
+    currentCapacity = currentSize = 0 ;
+  }
+
+  template <>
+  DataBuffer<char*>::~DataBuffer(){
+    clear();
+  }
+
+  template <>
+  void DataBuffer<char*>::resize(uint64_t newSize) {
+    reserve(newSize);
+    if (newSize > currentSize) {
+      memset(buf + currentSize, 0, (newSize - currentSize) * sizeof(char*));
+    }
+    currentSize = newSize;
+  }
+
+  // Specializations for double
+
+  template <>
+  void DataBuffer<double>::clear(){
+    if (buf) {
+      memoryPool.free(reinterpret_cast<char*>(buf));
+      buf = nullptr;
+    }
+    currentCapacity = currentSize = 0 ;
+  }
+
+  template <>
+  DataBuffer<double>::~DataBuffer(){
+    clear();
+  }
+
+  template <>
+  void DataBuffer<double>::resize(uint64_t newSize) {
+    reserve(newSize);
+    if (newSize > currentSize) {
+      memset(buf + currentSize, 0, (newSize - currentSize) * sizeof(double));
+    }
+    currentSize = newSize;
+  }
+
+  // Specializations for int64_t
+
+  template <>
+  void DataBuffer<int64_t>::clear(){
+    if (buf) {
+      memoryPool.free(reinterpret_cast<char*>(buf));
+      buf = nullptr;
+    }
+    currentCapacity = currentSize = 0 ;
+  }
+
+  template <>
+  DataBuffer<int64_t>::~DataBuffer(){
+    clear();
+  }
+
+  template <>
+  void DataBuffer<int64_t>::resize(uint64_t newSize) {
+    reserve(newSize);
+    if (newSize > currentSize) {
+      memset(buf + currentSize, 0, (newSize - currentSize) * sizeof(int64_t));
+    }
+    currentSize = newSize;
+  }
+
+  // Specializations for uint64_t
+
+  template <>
+  void DataBuffer<uint64_t>::clear(){
+    if (buf) {
+      memoryPool.free(reinterpret_cast<char*>(buf));
+      buf = nullptr;
+    }
+    currentCapacity = currentSize = 0 ;
+  }
+
+  template <>
+  DataBuffer<uint64_t>::~DataBuffer(){
+    clear();
+  }
+
+  template <>
+  void DataBuffer<uint64_t>::resize(uint64_t newSize) {
+    reserve(newSize);
+    if (newSize > currentSize) {
+      memset(buf + currentSize, 0, (newSize - currentSize) * sizeof(uint64_t));
+    }
+    currentSize = newSize;
+  }
+
+  // Specializations for unsigned char
+
+  template <>
+  void DataBuffer<unsigned char>::clear(){
+    if (buf) {
+      memoryPool.free(reinterpret_cast<char*>(buf));
+      buf = nullptr;
+    }
+    currentCapacity = currentSize = 0 ;
+  }
+
+  template <>
+  DataBuffer<unsigned char>::~DataBuffer(){
+    clear();
+  }
+
+  template <>
+  void DataBuffer<unsigned char>::resize(uint64_t newSize) {
+    reserve(newSize);
+    if (newSize > currentSize) {
+      memset(buf + currentSize, 0, newSize - currentSize);
+    }
+    currentSize = newSize;
+  }
+
+  #ifdef __clang__
+    #pragma clang diagnostic ignored "-Wweak-template-vtables"
+  #endif
+
+  template class DataBuffer<char>;
+  template class DataBuffer<char*>;
+  template class DataBuffer<double>;
+  template class DataBuffer<Int128>;
+  template class DataBuffer<int64_t>;
+  template class DataBuffer<uint64_t>;
+  template class DataBuffer<unsigned char>;
+
+  #ifdef __clang__
+    #pragma clang diagnostic ignored "-Wexit-time-destructors"
+  #endif
+
+  MemoryPool* getDefaultPool() {
+    static MemoryPoolImpl internal;
+    return &internal;
   }
 } // namespace orc

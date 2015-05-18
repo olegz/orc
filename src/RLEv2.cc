@@ -108,26 +108,30 @@ uint64_t RleDecoderV2::readVulong() {
 }
 
 RleDecoderV2::RleDecoderV2(std::unique_ptr<SeekableInputStream> input,
-                           bool _isSigned)
-  : inputStream(std::move(input)),
-    isSigned(_isSigned),
-    firstByte(0),
-    runLength(0),
-    runRead(0),
-    bufferStart(nullptr),
-    bufferEnd(bufferStart),
-    deltaBase(0),
-    byteSize(0),
-    firstValue(0),
-    prevValue(0),
-    bitSize(0),
-    bitsLeft(0),
-    curByte(0),
-    patchBitSize(0),
-    base(0),
-    curGap(0),
-    patchMask(0),
-    actualGap(0) {}
+                           bool _isSigned, MemoryPool& pool
+                           ): inputStream(std::move(input)),
+                              isSigned(_isSigned),
+                              firstByte(0),
+                              runLength(0),
+                              runRead(0),
+                              bufferStart(nullptr),
+                              bufferEnd(bufferStart),
+                              deltaBase(0),
+                              byteSize(0),
+                              firstValue(0),
+                              prevValue(0),
+                              bitSize(0),
+                              bitsLeft(0),
+                              curByte(0),
+                              patchBitSize(0),
+                              base(0),
+                              curGap(0),
+                              patchMask(0),
+                              actualGap(0),
+                              unpacked(pool, 0),
+                              unpackedPatch(pool, 0) {
+  // PASS
+}
 
 void RleDecoderV2::seek(PositionProvider& location) {
   // move the input stream

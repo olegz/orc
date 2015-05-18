@@ -29,6 +29,24 @@
 
 namespace orc {
 
+//  /**
+//   * An abstract interface for a buffer provided by the input stream.
+//   */
+//  class Buffer {
+//  public:
+//    virtual ~Buffer();
+//
+//    /**
+//     * Get the start of the buffer.
+//     */
+//    virtual char *getStart() const = 0;
+//
+//    /**
+//     * Get the length of the buffer in bytes.
+//     */
+//    virtual uint64_t getLength() const = 0;
+//  };
+
   /**
    * An abstract interface for providing ORC readers a stream of bytes.
    */
@@ -39,18 +57,18 @@ namespace orc {
     /**
      * Get the total length of the file in bytes.
      */
-    virtual long getLength() const = 0;
+    virtual uint64_t getLength() const = 0;
 
     /**
      * Read length bytes from the file starting at offset into
      * the buffer.
-     * @param buffer the location to write the bytes to, which must be
-     *        at least length bytes long
+     * @param buffer the buffer to write data into
      * @param offset the position in the file to read from
-     * @param length the number of bytes toread
+     * @param length the number of bytes to read
      */
-    virtual void read(void* buffer, unsigned long offset, 
-                      unsigned long length) = 0;
+    virtual void read(char* buffer,
+                      uint64_t offset,
+                      uint64_t length) = 0;
 
     /**
      * Get the name of the stream for error messages.
@@ -71,8 +89,7 @@ namespace orc {
    * @param pool custom memory allocator
    */
   std::unique_ptr<Reader> createReader(std::unique_ptr<InputStream> stream,
-                                       const ReaderOptions& options,
-                                       MemoryPool* pool = nullptr);
+                                       const ReaderOptions& options);
 
   /**
    * Create a copy of a reader for the ORC file
@@ -83,8 +100,7 @@ namespace orc {
    */
   std::unique_ptr<Reader> createReaderCopy(std::unique_ptr<InputStream> stream,
                                        const ReaderOptions& options,
-                                       const Reader* reader,
-                                       MemoryPool* pool = nullptr
+                                       const Reader* reader
                                        );
 
   /**
@@ -100,10 +116,8 @@ namespace orc {
                                        const ReaderOptions& options,
                                        const std::string* strPostscript,
                                        const std::string* strFooter,
-                                       const std::string* strMetadata,
-                                       MemoryPool* pool = nullptr
+                                       const std::string* strMetadata
                                        );
-
 }
 
 #endif

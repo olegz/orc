@@ -49,10 +49,20 @@ namespace orc {
 
     /**
      * Get the stream for the given column/kind in this stripe.
+     * @param columnId the id of the column
+     * @param kind the kind of the stream
+     * @param shouldStream should the reading page the stream in
+     * @return the new stream
      */
-    virtual std::unique_ptr<SeekableInputStream> 
+    virtual std::unique_ptr<SeekableInputStream>
                     getStream(int columnId,
-                              proto::Stream_Kind kind) const = 0;
+                              proto::Stream_Kind kind,
+                              bool shouldStream) const = 0;
+
+    /**
+     * Get the memory pool for this reader.
+     */
+    virtual MemoryPool& getMemoryPool() const = 0;
   };
 
   /**
@@ -62,10 +72,10 @@ namespace orc {
   protected:
     std::unique_ptr<ByteRleDecoder> notNullDecoder;
     int columnId;
-    MemoryPool* memoryPool;
+    MemoryPool& memoryPool;
 
   public:
-    ColumnReader(const Type& type, StripeStreams& stipe, MemoryPool* pool);
+    ColumnReader(const Type& type, StripeStreams& stipe);
 
     virtual ~ColumnReader();
 
@@ -80,11 +90,11 @@ namespace orc {
      * Read the next group of values into this rowBatch.
      * @param rowBatch the memory to read into.
      * @param numValues the number of values to read
-     * @param notNull if null, all values are not null. Otherwise, it is 
-     *           a mask (with at least numValues bytes) for which values to 
+     * @param notNull if null, all values are not null. Otherwise, it is
+     *           a mask (with at least numValues bytes) for which values to
      *           set.
      */
-    virtual void next(ColumnVectorBatch& rowBatch, 
+    virtual void next(ColumnVectorBatch& rowBatch,
                       unsigned long numValues,
                       char* notNull);
   };
@@ -93,8 +103,7 @@ namespace orc {
    * Create a reader for the given stripe.
    */
   std::unique_ptr<ColumnReader> buildReader(const Type& type,
-                                            StripeStreams& stripe,
-                                            MemoryPool* pool = nullptr);
+                                            StripeStreams& stripe);
 }
 
 #endif

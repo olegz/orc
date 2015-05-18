@@ -69,7 +69,7 @@ namespace orc {
      * @return true if has total length
      */
     virtual bool hasTotalLength() const = 0;
-    
+
     virtual uint64_t getTotalLength() const = 0;
   };
 
@@ -102,7 +102,7 @@ namespace orc {
      * @return true if has minimum
      */
     virtual bool hasMinimum() const = 0;
-      
+
     /**
      * check whether column has maximum
      * @return true if has maximum
@@ -134,7 +134,7 @@ namespace orc {
      * @return true if has minimum
      */
     virtual bool hasMinimum() const = 0;
-      
+
     /**
      * check whether column has maximum
      * @return true if has maximum
@@ -178,7 +178,7 @@ namespace orc {
      * @return true if has minimum
      */
     virtual bool hasMinimum() const = 0;
-      
+
     /**
      * check whether column has maximum
      * @return true if has maximum
@@ -225,7 +225,7 @@ namespace orc {
      * @return true if has minimum
      */
     virtual bool hasMinimum() const = 0;
-      
+
     /**
      * check whether column has maximum
      * @return true if has maximum
@@ -271,7 +271,7 @@ namespace orc {
      * @return true if has minimum
      */
     virtual bool hasMinimum() const = 0;
-      
+
     /**
      * check whether column has maximum
      * @return true if has maximum
@@ -279,7 +279,7 @@ namespace orc {
     virtual bool hasMaximum() const = 0;
 
     /**
-     * check whether column 
+     * check whether column
      * @return true if has maximum
      */
     virtual bool hasTotalLength() const = 0;
@@ -315,7 +315,7 @@ namespace orc {
      * @return true if has minimum
      */
     virtual bool hasMinimum() const = 0;
-      
+
     /**
      * check whether column maximum
      * @return true if has maximum
@@ -385,7 +385,7 @@ namespace orc {
      * @return one column's statistics
      */
     virtual const ColumnStatistics* getColumnStatistics(uint32_t colId
-							) const = 0;
+                                                        ) const = 0;
 
     /**
      * Get the number of columns
@@ -478,6 +478,11 @@ namespace orc {
      */
     ReaderOptions& setFileBlockSize(uint64_t blocksize);
 
+    /*
+     * Set the memory allocator.
+     */
+    ReaderOptions& setMemoryPool(MemoryPool& pool);
+
     /**
      * Get the list of selected columns to read. All children of the selected
      * columns are also selected.
@@ -524,6 +529,11 @@ namespace orc {
      */
     uint64_t getFileBlockSize();
     uint64_t getFileBlockSize() const;
+
+    /*
+     * Get the memory allocator.
+     */
+    MemoryPool* getMemoryPool() const;
   };
 
   /**
@@ -533,6 +543,13 @@ namespace orc {
   class Reader {
   public:
     virtual ~Reader();
+
+    /**
+     * Get the format version of the file. Currently known values are:
+     * "0.11" and "0.12"
+     * @return the version string
+     */
+    virtual std::string getFormatVersion() const = 0;
 
     /**
      * Get the number of rows in the file.

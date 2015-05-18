@@ -27,13 +27,13 @@
 
 class TestMemoryPool: public orc::MemoryPool {
 private:
-  std::map<void*, uint64_t> blocks;
+  std::map<char*, uint64_t> blocks;
   uint64_t totalMemory;
   uint64_t maxMemory;
 
 public:
-  void* malloc(uint64_t size) override {
-    void* p = std::malloc(size);
+  char* malloc(uint64_t size) override {
+    char* p = static_cast<char*>(std::malloc(size));
     blocks[p] = size ;
     totalMemory += size;
     if (maxMemory < totalMemory) {
@@ -42,7 +42,7 @@ public:
     return p;
   }
 
-  void free(void* p) override {
+  void free(char* p) override {
     std::free(p);
     totalMemory -= blocks[p] ;
     blocks.erase(p);
@@ -95,11 +95,11 @@ int main(int argc, char* argv[]) {
     opts.include(cols);
   }
   std::unique_ptr<orc::MemoryPool> pool(new TestMemoryPool());
+  opts.setMemoryPool(*pool.get());
 
   std::unique_ptr<orc::Reader> reader;
   try{
-    reader = orc::createReader(orc::readLocalFile(std::string(argv[1])),
-                               opts, pool.get());
+    reader = orc::createReader(orc::readLocalFile(std::string(argv[1])), opts);
   } catch (orc::ParseError e) {
     std::cout << "Error reading file " << argv[1] << "! "
               << e.what() << std::endl;

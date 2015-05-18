@@ -120,7 +120,7 @@ namespace orc {
     for(size_t i=0; i < bytes.size(); ++i) {
       bytes[i] = static_cast<char>(i);
     }
-    SeekableArrayInputStream stream(bytes.data(), bytes.size(), nullptr, 20);
+    SeekableArrayInputStream stream(bytes.data(), bytes.size(), 20);
     const void *ptr;
     int len;
     ASSERT_THROW(stream.BackUp(10), std::logic_error);
@@ -153,7 +153,7 @@ namespace orc {
     for(size_t i=0; i < bytes.size(); ++i) {
       bytes[i] = static_cast<char>(i);
     }
-    SeekableArrayInputStream stream(bytes.data(), bytes.size(), nullptr, 20);
+    SeekableArrayInputStream stream(bytes.data(), bytes.size(), 20);
     const void *ptr;
     int len;
     ASSERT_EQ(true, stream.Next(&ptr, &len));
@@ -175,7 +175,7 @@ namespace orc {
     for(size_t i=0; i < bytes.size(); ++i) {
       bytes[i] = static_cast<char>(i);
     }
-    SeekableArrayInputStream stream(bytes.data(), bytes.size(), nullptr, 20);
+    SeekableArrayInputStream stream(bytes.data(), bytes.size(), 20);
     const void *ptr;
     int len;
     ASSERT_EQ(true, stream.Next(&ptr, &len));
@@ -196,7 +196,7 @@ namespace orc {
   void checkBytes(const char*data, int length,
                   unsigned int startValue) {
     for(unsigned int i=0; static_cast<int>(i) < length; ++i) {
-      EXPECT_EQ(startValue + i, static_cast<unsigned char>(data[i])) 
+      EXPECT_EQ(startValue + i, static_cast<unsigned char>(data[i]))
         << "Output wrong at " << startValue << " + " << i;
     }
   }
@@ -204,7 +204,8 @@ namespace orc {
   TEST_F(TestCompression, testFileBackup) {
     SCOPED_TRACE("testFileBackup");
     std::unique_ptr<InputStream> file = readLocalFile(simpleFile);
-    SeekableFileInputStream stream(file.get(), 0, 200, nullptr, 20);
+    std::unique_ptr<DataBuffer<char> > buffer(new DataBuffer<char>(*getDefaultPool()));
+    SeekableFileInputStream stream(file.get(), 0, std::move(buffer), 200, 20);
     const void *ptr;
     int len;
     ASSERT_THROW(stream.BackUp(10), std::logic_error);
@@ -216,16 +217,16 @@ namespace orc {
     EXPECT_EQ(20, len);
     checkBytes(static_cast<const char*>(ptr), len, 20);
     stream.BackUp(10);
-    for(unsigned int i=0; i < 8; ++i) {
-      EXPECT_EQ(true, stream.Next(&ptr, &len));
-      unsigned int consumedBytes = 30 + 20 * i;
-      EXPECT_EQ(consumedBytes + 20, stream.ByteCount());
-      EXPECT_EQ(20, len);
-      checkBytes(static_cast<const char*>(ptr), len, consumedBytes);
-    }
+    EXPECT_EQ(30, stream.ByteCount());
     EXPECT_EQ(true, stream.Next(&ptr, &len));
     EXPECT_EQ(10, len);
-    checkBytes(static_cast<const char*>(ptr), len, 190);
+    checkBytes(static_cast<const char*>(ptr), len, 30);
+    for(unsigned int i=0; i < 8; ++i) {
+      EXPECT_EQ(20 * i + 40, stream.ByteCount());
+      EXPECT_EQ(true, stream.Next(&ptr, &len));
+      EXPECT_EQ(20, len);
+      checkBytes(static_cast<const char*>(ptr), len, 20 * i + 40);
+    }
     EXPECT_EQ(false, stream.Next(&ptr, &len));
     EXPECT_EQ(0, len);
     ASSERT_THROW(stream.BackUp(30), std::logic_error);
@@ -235,7 +236,8 @@ namespace orc {
   TEST_F(TestCompression, testFileSkip) {
     SCOPED_TRACE("testFileSkip");
     std::unique_ptr<InputStream> file = readLocalFile(simpleFile);
-    SeekableFileInputStream stream(file.get(), 0, 200, nullptr, 20);
+    std::unique_ptr<DataBuffer<char> > buffer(new DataBuffer<char>(*getDefaultPool()));
+    SeekableFileInputStream stream(file.get(), 0, std::move(buffer), 200, 20);
     const void *ptr;
     int len;
     ASSERT_EQ(true, stream.Next(&ptr, &len));
@@ -246,7 +248,7 @@ namespace orc {
     ASSERT_EQ(true, stream.Next(&ptr, &len));
     checkBytes(static_cast<const char*>(ptr), len, 100);
     EXPECT_EQ(20, len);
-    ASSERT_EQ(true, stream.Skip(80));
+    ASSERT_EQ(false, stream.Skip(80));
     ASSERT_EQ(false, stream.Next(&ptr, &len));
     ASSERT_EQ(false, stream.Skip(181));
     EXPECT_EQ("simple-file.binary from 0 for 200", stream.getName());
@@ -255,7 +257,8 @@ namespace orc {
   TEST_F(TestCompression, testFileCombo) {
     SCOPED_TRACE("testFileCombo");
     std::unique_ptr<InputStream> file = readLocalFile(simpleFile);
-    SeekableFileInputStream stream(file.get(), 0, 200, nullptr, 20);
+    std::unique_ptr<DataBuffer<char> > buffer(new DataBuffer<char>(*getDefaultPool()));
+    SeekableFileInputStream stream(file.get(), 0, std::move(buffer), 200, 20);
     const void *ptr;
     int len;
     ASSERT_EQ(true, stream.Next(&ptr, &len));
@@ -275,7 +278,8 @@ namespace orc {
   TEST_F(TestCompression, testFileSeek) {
     SCOPED_TRACE("testFileSeek");
     std::unique_ptr<InputStream> file = readLocalFile(simpleFile);
-    SeekableFileInputStream stream(file.get(), 0, 200, nullptr, 20);
+    std::unique_ptr<DataBuffer<char> > buffer(new DataBuffer<char>(*getDefaultPool()));
+    SeekableFileInputStream stream(file.get(), 0, std::move(buffer), 200, 20);
     const void *ptr;
     int len;
     EXPECT_EQ(0, stream.ByteCount());
@@ -284,13 +288,13 @@ namespace orc {
     EXPECT_EQ(20, len);
     EXPECT_EQ(20, stream.ByteCount());
     {
-      std::list<unsigned long> offsets {100};
+      std::list<uint64_t> offsets {100};
       PositionProvider posn(offsets);
       stream.seek(posn);
     }
     EXPECT_EQ(100, stream.ByteCount());
     {
-      std::list<unsigned long> offsets {5};
+      std::list<uint64_t> offsets {5};
       PositionProvider posn(offsets);
       stream.seek(posn);
     }
@@ -299,7 +303,7 @@ namespace orc {
     checkBytes(static_cast<const char*>(ptr), len, 5);
     EXPECT_EQ(20, len);
     {
-      std::list<unsigned long> offsets {201};
+      std::list<uint64_t> offsets {201};
       PositionProvider posn(offsets);
       EXPECT_THROW(stream.seek(posn), std::logic_error);
       EXPECT_EQ(200, stream.ByteCount());
@@ -313,9 +317,11 @@ namespace orc {
     }
     std::unique_ptr<SeekableInputStream> result =
       createDecompressor(CompressionKind_NONE,
-                  std::unique_ptr<SeekableInputStream>
-                    (new SeekableArrayInputStream(bytes.data(), bytes.size())),
-                  32768);
+                         std::unique_ptr<SeekableInputStream>
+                         (new SeekableArrayInputStream(bytes.data(),
+                                                       bytes.size())),
+                         32768,
+                         *getDefaultPool());
     const void *ptr;
     int length;
     result->Next(&ptr, &length);
@@ -328,7 +334,8 @@ namespace orc {
     EXPECT_THROW(createDecompressor(CompressionKind_LZO,
                              std::unique_ptr<SeekableInputStream>
                                     (new SeekableArrayInputStream( { } )),
-                             32768), NotImplementedYet);
+                                    32768, *getDefaultPool()),
+                 NotImplementedYet);
   }
 
   TEST(Zlib, testCreateZlib) {
@@ -337,7 +344,7 @@ namespace orc {
                          std::unique_ptr<SeekableInputStream>
                          (new SeekableArrayInputStream
                           ({0x0b, 0x0, 0x0, 0x0, 0x1, 0x2, 0x3, 0x4})),
-                  32768);
+                         32768, *getDefaultPool());
     EXPECT_EQ("zlib(SeekableArrayInputStream 0 of 8)", result->getName());
     const void *ptr;
     int length;
@@ -365,9 +372,9 @@ namespace orc {
                           ({0x19, 0x0, 0x0, 0x0, 0x1,
                               0x2, 0x3, 0x4, 0x5, 0x6,
                               0x7, 0x8, 0x9, 0xa, 0xb,
-                              0xb, 0x0, 0x0, 0xc, 0xd, 
+                              0xb, 0x0, 0x0, 0xc, 0xd,
                               0xe, 0xf, 0x10}, 5)),
-                         5);
+                         5, *getDefaultPool());
     EXPECT_EQ("zlib(SeekableArrayInputStream 0 of 23)", result->getName());
     const void *ptr;
     int length;
@@ -406,7 +413,7 @@ namespace orc {
                          std::unique_ptr<SeekableInputStream>
                          (new SeekableArrayInputStream
                           ({0xe, 0x0, 0x0, 0x63, 0x60, 0x64, 0x62, 0xc0,
-                              0x8d, 0x0})), 1000);
+                              0x8d, 0x0})), 1000, *getDefaultPool());
     const void *ptr;
     int length;
     ASSERT_EQ(true, result->Next(&ptr, &length));
@@ -426,7 +433,9 @@ namespace orc {
                           ({0xe, 0x0, 0x0, 0x63, 0x60,
                               0x64, 0x62, 0xc0, 0x8d, 0x0,
                               0xe, 0x0, 0x0, 0x63, 0x60,
-                              0x64, 0x62, 0xc0, 0x8d, 0x0}, 3)), 1000);
+                              0x64, 0x62, 0xc0, 0x8d, 0x0}, 3)),
+                         1000,
+                         *getDefaultPool());
     const void *ptr;
     int length;
     ASSERT_THROW(result->BackUp(20), std::logic_error);
@@ -461,9 +470,9 @@ namespace orc {
                           ({0x19, 0x0, 0x0, 0x0, 0x1,
                               0x2, 0x3, 0x4, 0x5, 0x6,
                               0x7, 0x8, 0x9, 0xa, 0xb,
-                              0xb, 0x0, 0x0, 0xc, 0xd, 
+                              0xb, 0x0, 0x0, 0xc, 0xd,
                               0xe, 0xf, 0x10}, 5)),
-                         5);
+                         5, *getDefaultPool());
     const void *ptr;
     int length;
     ASSERT_EQ(true, result->Next(&ptr, &length));
@@ -542,9 +551,9 @@ namespace orc {
          std::unique_ptr<SeekableInputStream>
            (new SeekableArrayInputStream(compressBuffer.getBuffer(),
                                          compressBuffer.getBufferSize(),
-                                         nullptr,
                                          blockSize)),
-         buf.size());
+         buf.size(),
+         *getDefaultPool());
     const void *data;
     int length;
     ASSERT_TRUE(result->Next(&data, &length));
@@ -583,8 +592,9 @@ namespace orc {
     std::unique_ptr<SeekableInputStream> result = createDecompressor
         (CompressionKind_SNAPPY,
          std::unique_ptr<SeekableInputStream>
-         (new SeekableArrayInputStream(input.data(), input.size(), nullptr, blockSize)),
-           buf.size());
+         (new SeekableArrayInputStream(input.data(), input.size(), blockSize)),
+         buf.size(),
+         *getDefaultPool());
     for (int i=0; i < 4; ++i) {
       const void *data;
       int length;
@@ -616,9 +626,9 @@ namespace orc {
          std::unique_ptr<SeekableInputStream>
            (new SeekableArrayInputStream(compressBuffer.getBuffer(),
                                          compressBuffer.getBufferSize(),
-                                         nullptr,
                                          blockSize)),
-         buf.size());
+         buf.size(),
+         *getDefaultPool());
     const void *data;
     int length;
     // skip 1/2; in 2 jumps

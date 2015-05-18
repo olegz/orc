@@ -61,9 +61,9 @@ int main(int argc, char* argv[])
       return -1;
   };
 
-  std::streamoff footerSize = 
+  std::streamoff footerSize =
     static_cast<std::streamoff>(postscript.footerlength());
-  std::streamoff metadataSize = 
+  std::streamoff metadataSize =
     static_cast<std::streamoff>(postscript.metadatalength());
 
   // Read the metadata
@@ -93,8 +93,8 @@ int main(int argc, char* argv[])
       stripe = footer.stripes(stripeIx);
       stripe.PrintDebugString();
 
-      std::streamoff offset = 
-        static_cast<std::streamoff>(stripe.offset() + stripe.indexlength() + 
+      std::streamoff offset =
+        static_cast<std::streamoff>(stripe.offset() + stripe.indexlength() +
                                     stripe.datalength());
       std::streamoff tailLength =
         static_cast<std::streamoff>(stripe.footerlength());
@@ -117,7 +117,7 @@ int main(int argc, char* argv[])
                     << " length " << section.length() << std::endl;
           sectionStart += section.length();
       };
-      for (int columnIx=0; columnIx<stripeFooter.columns_size(); 
+      for (int columnIx=0; columnIx<stripeFooter.columns_size();
            columnIx++) {
           encoding = stripeFooter.columns(columnIx);
           std::cout << "    Encoding column " << columnIx << ": "

@@ -26,11 +26,15 @@ protobuf_generate_cpp(PROTO_SRCS PROTO_HDRS orc_proto.proto)
 
 set (CMAKE_CXX_FLAGS "-O0 ${CMAKE_CXX_FLAGS} -g ${CXX11_FLAGS} ${WARN_FLAGS}")
 
+if (C09)
+  set (ADAOPTOR_CLASS "C09Adapter.cc")
+endif (C09)
+
 add_library (orc STATIC
   ${PROTO_HDRS}
   wrap/orc-proto-wrapper.cc
   ByteRLE.cc
-  C09Adapter.cc
+  ${ADAPTOR_CLASS}
   ColumnReader.cc
   Compression.cc
   Exceptions.cc

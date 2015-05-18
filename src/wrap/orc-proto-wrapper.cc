@@ -25,6 +25,7 @@
   #pragma clang diagnostic ignored "-Wconversion"
   #pragma clang diagnostic ignored "-Wunused-parameter"
   #pragma clang diagnostic ignored "-Wnested-anon-types"
+  #pragma clang diagnostic ignored "-Wsign-compare"
 #else
 #endif
 

@@ -108,6 +108,7 @@ message Stream {
     DICTIONARY_COUNT = 4;
     SECONDARY = 5;
     ROW_INDEX = 6;
+    BLOOM_FILTER = 7;
   }
   optional Kind kind = 1;
   optional uint32 column = 2;
@@ -128,6 +129,7 @@ message ColumnEncoding {
 message StripeFooter {
   repeated Stream streams = 1;
   repeated ColumnEncoding columns = 2;
+  optional string writerTimezone = 3;
 }
 
 message Type {
@@ -151,7 +153,7 @@ message Type {
     VARCHAR = 16;
     CHAR = 17;
   }
-  required Kind kind = 1;
+  optional Kind kind = 1;
   repeated uint32 subtypes = 2 [packed=true];
   repeated string fieldNames = 3;
   optional uint32 maximumLength = 4;

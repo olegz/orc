@@ -33,14 +33,14 @@ namespace orc {
 
   void printBuffer(std::ostream& out,
                    const char *buffer,
-                   unsigned long length);
+                   uint64_t length);
 
   class PositionProvider {
   private:
-    std::list<unsigned long>::const_iterator position;
+    std::list<uint64_t>::const_iterator position;
   public:
-    PositionProvider(const std::list<unsigned long>& positions);
-    unsigned long next();
+    PositionProvider(const std::list<uint64_t>& positions);
+    uint64_t next();
   };
 
   /**
@@ -49,11 +49,7 @@ namespace orc {
    * to the protobuf readers.
    */
   class SeekableInputStream: public google::protobuf::io::ZeroCopyInputStream {
-  protected:
-    MemoryPool* memoryPool;
   public:
-    SeekableInputStream(MemoryPool* pool = nullptr);
-    MemoryPool* getMemoryPool();
     virtual ~SeekableInputStream();
     virtual void seek(PositionProvider& position) = 0;
     virtual std::string getName() const = 0;
@@ -64,26 +60,24 @@ namespace orc {
    */
   class SeekableArrayInputStream: public SeekableInputStream {
   private:
-//    std::vector<char> ownedData;
     std::unique_ptr<DataBuffer<char> > ownedData;
     const char* data;
-    unsigned long length;
-    unsigned long position;
-    unsigned long blockSize;
+    uint64_t length;
+    uint64_t position;
+    uint64_t blockSize;
 
   public:
+
     #if __cplusplus >= 201103L
       SeekableArrayInputStream(std::initializer_list<unsigned char> list,
-                       long block_size = -1,
-                       MemoryPool* pool = nullptr);
+                               long block_size = -1);
     #endif // __cplusplus
+
     SeekableArrayInputStream(const unsigned char* list,
-                             unsigned long length,
-                             MemoryPool* pool = nullptr,
+                             uint64_t length,
                              long block_size = -1);
     SeekableArrayInputStream(const char* list,
-                             unsigned long length,
-                             MemoryPool* pool = nullptr,
+                             uint64_t length,
                              long block_size = -1);
     virtual ~SeekableArrayInputStream();
     virtual bool Next(const void** data, int*size) override;
@@ -99,27 +93,26 @@ namespace orc {
    */
   class SeekableFileInputStream: public SeekableInputStream {
   private:
-    InputStream* input;
-//    std::vector<char> buffer;
+    InputStream* const input;
+    const uint64_t start;
+    const uint64_t length;
+    const uint64_t blockSize;
     std::unique_ptr<DataBuffer<char> > buffer;
-    unsigned long offset;
-    unsigned long length;
-    unsigned long position;
-    unsigned long blockSize;
-    unsigned long remainder;
+    uint64_t position;
+    uint64_t pushBack;
 
   public:
     SeekableFileInputStream(InputStream* input,
-                            unsigned long offset,
-                            unsigned long length,
-                            MemoryPool* pool = nullptr,
+                            uint64_t offset,
+                            std::unique_ptr<DataBuffer<char> > _buffer,
+                            uint64_t byteCount,
                             long blockSize = -1);
     virtual ~SeekableFileInputStream();
 
     virtual bool Next(const void** data, int*size) override;
     virtual void BackUp(int count) override;
     virtual bool Skip(int count) override;
-    virtual google::protobuf::int64 ByteCount() const override;
+    virtual int64_t ByteCount() const override;
     virtual void seek(PositionProvider& position) override;
     virtual std::string getName() const override;
   };
@@ -129,11 +122,13 @@ namespace orc {
    * @param kind the compression type to implement
    * @param input the input stream that is the underlying source
    * @param bufferSize the maximum size of the buffer
+   * @param pool the memory pool
    */
-  std::unique_ptr<SeekableInputStream> 
+  std::unique_ptr<SeekableInputStream>
      createDecompressor(CompressionKind kind,
                         std::unique_ptr<SeekableInputStream> input,
-                        unsigned long bufferSize);
+                        uint64_t bufferSize,
+                        MemoryPool& pool);
 }
 
 #endif

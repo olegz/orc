@@ -32,7 +32,7 @@ public:
   enum EncodingType { SHORT_REPEAT=0, DIRECT=1, PATCHED_BASE=2, DELTA=3 };
 
   RleDecoderV2(std::unique_ptr<SeekableInputStream> input,
-               bool isSigned);
+               bool isSigned, MemoryPool& pool);
 
   /**
   * Seek to a particular spot.
@@ -166,9 +166,8 @@ private:
   long curPatch; // Used by PATCHED_BASE
   long patchMask; // Used by PATCHED_BASE
   long actualGap; // Used by PATCHED_BASE
-  // TODO: Allow allocator for buffer.
-  std::vector<int64_t> unpacked; // Used by PATCHED_BASE
-  std::vector<int64_t> unpackedPatch; // Used by PATCHED_BASE
+  DataBuffer<int64_t> unpacked; // Used by PATCHED_BASE
+  DataBuffer<int64_t> unpackedPatch; // Used by PATCHED_BASE
 };
 }  // namespace orc
 

@@ -51,7 +51,7 @@ namespace orc {
      * @param notNull If the pointer is null, all values are read. If the
      *    pointer is not null, positions that are false are skipped.
      */
-    virtual void next(int64_t* data, unsigned long numValues, 
+    virtual void next(int64_t* data, unsigned long numValues,
                       const char* notNull) = 0;
   };
 
@@ -65,11 +65,13 @@ namespace orc {
    * @param input the input stream to read from
    * @param isSigned true if the number sequence is signed
    * @param version version of RLE decoding to do
+   * @param pool memory pool to use for allocation
    */
-  std::unique_ptr<RleDecoder> createRleDecoder(
-    std::unique_ptr<SeekableInputStream> input,
-    bool isSigned,
-    RleVersion version);
+  std::unique_ptr<RleDecoder> createRleDecoder
+                      (std::unique_ptr<SeekableInputStream> input,
+                       bool isSigned,
+                       RleVersion version,
+                       MemoryPool& pool);
 
 }  // namespace orc
 

@@ -61,7 +61,7 @@ TEST(ByteRle, nullTest) {
   for(size_t i = 0; i < sizeof(result); ++i) {
     if (i >= 10) {
       EXPECT_EQ((i - 10) & 0xff,
-          static_cast<int>(result[i]) & 0xff) << "Output wrong at " << i;
+                static_cast<int>(result[i]) & 0xff) << "Output wrong at " << i;
     }
   }
 }
@@ -111,8 +111,8 @@ TEST(ByteRle, simpleRuns) {
   for (size_t i = 0; i < 3; ++i) {
     rle->next(data.data(), data.size(), nullptr);
     for (size_t j = 0; j < data.size(); ++j) {
-      EXPECT_EQ(static_cast<char>(-1 - static_cast<int>(i)), data[j]) 
-	<< "Output wrong at " << (16 * i + j);
+      EXPECT_EQ(static_cast<char>(-1 - static_cast<int>(i)), data[j])
+        << "Output wrong at " << (16 * i + j);
     }
   }
 }
@@ -161,8 +161,8 @@ TEST(ByteRle, splitRuns) {
   for(size_t i = 0; i < 2; ++i) {
     rle->next(data.data(), data.size(), nullptr);
     for(size_t j = 0; j < data.size(); ++j) {
-      EXPECT_EQ(5 * i + j + data.size(), data[j]) 
-	<< "Output wrong at " << (20 + data.size() * i + j);
+      EXPECT_EQ(5 * i + j + data.size(), data[j])
+        << "Output wrong at " << (20 + data.size() * i + j);
     }
   }
   rle->next(data.data(), 2, nullptr);
@@ -490,7 +490,7 @@ TEST(ByteRle, testSeek) {
 0xe9, 0xea, 0xeb, 0xec, 0xed, 0xee, 0xef, 0xf0, 0xf1, 0xf2, 0xf3, 0xf4, 0xf5,
 0xf6, 0xf7, 0xf8, 0xf9, 0xfa, 0xfb, 0xfc, 0xfd, 0xfe, 0xff,
      }));
-  const unsigned long fileLocs[] = {
+  const uint64_t fileLocs[] = {
    0,    0,    0,    0,    0,    2,    2,    2,    2,    4,    4,    4,    4,
    6,    6,    6,    6,    8,    8,    8,    8,   10,   10,   10,   10,   12,
   12,   12,   12,   14,   14,   14,   14,   16,   16,   16,   16,   18,   18,
@@ -650,7 +650,7 @@ TEST(ByteRle, testSeek) {
 1415, 1415, 1415, 1415, 1415, 1415, 1415, 1415, 1415, 1415, 1415, 1415, 1415,
 1415, 1415, 1415, 1415, 1415, 1415, 1415,
     };
-  const unsigned long rleLocs[] = {
+  const uint64_t rleLocs[] = {
   0,   1,   2,   3,   4,   1,   2,   3,   4,   1,   2,   3,   4,   1,   2,   3,
   4,   1,   2,   3,   4,   1,   2,   3,   4,   1,   2,   3,   4,   1,   2,   3,
   4,   1,   2,   3,   4,   1,   2,   3,   4,   1,   2,   3,   4,   1,   2,   3,
@@ -780,7 +780,7 @@ TEST(ByteRle, testSeek) {
  96,  97,  98,  99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111,
 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127,
 };
-  std::list<unsigned long> positions[2048];
+  std::list<uint64_t> positions[2048];
   for (size_t i = 0; i < 2048; ++i) {
     positions[i].push_back(fileLocs[i]);
     positions[i].push_back(rleLocs[i]);
@@ -845,7 +845,7 @@ TEST(BooleanRle, runsTest) {
               data[i])
         << "Output wrong at " << i;
   }
-  std::list<unsigned long> position(3, 0);
+  std::list<uint64_t> position(3, 0);
   PositionProvider location(position);
   rle->seek(location);
   for (size_t i = 0; i < data.size(); ++i) {
@@ -871,7 +871,7 @@ TEST(BooleanRle, runsTestWithNull) {
               data[i])
         << "Output wrong at " << i;
   }
-  std::list<unsigned long> position(3, 0);
+  std::list<uint64_t> position(3, 0);
   PositionProvider location(position);
   rle->seek(location);
   for (size_t i = 0; i < data.size(); ++i) {
@@ -1206,9 +1206,9 @@ TEST(BooleanRle, seekTest) {
         << "Output wrong at " << i;
   }
   // set up all of the positions
-  std::list<unsigned long> positions[16384];
-  for (unsigned long i = 0; i < 16384; ++i) {
-    const unsigned long bytePosn = i / 8;
+  std::list<uint64_t> positions[16384];
+  for (uint64_t i = 0; i < 16384; ++i) {
+    const uint64_t bytePosn = i / 8;
     // add the stream position
     positions[i].push_back(bytePosn < 1025
                            ? 2 * (bytePosn / 130)
@@ -1341,9 +1341,9 @@ TEST(BooleanRle, seekTestWithNulls) {
         << "Output wrong at " << i;
   }
   // set up all of the positions
-  std::list<unsigned long> positions[16384];
-  for (unsigned long i = 0; i < 16384; ++i) {
-    const unsigned long bytePosn = i / 8;
+  std::list<uint64_t> positions[16384];
+  for (uint64_t i = 0; i < 16384; ++i) {
+    const uint64_t bytePosn = i / 8;
     // add the stream position
     // add the stream position
     positions[i].push_back(bytePosn < 1025
