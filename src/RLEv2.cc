@@ -81,7 +81,7 @@ inline uint32_t getClosestFixedBits(uint32_t n) {
   }
 }
 
-int64_t RleDecoderV2::readLongBE(uint32_t bsz) {
+int64_t RleDecoderV2::readLongBE(uint64_t bsz) {
   int64_t ret = 0, val;
   uint64_t n = bsz;
   while (n > 0) {

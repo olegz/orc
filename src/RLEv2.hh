@@ -97,7 +97,7 @@ private:
   return result;
 }
 
-  int64_t readLongBE(uint32_t bsz);
+  int64_t readLongBE(uint64_t bsz);
   int64_t readVslong();
   uint64_t readVulong();
   uint64_t readLongs(int64_t *data, uint64_t offset, uint64_t len,
