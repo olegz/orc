@@ -63,7 +63,7 @@ int main(int argc, char* argv[]) {
       stripeStats = reader->getStripeStatistics(j);
       std::cout << "*** Stripe " << j << " ***" << std::endl << std::endl ;
 
-      for(size_t k = 0; k < stripeStats->getNumberOfColumns(); ++k) {
+      for(uint32_t k = 0; k < stripeStats->getNumberOfColumns(); ++k) {
         std::cout << "--- Column " << k << " ---" << std::endl;
         std::cout << stripeStats->getColumnStatistics(k)->toString()
                   << std::endl;

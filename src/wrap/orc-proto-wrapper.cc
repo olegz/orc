@@ -27,6 +27,7 @@
   #pragma clang diagnostic ignored "-Wnested-anon-types"
   #pragma clang diagnostic ignored "-Wsign-compare"
 #else
+  #pragma GCC diagnostic ignored "-Wconversion"
 #endif
 
 #include "orc_proto.pb.cc"

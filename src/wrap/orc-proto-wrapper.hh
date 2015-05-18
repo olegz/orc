@@ -25,6 +25,7 @@
   #pragma clang diagnostic ignored "-Wweak-vtables"
 #else
   #pragma GCC diagnostic push
+  #pragma GCC diagnostic ignored "-Wconversion"
 #endif
 
 #include "orc_proto.pb.h"

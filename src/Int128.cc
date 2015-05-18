@@ -115,19 +115,19 @@ namespace orc {
     }
     if (high != 0) {
       if (high > UINT32_MAX) {
-        array[0] = high >> 32;
+        array[0] = static_cast<uint32_t>(high >> 32);
         array[1] = static_cast<uint32_t>(high);
-        array[2] = low >> 32;
+        array[2] = static_cast<uint32_t>(low >> 32);
         array[3] = static_cast<uint32_t>(low);
         return 4;
       } else {
         array[0] = static_cast<uint32_t>(high);
-        array[1] = low >> 32;
+        array[1] = static_cast<uint32_t>(low >> 32);
         array[2] = static_cast<uint32_t>(low);
         return 3;
       }
     } else if (low >= UINT32_MAX) {
-      array[0] = low >> 32;
+      array[0] = static_cast<uint32_t>(low >> 32);
       array[1] = static_cast<uint32_t>(low);
       return 2;
     } else if (low == 0) {
@@ -321,7 +321,7 @@ namespace orc {
         }
       }
       uint32_t prev = dividendArray[j];
-      dividendArray[j] -= mult;
+      dividendArray[j] -= static_cast<uint32_t>(mult);
 
       // if guess was too big, we add back divisor
       if (dividendArray[j] > prev) {
@@ -331,7 +331,7 @@ namespace orc {
           uint64_t sum = static_cast<uint64_t>(divisorArray[i]) +
             dividendArray[j+i+1] + carry;
           dividendArray[j+i+1] = static_cast<uint32_t>(sum);
-          carry = sum >> 32;
+          carry = static_cast<uint32_t>(sum >> 32);
         }
         dividendArray[j] += carry;
       }

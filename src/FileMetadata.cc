@@ -131,7 +131,7 @@ int32_t main(int32_t argc, char* argv[])
 
   uint64_t paddedBytes = getTotalPaddingSize(footer);
   // empty ORC file is ~45 bytes. Assumption here is file length always >0
-  double percentPadding = static_cast<double>(paddedBytes) * 100 / fileSize;
+  double percentPadding = static_cast<double>(paddedBytes) * 100 / static_cast<double>(fileSize);
   std::cout << "File length: " << fileSize << " bytes" << std::endl;
   std::cout <<"Padding length: " << paddedBytes << " bytes" << std::endl;
   std::cout <<"Padding ratio: " << std::fixed << std::setprecision(2)

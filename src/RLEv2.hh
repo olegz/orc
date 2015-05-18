@@ -123,7 +123,7 @@ private:
     // handle the left over bits
     if (bitsLeftToRead > 0) {
       result <<= bitsLeftToRead;
-      bitsLeft -= bitsLeftToRead;
+      bitsLeft -= static_cast<uint32_t>(bitsLeftToRead);
       result |= (curByte >> bitsLeft) & ((1 << bitsLeftToRead) - 1);
     }
     data[i] = static_cast<int64_t>(result);

@@ -26,6 +26,10 @@ protobuf_generate_cpp(PROTO_SRCS PROTO_HDRS orc_proto.proto)
 
 set (CMAKE_CXX_FLAGS "-O0 ${CMAKE_CXX_FLAGS} -g ${CXX11_FLAGS} ${WARN_FLAGS}")
 
+if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
+  set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wconversion")
+endif ()
+
 if (C09)
   set (ADAPTOR_CLASS "C09Adapter.cc")
 endif (C09)
