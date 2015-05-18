@@ -29,24 +29,6 @@
 
 namespace orc {
 
-//  /**
-//   * An abstract interface for a buffer provided by the input stream.
-//   */
-//  class Buffer {
-//  public:
-//    virtual ~Buffer();
-//
-//    /**
-//     * Get the start of the buffer.
-//     */
-//    virtual char *getStart() const = 0;
-//
-//    /**
-//     * Get the length of the buffer in bytes.
-//     */
-//    virtual uint64_t getLength() const = 0;
-//  };
-
   /**
    * An abstract interface for providing ORC readers a stream of bytes.
    */
