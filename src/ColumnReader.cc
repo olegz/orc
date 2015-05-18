@@ -66,13 +66,13 @@ namespace orc {
       // page through the values that we want to skip
       // and count how many are non-null
       const size_t MAX_BUFFER_SIZE = 32768;
-      size_t bufferSize = std::min(MAX_BUFFER_SIZE,
+      size_t bufferSize = (std::min)(MAX_BUFFER_SIZE,
                                    static_cast<size_t>(numValues));
       char buffer[MAX_BUFFER_SIZE];
       unsigned long remaining = numValues;
       while (remaining > 0) {
         unsigned long chunkSize =
-          std::min(remaining,
+          (std::min)(remaining,
                    static_cast<unsigned long>(bufferSize));
         decoder->next(buffer, chunkSize, 0);
         remaining -= chunkSize;
@@ -608,7 +608,7 @@ namespace orc {
     size_t totalBytes = 0;
     // read the lengths, so we know haw many bytes to skip
     while (done < numValues) {
-      unsigned long step = std::min(BUFFER_SIZE,
+      unsigned long step = (std::min)(BUFFER_SIZE,
                                     static_cast<size_t>(numValues - done));
       lengthRle->next(buffer, step, 0);
       totalBytes += computeSize(buffer, 0, step);
@@ -849,7 +849,7 @@ namespace orc {
       uint64_t childrenElements = 0;
       uint64_t lengthsRead = 0;
       while (lengthsRead < numValues) {
-        uint64_t chunk = std::min(numValues - lengthsRead, BUFFER_SIZE);
+        uint64_t chunk = (std::min)(numValues - lengthsRead, BUFFER_SIZE);
         rle->next(buffer, chunk, 0);
         for(size_t i=0; i < chunk; ++i) {
           childrenElements += static_cast<size_t>(buffer[i]);
@@ -947,7 +947,7 @@ namespace orc {
       uint64_t childrenElements = 0;
       uint64_t lengthsRead = 0;
       while (lengthsRead < numValues) {
-        unsigned long chunk = std::min(numValues - lengthsRead, BUFFER_SIZE);
+        unsigned long chunk = (std::min)(numValues - lengthsRead, BUFFER_SIZE);
         rle->next(buffer, chunk, 0);
         for(size_t i=0; i < chunk; ++i) {
           childrenElements += static_cast<size_t>(buffer[i]);
@@ -1162,7 +1162,7 @@ namespace orc {
   void scaleInt128(Int128& value, int32_t scale, int32_t currentScale) {
     if (scale > currentScale) {
       while(scale > currentScale) {
-        int scaleAdjust = std::min(Decimal64ColumnReader::MAX_PRECISION_64,
+        int scaleAdjust = (std::min)(Decimal64ColumnReader::MAX_PRECISION_64,
                                    scale - currentScale);
         value *= Decimal64ColumnReader::POWERS_OF_TEN[scaleAdjust];
         currentScale += scaleAdjust;
@@ -1170,7 +1170,7 @@ namespace orc {
     } else if (scale < currentScale) {
       Int128 remainder;
       while(currentScale > scale) {
-        int scaleAdjust = std::min(Decimal64ColumnReader::MAX_PRECISION_64,
+        int scaleAdjust = (std::min)(Decimal64ColumnReader::MAX_PRECISION_64,
                                    currentScale - scale);
         value = value.divide(Decimal64ColumnReader::POWERS_OF_TEN[scaleAdjust],
                              remainder);

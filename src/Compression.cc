@@ -125,7 +125,7 @@ namespace orc {
   }
 
   bool SeekableArrayInputStream::Next(const void** buffer, int*size) {
-    unsigned long currentSize = std::min(length - position, blockSize);
+    unsigned long currentSize = (std::min)(length - position, blockSize);
     if (currentSize > 0) {
       *buffer = (data ? data : ownedData->data()) + position;
       *size = static_cast<int>(currentSize);
@@ -184,7 +184,7 @@ namespace orc {
     offset = _offset;
     length = _length;
     position = 0;
-    blockSize = std::min(length,
+    blockSize = (std::min)(length,
                          static_cast<unsigned long>(_blockSize < 0 ?
                                                     256 * 1024 : _blockSize));
     buffer.reset(new DataBuffer<char>(blockSize, pool));
@@ -196,7 +196,7 @@ namespace orc {
   }
 
   bool SeekableFileInputStream::Next(const void** data, int*size) {
-    unsigned long bytesRead = std::min(length - position, blockSize);
+    unsigned long bytesRead = (std::min)(length - position, blockSize);
     if (bytesRead > 0) {
       *data = buffer->data();
       // read from the file, skipping over the remainder

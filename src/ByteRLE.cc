@@ -137,9 +137,9 @@ namespace orc {
           if (bufferStart == bufferEnd) {
             nextBuffer();
           }
-          size_t skipSize = std::min(static_cast<size_t>(consumedBytes),
-                                     static_cast<size_t>(bufferEnd -
-                                                         bufferStart));
+          size_t skipSize = (std::min)(static_cast<size_t>(consumedBytes),
+                                       static_cast<size_t>(bufferEnd -
+                                                           bufferStart));
           bufferStart += skipSize;
           consumedBytes -= skipSize;
         }

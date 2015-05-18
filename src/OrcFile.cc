@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-#include "hdfs.h"
 #include "orc/OrcFile.hh"
 #include "Exceptions.hh"
 
@@ -90,28 +89,34 @@ namespace orc {
     hdfsFile file;
 
   public:
+    HdfsFileInputStream(hdfsFS _fs, std::string _filename) {
+      this->fs = _fs;
+      this->filename = _filename;
+      if (_fs == nullptr) {
+        throw ParseError("hdfsFS pointer cannot be null");
+      }
+      this->info = hdfsGetPathInfo(_fs, _filename.c_str());
+      if (this->info == nullptr) {
+        throw ParseError("Cannot stats HDFS file " + _filename);
+      }
+      if (this->info->mKind == kObjectKindDirectory) {
+        throw ParseError("Cannot parse a directory " + _filename);
+      }
+      this->totalLength = info->mSize;
+      this->file = hdfsOpenFile(_fs, _filename.c_str(), O_RDONLY, 0, 0, 0);
+      if (this->file == nullptr) {
+        throw ParseError("Cannot open file " + _filename);
+      }
+    }
+
     HdfsFileInputStream(std::string _namenode, std::string _filename) {
-      filename = _filename;
+      this->filename = _filename;
       struct hdfsBuilder* bld = hdfsNewBuilder();
       hdfsBuilderSetNameNode(bld, _namenode.c_str());
       hdfsBuilderSetForceNewInstance(bld);
-      fs = hdfsBuilderConnect(bld);
+      hdfsFS _fs = hdfsBuilderConnect(bld);
       hdfsFreeBuilder(bld);
-      if (fs == nullptr) {
-        throw ParseError("Cannot connect to " + _namenode);
-      }
-      info = hdfsGetPathInfo(fs, _filename.c_str());
-      if (info == nullptr) {
-        throw ParseError("Cannot stats HDFS file " + _filename);
-      }
-      if (info->mKind == kObjectKindDirectory) {
-        throw ParseError("Cannot parse a directory " + _filename);
-      }
-      totalLength = info->mSize;
-      file = hdfsOpenFile(fs, _filename.c_str(), O_RDONLY, 0, 0, 0);
-      if (file == nullptr) {
-        throw ParseError("Cannot open file " + _filename);
-      }
+      HdfsFileInputStream(_fs, _filename);
     }
 
     ~HdfsFileInputStream() {
@@ -130,20 +135,24 @@ namespace orc {
 
     void read(void* buffer, uint64_t offset,
               uint64_t length) override {
-      if (hdfsSeek(fs, file, offset) < 0) {
+      if (hdfsSeek(this->fs, this->file, offset) < 0) {
         throw ParseError("Seek error on file " + filename);
       }
+
       tSize bytesRead = 0;
       uint64_t total = 0;
       while (total < length) {
-        bytesRead = hdfsRead(fs, file, static_cast<char*>(buffer) + total,
-                             length - total);
+        bytesRead = hdfsRead(
+          this->fs,
+          this->file,
+          static_cast<char*>(buffer) + total,
+          length - total);
         if (bytesRead == -1) {
           throw ParseError("Bad read of " + filename);
         }
         total += bytesRead;
       }
-      if (hdfsSeek(fs, file, offset) < 0) {
+      if (hdfsSeek(this->fs, this->file, offset) < 0) {
         throw ParseError("Seek error on file " + filename);
       }
     }
@@ -160,4 +169,10 @@ namespace orc {
         new HdfsFileInputStream(namenode, path));
   }
 
+  std::unique_ptr<InputStream> readHdfsFile(
+      const hdfsFS fs,
+      const std::string& path) {
+    return std::unique_ptr<InputStream>(
+        new HdfsFileInputStream(fs, path));
+  }
 }

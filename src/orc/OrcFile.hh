@@ -21,6 +21,7 @@
 
 #include <string>
 
+#include "../hdfsaccess/hdfs.h"
 #include "Reader.hh"
 
 /** /file orc/OrcFile.hh
@@ -80,6 +81,10 @@ namespace orc {
    */
   std::unique_ptr<InputStream> readHdfsFile(
       const std::string& namenode,
+      const std::string& path);
+
+  std::unique_ptr<InputStream> readHdfsFile(
+      const hdfsFS fs,
       const std::string& path);
 }
 
