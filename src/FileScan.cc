@@ -31,7 +31,7 @@ int main(int argc, char* argv[]) {
   }
 
   orc::ReaderOptions opts;
-  std::list<int> cols;
+  std::list<int32_t> cols;
   cols.push_back(0);
   opts.include(cols);
 
@@ -44,11 +44,11 @@ int main(int argc, char* argv[]) {
     return -1;
   }
 
-  const int BATCH_SIZE = 1000;
+  const int32_t BATCH_SIZE = 1000;
   std::unique_ptr<orc::ColumnVectorBatch> batch = reader->createRowBatch(BATCH_SIZE);
 
-  unsigned long rows = 0;
-  unsigned long batches = 0;
+  uint64_t rows = 0;
+  uint64_t batches = 0;
   while (reader->next(*batch)) {
     batches += 1;
     rows += batch->numElements;

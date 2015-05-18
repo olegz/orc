@@ -70,7 +70,7 @@ int main(int argc, char* argv[]) {
   const std::string BATCH_PREFIX = "--batch=";
 
   // Default parameters
-  std::list<int> cols;
+  std::list<int32_t> cols;
   uint32_t batchSize = 1000;
 
   // Read command-line options
@@ -113,7 +113,7 @@ int main(int argc, char* argv[]) {
   std::cout << "Batch size: " << batchSize << std::endl;
   std::cout << "Selected columns: " ;
   const std::vector<bool> c = reader->getSelectedColumns();
-  for (unsigned int i=1; i<c.size(); i++) {
+  for (size_t i=1; i < c.size(); i++) {
     if (c[i])
       std::cout << i << "; " ;
   }

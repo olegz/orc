@@ -45,7 +45,7 @@ namespace orc {
       for(uint64_t byte = 0;
           byte < width && line * width + byte < length; ++byte) {
         out << " " << std::setfill('0') << std::setw(2)
-                  << static_cast<unsigned int>(0xff & buffer[line * width +
+                  << static_cast<uint64_t>(0xff & buffer[line * width +
                                                              byte]);
       }
       out << "\n";
@@ -74,7 +74,7 @@ namespace orc {
   #if __cplusplus >= 201103L
     SeekableArrayInputStream::SeekableArrayInputStream
        (std::initializer_list<unsigned char> values,
-        long blkSize
+        int64_t blkSize
         ):ownedData(new DataBuffer<char>(*getDefaultPool(), values.size())),
           data(0) {
       length = values.size();
@@ -87,7 +87,7 @@ namespace orc {
   SeekableArrayInputStream::SeekableArrayInputStream
                (const unsigned char* values,
                 uint64_t size,
-                long blkSize
+                int64_t blkSize
                 ): data(reinterpret_cast<const char*>(values)) {
     length = size;
     position = 0;
@@ -96,7 +96,7 @@ namespace orc {
 
   SeekableArrayInputStream::SeekableArrayInputStream(const char* values,
                                                      uint64_t size,
-                                                     long blkSize
+                                                     int64_t blkSize
                                                      ): data(values) {
     length = size;
     position = 0;
@@ -107,7 +107,7 @@ namespace orc {
     uint64_t currentSize = std::min(length - position, blockSize);
     if (currentSize > 0) {
       *buffer = (data ? data : ownedData->data()) + position;
-      *size = static_cast<int>(currentSize);
+      *size = static_cast<int32_t>(currentSize);
       position += currentSize;
       return true;
     }
@@ -115,7 +115,7 @@ namespace orc {
     return false;
   }
 
-  void SeekableArrayInputStream::BackUp(int count) {
+  void SeekableArrayInputStream::BackUp(int32_t count) {
     if (count >= 0) {
       uint64_t unsignedCount = static_cast<uint64_t>(count);
       if (unsignedCount <= blockSize && unsignedCount <= position) {
@@ -126,7 +126,7 @@ namespace orc {
     }
   }
 
-  bool SeekableArrayInputStream::Skip(int count) {
+  bool SeekableArrayInputStream::Skip(int32_t count) {
     if (count >= 0) {
       uint64_t unsignedCount = static_cast<uint64_t>(count);
       if (unsignedCount + position <= length) {
@@ -153,7 +153,7 @@ namespace orc {
     return result.str();
   }
 
-  static uint64_t computeBlock(long request, uint64_t length) {
+  static uint64_t computeBlock(int64_t request, uint64_t length) {
     return std::min(length,
                     static_cast<uint64_t>(request < 0 ?
                                           256 * 1024 : request));
@@ -163,7 +163,7 @@ namespace orc {
                                                    uint64_t offset,
                                                    std::unique_ptr<DataBuffer<char> > _buffer,
                                                    uint64_t byteCount,
-                                                   long _blockSize
+                                                   int64_t _blockSize
                                                    ): input(stream),
                                                       start(offset),
                                                       length(byteCount),
@@ -194,11 +194,11 @@ namespace orc {
     }
     position += bytesRead;
     pushBack = 0;
-    *size = static_cast<int>(bytesRead);
+    *size = static_cast<int32_t>(bytesRead);
     return bytesRead != 0;
   }
 
-  void SeekableFileInputStream::BackUp(int signedCount) {
+  void SeekableFileInputStream::BackUp(int32_t signedCount) {
     if (signedCount < 0) {
       throw std::logic_error("can't backup negative distances");
     }
@@ -213,7 +213,7 @@ namespace orc {
     position -= pushBack;
   }
 
-  bool SeekableFileInputStream::Skip(int signedCount) {
+  bool SeekableFileInputStream::Skip(int32_t signedCount) {
     if (signedCount < 0) {
       return false;
     }
@@ -256,15 +256,15 @@ namespace orc {
                             MemoryPool& pool);
     virtual ~ZlibDecompressionStream();
     virtual bool Next(const void** data, int*size) override;
-    virtual void BackUp(int count) override;
-    virtual bool Skip(int count) override;
+    virtual void BackUp(int32_t count) override;
+    virtual bool Skip(int32_t count) override;
     virtual int64_t ByteCount() const override;
     virtual void seek(PositionProvider& position) override;
     virtual std::string getName() const override;
 
   private:
     void readBuffer(bool failOnEof) {
-      int length;
+      int32_t length;
       if (!input->Next(reinterpret_cast<const void**>(&inputBuffer),
                        &length)) {
         if (failOnEof) {
@@ -349,7 +349,7 @@ namespace orc {
     zstream.opaque = Z_NULL;
     zstream.next_out = reinterpret_cast<Bytef*>(buffer.data());
     zstream.avail_out = static_cast<uInt>(blockSize);
-    int result = inflateInit2(&zstream, -15);
+    int32_t result = inflateInit2(&zstream, -15);
     switch (result) {
     case Z_OK:
       break;
@@ -374,7 +374,7 @@ namespace orc {
 #pragma GCC diagnostic pop
 
   ZlibDecompressionStream::~ZlibDecompressionStream() {
-    int result = inflateEnd(&zstream);
+    int32_t result = inflateEnd(&zstream);
     if (result != Z_OK) {
       // really can't throw in destructors
       std::cout << "Error in ~ZlibDecompressionStream() " << result << "\n";
@@ -385,7 +385,7 @@ namespace orc {
     // if the user pushed back, return them the partial buffer
     if (outputBufferLength) {
       *data = outputBuffer;
-      *size = static_cast<int>(outputBufferLength);
+      *size = static_cast<int32_t>(outputBufferLength);
       outputBuffer += outputBufferLength;
       outputBufferLength = 0;
       return true;
@@ -404,7 +404,7 @@ namespace orc {
                remainingLength);
     if (state == DECOMPRESS_ORIGINAL) {
       *data = inputBuffer;
-      *size = static_cast<int>(availSize);
+      *size = static_cast<int32_t>(availSize);
       outputBuffer = inputBuffer + availSize;
       outputBufferLength = 0;
     } else if (state == DECOMPRESS_START) {
@@ -419,7 +419,7 @@ namespace orc {
         throw std::logic_error("Bad inflateReset in "
                                "ZlibDecompressionStream::Next");
       }
-      int result;
+      int32_t result;
       do {
         result = inflate(&zstream, availSize == remainingLength ? Z_FINISH :
                          Z_SYNC_FLUSH);
@@ -451,7 +451,7 @@ namespace orc {
                                  "ZlibDecompressionStream::Next");
         }
       } while (result != Z_STREAM_END);
-      *size = static_cast<int>(blockSize - zstream.avail_out);
+      *size = static_cast<int32_t>(blockSize - zstream.avail_out);
       *data = outputBuffer;
       outputBufferLength = 0;
       outputBuffer += *size;
@@ -465,7 +465,7 @@ namespace orc {
     return true;
   }
 
-  void ZlibDecompressionStream::BackUp(int count) {
+  void ZlibDecompressionStream::BackUp(int32_t count) {
     if (outputBuffer == nullptr || outputBufferLength != 0) {
       throw std::logic_error("Backup without previous Next in "
                              "ZlibDecompressionStream");
@@ -475,13 +475,13 @@ namespace orc {
     bytesReturned -= count;
   }
 
-  bool ZlibDecompressionStream::Skip(int count) {
+  bool ZlibDecompressionStream::Skip(int32_t count) {
     bytesReturned += count;
     // this is a stupid implementation for now.
     // should skip entire blocks without decompressing
     while (count > 0) {
       const void *ptr;
-      int len;
+      int32_t len;
       if (!Next(&ptr, &len)) {
         return false;
       }
@@ -502,7 +502,7 @@ namespace orc {
   void ZlibDecompressionStream::seek(PositionProvider& position) {
     input->seek(position);
     bytesReturned = input->ByteCount();
-    if (!Skip(static_cast<int>(position.next()))) {
+    if (!Skip(static_cast<int32_t>(position.next()))) {
       throw ParseError("Bad skip in ZlibDecompressionStream::seek");
     }
   }
@@ -522,15 +522,15 @@ namespace orc {
 
     virtual ~SnappyDecompressionStream() {}
     virtual bool Next(const void** data, int*size) override;
-    virtual void BackUp(int count) override;
-    virtual bool Skip(int count) override;
+    virtual void BackUp(int32_t count) override;
+    virtual bool Skip(int32_t count) override;
     virtual int64_t ByteCount() const override;
     virtual void seek(PositionProvider& position) override;
     virtual std::string getName() const override;
 
   private:
     void readBuffer(bool failOnEof) {
-      int length;
+      int32_t length;
       if (!input->Next(reinterpret_cast<const void**>(&inputBufferPtr),
                        &length)) {
         if (failOnEof) {
@@ -620,7 +620,7 @@ namespace orc {
     // if the user pushed back, return them the partial buffer
     if (outputBufferLength) {
       *data = outputBufferPtr;
-      *size = static_cast<int>(outputBufferLength);
+      *size = static_cast<int32_t>(outputBufferLength);
       outputBufferPtr += outputBufferLength;
       bytesReturned += outputBufferLength;
       outputBufferLength = 0;
@@ -641,7 +641,7 @@ namespace orc {
                remainingLength);
     if (state == DECOMPRESS_ORIGINAL) {
       *data = inputBufferPtr;
-      *size = static_cast<int>(availSize);
+      *size = static_cast<int32_t>(availSize);
       outputBufferPtr = inputBufferPtr + availSize;
       outputBufferLength = 0;
       inputBufferPtr += availSize;
@@ -689,7 +689,7 @@ namespace orc {
       remainingLength = 0;
       state = DECOMPRESS_HEADER;
       *data = outputBuffer.data();
-      *size = static_cast<int>(outputBufferLength);
+      *size = static_cast<int32_t>(outputBufferLength);
       outputBufferPtr = outputBuffer.data() + outputBufferLength;
       outputBufferLength = 0;
     }
@@ -698,7 +698,7 @@ namespace orc {
     return true;
   }
 
-  void SnappyDecompressionStream::BackUp(int count) {
+  void SnappyDecompressionStream::BackUp(int32_t count) {
     if (outputBufferPtr == nullptr || outputBufferLength != 0) {
       throw std::logic_error("Backup without previous Next in "
                              "SnappyDecompressionStream");
@@ -708,13 +708,13 @@ namespace orc {
     bytesReturned -= count;
   }
 
-  bool SnappyDecompressionStream::Skip(int count) {
+  bool SnappyDecompressionStream::Skip(int32_t count) {
     bytesReturned += count;
     // this is a stupid implementation for now.
     // should skip entire blocks without decompressing
     while (count > 0) {
       const void *ptr;
-      int len;
+      int32_t len;
       if (!Next(&ptr, &len)) {
         return false;
       }
@@ -734,7 +734,7 @@ namespace orc {
 
   void SnappyDecompressionStream::seek(PositionProvider& position) {
     input->seek(position);
-    if (!Skip(static_cast<int>(position.next()))) {
+    if (!Skip(static_cast<int32_t>(position.next()))) {
       throw ParseError("Bad skip in SnappyDecompressionStream::seek");
     }
   }
@@ -751,7 +751,7 @@ namespace orc {
                         std::unique_ptr<SeekableInputStream> input,
                         uint64_t blockSize,
                         MemoryPool& pool) {
-    switch (static_cast<int>(kind)) {
+    switch (static_cast<int32_t>(kind)) {
     case CompressionKind_NONE:
       return std::move(input);
     case CompressionKind_ZLIB:

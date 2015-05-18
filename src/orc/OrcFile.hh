@@ -86,7 +86,6 @@ namespace orc {
    * Create a reader for the ORC file.
    * @param stream the stream to read
    * @param options the options for reading the file
-   * @param pool custom memory allocator
    */
   std::unique_ptr<Reader> createReader(std::unique_ptr<InputStream> stream,
                                        const ReaderOptions& options);
@@ -96,7 +95,6 @@ namespace orc {
    * @param stream the stream to read
    * @param options the options for reading the file
    * @param reader ORC file reader
-   * @param pool custom memory allocator
    */
   std::unique_ptr<Reader> createReaderCopy(std::unique_ptr<InputStream> stream,
                                        const ReaderOptions& options,
@@ -110,7 +108,6 @@ namespace orc {
    * @param strPostscript serialized postscript
    * @param strFooter serialized footer
    * @param strMetadata serialized metadata
-   * @param pool custom memory allocator
    */
   std::unique_ptr<Reader> createReaderSerialized(std::unique_ptr<InputStream> stream,
                                        const ReaderOptions& options,

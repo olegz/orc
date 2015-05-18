@@ -27,7 +27,7 @@ protobuf_generate_cpp(PROTO_SRCS PROTO_HDRS orc_proto.proto)
 set (CMAKE_CXX_FLAGS "-O0 ${CMAKE_CXX_FLAGS} -g ${CXX11_FLAGS} ${WARN_FLAGS}")
 
 if (C09)
-  set (ADAOPTOR_CLASS "C09Adapter.cc")
+  set (ADAPTOR_CLASS "C09Adapter.cc")
 endif (C09)
 
 add_library (orc STATIC

@@ -30,7 +30,7 @@ int main(int argc, char* argv[]) {
     return 1;
   }
   orc::ReaderOptions opts;
-  std::list<int> cols;
+  std::list<int32_t> cols;
   cols.push_back(0);
   opts.include(cols);
 
@@ -50,7 +50,7 @@ int main(int argc, char* argv[]) {
 
   while (reader->next(*batch)) {
     printer->reset(*batch);
-    for(unsigned long i=0; i < batch->numElements; ++i) {
+    for(uint64_t i=0; i < batch->numElements; ++i) {
       line.clear();
       printer->printRow(i);
       line += "\n";

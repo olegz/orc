@@ -98,7 +98,7 @@ namespace orc {
    * @param wasNegative a flag for whether the value was original negative
    * @result the output length of the array
    */
-  int Int128::fillInArray(uint32_t* array, bool &wasNegative) const {
+  int32_t Int128::fillInArray(uint32_t* array, bool &wasNegative) const {
     uint64_t high;
     uint64_t low;
     if (highbits < 0) {
@@ -143,8 +143,8 @@ namespace orc {
    * Find last set bit in a 32 bit integer. Bit 1 is the LSB and bit 32 is
    * the MSB. We can replace this with bsrq asm instruction on x64.
    */
-  int fls(uint32_t x) {
-    int bitpos = 0;
+  int32_t fls(uint32_t x) {
+    int32_t bitpos = 0;
     while (x) {
       x >>= 1;
       bitpos += 1;
@@ -158,9 +158,9 @@ namespace orc {
    * @param length the number of entries in the array
    * @param bits the number of bits to shift (0 <= bits < 32)
    */
-  void shiftArrayLeft(uint32_t* array, int length, int bits) {
+  void shiftArrayLeft(uint32_t* array, int32_t length, int32_t bits) {
     if (length > 0 && bits != 0) {
-      for(int i=0; i < length-1; ++i) {
+      for(int32_t i=0; i < length-1; ++i) {
         array[i] = (array[i] << bits) | (array[i+1] >> (32 - bits));
       }
       array[length-1] <<= bits;
@@ -173,9 +173,9 @@ namespace orc {
    * @param length the number of entries in the array
    * @param bits the number of bits to shift (0 <= bits < 32)
    */
-  void shiftArrayRight(uint32_t* array, int length, int bits) {
+  void shiftArrayRight(uint32_t* array, int32_t length, int32_t bits) {
     if (length > 0 && bits != 0) {
-      for(int i=length-1; i > 0; --i) {
+      for(int32_t i=length-1; i > 0; --i) {
         array[i] = (array[i] >> bits) | (array[i-1] << (32 - bits));
       }
       array[0] >>= bits;
@@ -199,7 +199,7 @@ namespace orc {
   /**
    * Build a Int128 from a list of ints.
    */
-  void buildFromArray(Int128& value, uint32_t* array, int length) {
+  void buildFromArray(Int128& value, uint32_t* array, int32_t length) {
     switch (length) {
     case 0:
       value = 0;
@@ -233,12 +233,12 @@ namespace orc {
   /**
    * Do a division where the divisor fits into a single 32 bit value.
    */
-  Int128 singleDivide(uint32_t* dividend, int dividendLength,
+  Int128 singleDivide(uint32_t* dividend, int32_t dividendLength,
                       uint32_t divisor, Int128& remainder,
                       bool dividendWasNegative, bool divisorWasNegative) {
     uint64_t r = 0;
     uint32_t resultArray[5];
-    for(int j=0; j < dividendLength; j++) {
+    for(int32_t j=0; j < dividendLength; j++) {
       r <<= 32;
       r += dividend[j];
       resultArray[j] = static_cast<uint32_t>(r / divisor);
@@ -261,8 +261,8 @@ namespace orc {
     bool divisorWasNegative;
     // leave an extra zero before the dividend
     dividendArray[0] = 0;
-    int dividendLength = fillInArray(dividendArray + 1, dividendWasNegative)+1;
-    int divisorLength = divisor.fillInArray(divisorArray, divisorWasNegative);
+    int32_t dividendLength = fillInArray(dividendArray + 1, dividendWasNegative)+1;
+    int32_t divisorLength = divisor.fillInArray(divisorArray, divisorWasNegative);
 
     // Handle some of the easy cases.
     if (dividendLength <= divisorLength) {
@@ -275,18 +275,18 @@ namespace orc {
                           remainder, dividendWasNegative, divisorWasNegative);
     }
 
-    int resultLength = dividendLength - divisorLength;
+    int32_t resultLength = dividendLength - divisorLength;
     uint32_t resultArray[4];
 
     // Normalize by shifting both by a multiple of 2 so that
     // the digit guessing is better. The requirement is that
     // divisorArray[0] is greater than 2**31.
-    int normalizeBits = 32 - fls(divisorArray[0]);
+    int32_t normalizeBits = 32 - fls(divisorArray[0]);
     shiftArrayLeft(divisorArray, divisorLength, normalizeBits);
     shiftArrayLeft(dividendArray, dividendLength, normalizeBits);
 
     // compute each digit in the result
-    for(int j=0; j < resultLength; ++j) {
+    for(int32_t j=0; j < resultLength; ++j) {
       // Guess the next digit. At worst it is two too large
       uint32_t guess = UINT32_MAX;
       uint64_t highDividend = static_cast<uint64_t>(dividendArray[j]) << 32 |
@@ -311,7 +311,7 @@ namespace orc {
 
       // subtract off the guess * divisor from the dividend
       uint64_t mult = 0;
-      for(int i=divisorLength-1; i >= 0; --i) {
+      for(int32_t i=divisorLength-1; i >= 0; --i) {
         mult += static_cast<uint64_t>(guess) * divisorArray[i];
         uint32_t prev = dividendArray[j+i+1];
         dividendArray[j+i+1] -= static_cast<uint32_t>(mult);
@@ -327,7 +327,7 @@ namespace orc {
       if (dividendArray[j] > prev) {
         guess -= 1;
         uint32_t carry = 0;
-        for(int i=divisorLength-1; i >= 0; --i) {
+        for(int32_t i=divisorLength-1; i >= 0; --i) {
           uint64_t sum = static_cast<uint64_t>(divisorArray[i]) +
             dividendArray[j+i+1] + carry;
           dividendArray[j+i+1] = static_cast<uint32_t>(sum);

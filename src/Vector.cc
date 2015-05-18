@@ -155,7 +155,7 @@ namespace orc {
   }
 
   StructVectorBatch::~StructVectorBatch() {
-    for (unsigned int i=0; i<this->fields.size(); i++) {
+    for (uint64_t i=0; i<this->fields.size(); i++) {
       delete this->fields[i];
     }
   }
@@ -252,7 +252,7 @@ namespace orc {
   }
 
   UnionVectorBatch::~UnionVectorBatch() {
-    for (unsigned int i=0; i < children.size(); i++) {
+    for (uint64_t i=0; i < children.size(); i++) {
       delete children[i];
     }
   }

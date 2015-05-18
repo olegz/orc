@@ -36,7 +36,7 @@ namespace orc {
   public:
     BooleanColumnPrinter(std::string&, const Type&);
     ~BooleanColumnPrinter() {}
-    void printRow(unsigned long rowId) override;
+    void printRow(uint64_t rowId) override;
     void reset(const ColumnVectorBatch& batch) override;
   };
 
@@ -46,7 +46,7 @@ namespace orc {
   public:
     LongColumnPrinter(std::string&, const Type&);
     ~LongColumnPrinter() {}
-    void printRow(unsigned long rowId) override;
+    void printRow(uint64_t rowId) override;
     void reset(const ColumnVectorBatch& batch) override;
   };
 
@@ -58,7 +58,7 @@ namespace orc {
   public:
     DoubleColumnPrinter(std::string&, const Type&);
     virtual ~DoubleColumnPrinter() {}
-    void printRow(unsigned long rowId) override;
+    void printRow(uint64_t rowId) override;
     void reset(const ColumnVectorBatch& batch) override;
   };
 
@@ -70,7 +70,7 @@ namespace orc {
   public:
     TimestampColumnPrinter(std::string&, const Type&);
     ~TimestampColumnPrinter() {}
-    void printRow(unsigned long rowId) override;
+    void printRow(uint64_t rowId) override;
     void reset(const ColumnVectorBatch& batch) override;
   };
 
@@ -81,7 +81,7 @@ namespace orc {
   public:
     DateColumnPrinter(std::string&, const Type& type);
     ~DateColumnPrinter() {}
-    void printRow(unsigned long rowId) override;
+    void printRow(uint64_t rowId) override;
     void reset(const ColumnVectorBatch& batch) override;
   };
 
@@ -92,7 +92,7 @@ namespace orc {
   public:
     Decimal64ColumnPrinter(std::string&, const Type& type);
     ~Decimal64ColumnPrinter() {}
-    void printRow(unsigned long rowId) override;
+    void printRow(uint64_t rowId) override;
     void reset(const ColumnVectorBatch& batch) override;
   };
 
@@ -103,7 +103,7 @@ namespace orc {
   public:
     Decimal128ColumnPrinter(std::string&, const Type& type);
     ~Decimal128ColumnPrinter() {}
-    void printRow(unsigned long rowId) override;
+    void printRow(uint64_t rowId) override;
     void reset(const ColumnVectorBatch& batch) override;
   };
 
@@ -114,7 +114,7 @@ namespace orc {
   public:
     StringColumnPrinter(std::string&, const Type& type);
     virtual ~StringColumnPrinter() {}
-    void printRow(unsigned long rowId) override;
+    void printRow(uint64_t rowId) override;
     void reset(const ColumnVectorBatch& batch) override;
   };
 
@@ -125,7 +125,7 @@ namespace orc {
   public:
     BinaryColumnPrinter(std::string&, const Type& type);
     virtual ~BinaryColumnPrinter() {}
-    void printRow(unsigned long rowId) override;
+    void printRow(uint64_t rowId) override;
     void reset(const ColumnVectorBatch& batch) override;
   };
 
@@ -137,7 +137,7 @@ namespace orc {
   public:
     ListColumnPrinter(std::string&, const Type& type);
     virtual ~ListColumnPrinter() {}
-    void printRow(unsigned long rowId) override;
+    void printRow(uint64_t rowId) override;
     void reset(const ColumnVectorBatch& batch) override;
   };
 
@@ -150,7 +150,7 @@ namespace orc {
   public:
     MapColumnPrinter(std::string&, const Type& type);
     virtual ~MapColumnPrinter() {}
-    void printRow(unsigned long rowId) override;
+    void printRow(uint64_t rowId) override;
     void reset(const ColumnVectorBatch& batch) override;
   };
 
@@ -163,7 +163,7 @@ namespace orc {
   public:
     UnionColumnPrinter(std::string&, const Type& type);
     virtual ~UnionColumnPrinter();
-    void printRow(unsigned long rowId) override;
+    void printRow(uint64_t rowId) override;
     void reset(const ColumnVectorBatch& batch) override;
   };
 
@@ -173,7 +173,7 @@ namespace orc {
   public:
     StructColumnPrinter(std::string&, const Type& type);
     virtual ~StructColumnPrinter();
-    void printRow(unsigned long rowId) override;
+    void printRow(uint64_t rowId) override;
     void reset(const ColumnVectorBatch& batch) override;
   };
 
@@ -209,7 +209,7 @@ namespace orc {
   std::unique_ptr<ColumnPrinter> createColumnPrinter(std::string& buffer,
                                                      const Type& type) {
     ColumnPrinter *result;
-    switch(static_cast<int>(type.getKind())) {
+    switch(static_cast<int32_t>(type.getKind())) {
     case BOOLEAN:
       result = new BooleanColumnPrinter(buffer, type);
       break;
@@ -285,13 +285,13 @@ namespace orc {
     data = dynamic_cast<const LongVectorBatch&>(batch).data.data();
   }
 
-  void LongColumnPrinter::printRow(unsigned long rowId) {
+  void LongColumnPrinter::printRow(uint64_t rowId) {
     if (hasNulls && !notNull[rowId]) {
       writeString(buffer, "null");
     } else {
       char numBuffer[64];
-      snprintf(numBuffer, sizeof(numBuffer), "%lld",
-               static_cast<long long int>(data[rowId]));
+      snprintf(numBuffer, sizeof(numBuffer), "%ld",
+               static_cast<int64_t>(data[rowId]));
       writeString(buffer, numBuffer);
     }
   }
@@ -308,7 +308,7 @@ namespace orc {
     data = dynamic_cast<const DoubleVectorBatch&>(batch).data.data();
   }
 
-  void DoubleColumnPrinter::printRow(unsigned long rowId) {
+  void DoubleColumnPrinter::printRow(uint64_t rowId) {
     if (hasNulls && !notNull[rowId]) {
       writeString(buffer, "null");
     } else {
@@ -361,7 +361,7 @@ namespace orc {
     }
   }
 
-  void Decimal64ColumnPrinter::printRow(unsigned long rowId) {
+  void Decimal64ColumnPrinter::printRow(uint64_t rowId) {
     if (hasNulls && !notNull[rowId]) {
       writeString(buffer, "null");
     } else {
@@ -382,7 +382,7 @@ namespace orc {
      scale =dynamic_cast<const Decimal128VectorBatch&>(batch).scale;
    }
 
-   void Decimal128ColumnPrinter::printRow(unsigned long rowId) {
+   void Decimal128ColumnPrinter::printRow(uint64_t rowId) {
      if (hasNulls && !notNull[rowId]) {
        writeString(buffer, "null");
      } else {
@@ -402,12 +402,12 @@ namespace orc {
     length = dynamic_cast<const StringVectorBatch&>(batch).length.data();
   }
 
-  void StringColumnPrinter::printRow(unsigned long rowId) {
+  void StringColumnPrinter::printRow(uint64_t rowId) {
     if (hasNulls && !notNull[rowId]) {
       writeString(buffer, "null");
     } else {
       writeChar(buffer, '"');
-      for(int i=0; i < length[rowId]; ++i) {
+      for(int32_t i=0; i < length[rowId]; ++i) {
         char ch = static_cast<char>(start[rowId][i]);
         switch (ch) {
         case '\\':
@@ -453,7 +453,7 @@ namespace orc {
                           elements);
   }
 
-  void ListColumnPrinter::printRow(unsigned long rowId) {
+  void ListColumnPrinter::printRow(uint64_t rowId) {
     if (hasNulls && !notNull[rowId]) {
       writeString(buffer, "null");
     } else {
@@ -462,7 +462,7 @@ namespace orc {
         if (i != offsets[rowId]) {
           writeString(buffer, ", ");
         }
-        elementPrinter->printRow(static_cast<unsigned long>(i));
+        elementPrinter->printRow(static_cast<uint64_t>(i));
       }
       writeChar(buffer, ']');
     }
@@ -483,7 +483,7 @@ namespace orc {
     elementPrinter->reset(*myBatch.elements);
   }
 
-  void MapColumnPrinter::printRow(unsigned long rowId) {
+  void MapColumnPrinter::printRow(uint64_t rowId) {
     if (hasNulls && !notNull[rowId]) {
       writeString(buffer, "null");
     } else {
@@ -493,9 +493,9 @@ namespace orc {
           writeString(buffer, ", ");
         }
         writeString(buffer, "{\"key\": ");
-        keyPrinter->printRow(static_cast<unsigned long>(i));
+        keyPrinter->printRow(static_cast<uint64_t>(i));
         writeString(buffer, ", \"value\": ");
-        elementPrinter->printRow(static_cast<unsigned long>(i));
+        elementPrinter->printRow(static_cast<uint64_t>(i));
         writeChar(buffer, '}');
       }
       writeChar(buffer, ']');
@@ -505,7 +505,7 @@ namespace orc {
   UnionColumnPrinter::UnionColumnPrinter(std::string& buffer,
                                            const Type& type
                                            ): ColumnPrinter(buffer, type) {
-    for(unsigned i=0; i < type.getSubtypeCount(); ++i) {
+    for(size_t i=0; i < type.getSubtypeCount(); ++i) {
       fieldPrinter.push_back(createColumnPrinter(buffer, type.getSubtype(i))
                              .release());
     }
@@ -528,14 +528,14 @@ namespace orc {
     }
   }
 
-  void UnionColumnPrinter::printRow(unsigned long rowId) {
+  void UnionColumnPrinter::printRow(uint64_t rowId) {
     if (hasNulls && !notNull[rowId]) {
       writeString(buffer, "null");
     } else {
       writeString(buffer, "{\"tag\": ");
       char numBuffer[64];
       snprintf(numBuffer, sizeof(numBuffer), "%d",
-               static_cast<int>(tags[rowId]));
+               static_cast<int32_t>(tags[rowId]));
       writeString(buffer, numBuffer);
       writeString(buffer, ", \"value\": ");
       fieldPrinter[tags[rowId]]->printRow(offsets[rowId]);
@@ -546,7 +546,7 @@ namespace orc {
   StructColumnPrinter::StructColumnPrinter(std::string& buffer,
                                            const Type& type
                                            ): ColumnPrinter(buffer, type) {
-    for(unsigned i=0; i < type.getSubtypeCount(); ++i) {
+    for(size_t i=0; i < type.getSubtypeCount(); ++i) {
       fieldPrinter.push_back(createColumnPrinter(buffer, type.getSubtype(i))
                              .release());
     }
@@ -567,12 +567,12 @@ namespace orc {
     }
   }
 
-  void StructColumnPrinter::printRow(unsigned long rowId) {
+  void StructColumnPrinter::printRow(uint64_t rowId) {
     if (hasNulls && !notNull[rowId]) {
       writeString(buffer, "null");
     } else {
       writeChar(buffer, '{');
-      for(unsigned i=0; i < fieldPrinter.size(); ++i) {
+      for(size_t i=0; i < fieldPrinter.size(); ++i) {
         if (i != 0) {
           writeString(buffer, ", ");
         }
@@ -591,7 +591,7 @@ namespace orc {
     // PASS
   }
 
-  void DateColumnPrinter::printRow(unsigned long rowId) {
+  void DateColumnPrinter::printRow(uint64_t rowId) {
     if (hasNulls && !notNull[rowId]) {
       writeString(buffer, "null");
     } else {
@@ -617,7 +617,7 @@ namespace orc {
     // PASS
   }
 
-  void BooleanColumnPrinter::printRow(unsigned long rowId) {
+  void BooleanColumnPrinter::printRow(uint64_t rowId) {
     if (hasNulls && !notNull[rowId]) {
       writeString(buffer, "null");
     } else {
@@ -636,7 +636,7 @@ namespace orc {
     // PASS
   }
 
-  void BinaryColumnPrinter::printRow(unsigned long rowId) {
+  void BinaryColumnPrinter::printRow(uint64_t rowId) {
     if (hasNulls && !notNull[rowId]) {
       writeString(buffer, "null");
     } else {
@@ -647,7 +647,7 @@ namespace orc {
         }
         char numBuffer[64];
         snprintf(numBuffer, sizeof(numBuffer), "%d",
-                 (static_cast<const int>(start[rowId][i]) & 0xff));
+                 (static_cast<const int32_t>(start[rowId][i]) & 0xff));
         writeString(buffer, numBuffer);
       }
       writeChar(buffer, ']');
@@ -675,7 +675,7 @@ namespace orc {
     epoch = mktime(&epochTm);
   }
 
-  void TimestampColumnPrinter::printRow(unsigned long rowId) {
+  void TimestampColumnPrinter::printRow(uint64_t rowId) {
     const int64_t NANOS_PER_SECOND = 1000000000;
     const int64_t NANO_DIGITS = 9;
     if (hasNulls && !notNull[rowId]) {
@@ -697,7 +697,7 @@ namespace orc {
       writeString(buffer, timeBuffer);
       writeChar(buffer, '.');
       // remove trailing zeros off the back of the nanos value.
-      int zeroDigits = 0;
+      int32_t zeroDigits = 0;
       if (nanos == 0) {
         zeroDigits = 8;
       } else {
@@ -707,9 +707,9 @@ namespace orc {
         }
       }
       char numBuffer[64];
-      snprintf(numBuffer, sizeof(numBuffer), "%0*lld\"",
-               static_cast<int>(NANO_DIGITS - zeroDigits),
-               static_cast<long long int>(nanos));
+      snprintf(numBuffer, sizeof(numBuffer), "%0*ld\"",
+               static_cast<int32_t>(NANO_DIGITS - zeroDigits),
+               static_cast<int64_t>(nanos));
       writeString(buffer, numBuffer);
     }
   }

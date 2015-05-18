@@ -99,7 +99,7 @@ namespace orc {
       if (bytesRead == -1) {
         throw ParseError("Bad read of " + filename);
       }
-      if (static_cast<unsigned long>(bytesRead) != length) {
+      if (static_cast<uint64_t>(bytesRead) != length) {
         throw ParseError("Short read of " + filename);
       }
     }
