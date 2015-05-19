@@ -280,7 +280,7 @@ namespace orc {
                                                StripeStreams& stripe
                                                ): IntegerColumnReader(type,
                                                                       stripe),
-                                                  nanoBuffer(memoryPool, 1024){
+                                                  nanoBuffer(memoryPool, 0){
     RleVersion vers = convertRleVersion(stripe.getEncoding(columnId).kind());
     nanoRle = createRleDecoder(stripe.getStream(columnId,
                                                 proto::Stream_Kind_SECONDARY,
@@ -307,6 +307,7 @@ namespace orc {
 
     // make sure that nanoBuffer is large enough
     if (numValues > nanoBuffer.size()) {
+      nanoBuffer.clear();
       nanoBuffer.resize(numValues);
     }
 

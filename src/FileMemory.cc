@@ -62,16 +62,19 @@ int main(int argc, char* argv[]) {
   if (argc < 2) {
     std::cout << "Usage: file-memory <filename> "
         << "[--columns=column1,column2,...] "
+        << "[--stripe=stripe_number] "
         << "[--batch=rows_in_batch]" << std::endl ;
     return 1;
   }
 
   const std::string COLUMNS_PREFIX = "--columns=";
   const std::string BATCH_PREFIX = "--batch=";
+  const std::string STRIPE_PREFIX = "--stripe=";
 
   // Default parameters
   std::list<int32_t> cols;
   uint32_t batchSize = 1000;
+  int32_t stripeIx = -1;
 
   // Read command-line options
   char* param ;
@@ -85,6 +88,8 @@ int main(int argc, char* argv[]) {
       }
     } else if ( (param=strstr(argv[i], BATCH_PREFIX.c_str())) ) {
       batchSize = static_cast<uint32_t>(std::atoi(param+BATCH_PREFIX.length()));
+    } else if ( (param=strstr(argv[i], STRIPE_PREFIX.c_str())) ) {
+      stripeIx = static_cast<int32_t>(std::atoi(param+STRIPE_PREFIX.length()));
     } else {
       std::cout << "Unknown option " << argv[i] << std::endl ;
     }
@@ -100,6 +105,15 @@ int main(int argc, char* argv[]) {
   std::unique_ptr<orc::Reader> reader;
   try{
     reader = orc::createReader(orc::readLocalFile(std::string(argv[1])), opts);
+
+    if (stripeIx >= 0) {
+      std::unique_ptr<orc::StripeInformation> stripe = reader->getStripe(stripeIx);
+      opts.range(stripe->getOffset(), stripe->getLength());
+
+      reader.reset();
+      reader = orc::createReader(orc::readLocalFile(std::string(argv[1])), opts);
+    }
+
   } catch (orc::ParseError e) {
     std::cout << "Error reading file " << argv[1] << "! "
               << e.what() << std::endl;
@@ -119,9 +133,9 @@ int main(int argc, char* argv[]) {
   }
   std::cout << std::endl ;
 
-  uint64_t estimate = reader->memoryEstimate() + batch->memoryUse();
+  uint64_t estimate = reader->memoryEstimate(stripeIx) + batch->memoryUse();
   uint64_t actual = static_cast<TestMemoryPool*>(pool.get())->getMaxMemory();
-  std::cout << "Reader memory estimate: " << reader->memoryEstimate() << std::endl;
+  std::cout << "Reader memory estimate: " << reader->memoryEstimate(stripeIx) << std::endl;
   std::cout << "Batch memory estimate:  " << batch->memoryUse() << std::endl;
   std::cout << "Total memory estimate:  " << estimate << std::endl;
   std::cout << "Actual max memory used: " << actual << std::endl;

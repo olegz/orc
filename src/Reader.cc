@@ -1591,10 +1591,7 @@ namespace orc {
      */
     uint64_t stripe ;
     if (stripeIx >= 0 && stripeIx < footer.stripes_size()) {
-      stripe = footer.stripes(stripeIx).datalength();
-      if (memory < stripe) {
-        memory = stripe;
-      }
+      memory = footer.stripes(stripeIx).datalength();
     } else {
       for (int32_t i=0; i < footer.stripes_size(); i++) {
         stripe = footer.stripes(i).datalength();
