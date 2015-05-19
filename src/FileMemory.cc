@@ -107,7 +107,7 @@ int main(int argc, char* argv[]) {
     reader = orc::createReader(orc::readLocalFile(std::string(argv[1])), opts);
 
     if (stripeIx >= 0) {
-      std::unique_ptr<orc::StripeInformation> stripe = reader->getStripe(stripeIx);
+      std::unique_ptr<orc::StripeInformation> stripe = reader->getStripe(static_cast<uint64_t>(stripeIx));
       opts.range(stripe->getOffset(), stripe->getLength());
 
       reader.reset();
