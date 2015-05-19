@@ -60,6 +60,7 @@ namespace orc {
       throwOnHive11DecimalOverflow = true;
       forcedScaleOnHive11Decimal = 6;
       errorStream = &std::cerr;
+      fileBlockSize = 2 * 1024 * 1024;
       memoryPool = getDefaultPool();
     }
   };
@@ -907,7 +908,7 @@ namespace orc {
     std::unique_ptr<ColumnVectorBatch> createRowBatch(const Type& type,
                                                       uint64_t capacity
                                                       ) const;
-    void finishReaderConstruction(const ReaderOptions& opts) ;
+    void finishReaderConstruction() ;
 
   public:
     /**
@@ -1028,7 +1029,7 @@ namespace orc {
     // PASS
   };
 
-  void ReaderImpl::finishReaderConstruction(const ReaderOptions& opts) {
+  void ReaderImpl::finishReaderConstruction() {
     firstStripe = static_cast<uint64_t>(footer.stripes_size());
     lastStripe = 0;
     currentRowInStripe = 0;
@@ -1040,8 +1041,8 @@ namespace orc {
      firstRowOfStripe[i] = rowTotal;
      proto::StripeInformation stripeInfo = footer.stripes(static_cast<int32_t>(i));
      rowTotal += stripeInfo.numberofrows();
-     bool isStripeInRange = stripeInfo.offset() >= opts.getOffset() &&
-       stripeInfo.offset() < opts.getOffset() + opts.getLength();
+     bool isStripeInRange = stripeInfo.offset() >= options.getOffset() &&
+       stripeInfo.offset() < options.getOffset() + options.getLength();
      if (isStripeInRange) {
        if (i < firstStripe) {
          firstStripe = i;
@@ -1118,12 +1119,7 @@ namespace orc {
     readMetadata(pBuffer, postscript.metadatalength());
     buffer.clear();
 
-//    Buffer *buffer = stream->read(size - readSize, readSize, nullptr);
-//    readPostscript(buffer);
-//    readFooter(buffer, size);
-//    delete buffer;
-
-    finishReaderConstruction(opts);
+    finishReaderConstruction();
   }
 
   ReaderImpl::ReaderImpl(std::unique_ptr<InputStream> input,
@@ -1150,7 +1146,7 @@ namespace orc {
     numberOfStripeStatistics =
         static_cast<uint64_t>(metadata.stripestats_size());
 
-    finishReaderConstruction(opts);
+    finishReaderConstruction();
   }
 
   ReaderImpl::ReaderImpl(std::unique_ptr<InputStream> input,
@@ -1226,7 +1222,7 @@ namespace orc {
     }
     numberOfStripeStatistics = static_cast<uint64_t>(metadata.stripestats_size());
 
-    finishReaderConstruction(opts);
+    finishReaderConstruction();
   }
 
   const ReaderOptions& ReaderImpl::getReaderOptions() const {
@@ -1513,13 +1509,16 @@ namespace orc {
     std::unique_ptr<SeekableInputStream> pbStream =
       createDecompressor(compression,
                          std::unique_ptr<SeekableInputStream>
-                         (new SeekableFileInputStream(stream.get(),
-                                                      footerStart,
-                                                      std::move(buffer),
-                                                      footerLength,
-                                                      static_cast<int64_t>
-                                                      (blockSize)
-                                                      )),
+                         (new SeekableFileInputStream(
+                                       stream.get(),
+                                       footerStart,
+                                       std::move(buffer),
+                                       footerLength,
+                                       static_cast<int64_t>(
+                                         std::max(
+                                             blockSize,
+                                             options.getFileBlockSize()))
+                                       )),
                          blockSize,
                          memoryPool);
     proto::StripeFooter result;
@@ -1731,8 +1730,10 @@ namespace orc {
           stream.column() == static_cast<uint64_t>(columnId)) {
 
         int64_t myBlock = static_cast<int64_t>(shouldStream ?
-                                         1024 * 1024 :
-                                         stream.length());
+              std::max(reader.getCompressionSize(),
+                  reader.getReaderOptions().getFileBlockSize()) :
+              stream.length());
+
         std::unique_ptr<DataBuffer<char> > buffer(new DataBuffer<char>(memoryPool));
         return createDecompressor(reader.getCompression(),
                                   std::unique_ptr<SeekableInputStream>
