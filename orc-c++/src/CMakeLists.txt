@@ -17,10 +17,15 @@ include_directories (
   ${ZLIB_INCLUDE_DIRS}
   ${SNAPPY_INCLUDE_DIRS}
   )
+if (MSVC)
+  set (PROTOBUF_PROTOC_EXECUTABLE ${CMAKE_BINARY_DIR}/orc-c++/libs/protobuf-${PROTOBUF_VERSION}/${CMAKE_CFG_INTDIR}/protoc)
+else (MSVC)
+  set (PROTOBUF_PROTOC_EXECUTABLE ${CMAKE_BINARY_DIR}/orc-c++/libs/protobuf-${PROTOBUF_VERSION}/protoc)
+endif (MSVC)
 
+file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/orc-java")
 add_custom_command(OUTPUT orc_proto.pb.h orc_proto.pb.cc
-   COMMAND mkdir "${CMAKE_BINARY_DIR}/orc-java" &&
-     ${CMAKE_BINARY_DIR}/orc-c++/libs/protobuf-${PROTOBUF_VERSION}/protoc
+   COMMAND ${PROTOBUF_PROTOC_EXECUTABLE}
         -I ${CMAKE_SOURCE_DIR}/proto
         --cpp_out="${CMAKE_CURRENT_BINARY_DIR}"
         --java_out="${CMAKE_BINARY_DIR}/orc-java"
@@ -30,7 +35,7 @@ add_custom_command(OUTPUT orc_proto.pb.h orc_proto.pb.cc
 set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CXX11_FLAGS} ${WARN_FLAGS}")
 
 if (C09)
-  set (ADAOPTOR_CLASS "orc/C09Adapter.cc")
+  set (ADAPTOR_CLASS "orc/C09Adapter.cc")
 endif (C09)
 
 add_library (orc STATIC

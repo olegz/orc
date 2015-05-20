@@ -28,24 +28,20 @@
     #define UINT32_MAX (4294967295U)
   #endif
 
-  #define unique_ptr auto_ptr
-  #define nullptr NULL
-  #define override
-
   #ifndef _WIN32
-  // VS10 has already had this Adapter.
+  // VS10 already has these adapters.
+    #define unique_ptr auto_ptr
     namespace std {
+      // A poor man's stoll that converts str to a long long int base 10
+      int64_t stoll(std::string str);
+
       template<typename T>
       inline T move(T& x) { return x; }
-    } // std
+    } // namespace std
   #endif
 
-  namespace std {
-    // A poor man's stoll that converts str to a long long int base 10
-    int64_t stoll(std::string str);
-  } // namespace std
-
-
+  #define nullptr NULL
+  #define override
 
   /* Containers of unique_ptr<T> are replaced with DataBuffer<T> or std::vector<T>
    * unique_ptr to arrays are replaced with std::vector
@@ -57,8 +53,6 @@
 #else
   #include <initializer_list>
   #include <array>
-
 #endif // __cplusplus
-
 
 #endif /* C09ADAPTER_HH_ */
