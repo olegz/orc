@@ -23,6 +23,7 @@
   #include <stdint.h>
   #include <climits>
   #include <string>
+  #include <sstream>
 
   #ifndef UINT32_MAX
     #define UINT32_MAX (4294967295U)
@@ -37,6 +38,18 @@
 
       template<typename T>
       inline T move(T& x) { return x; }
+    } // namespace std
+  #endif
+
+  #if (defined _WIN32) && (_MSC_VER == 1600)
+    namespace std {
+      // It is annoying that VC10 does not define to_string(uint32).
+      // Hence, this custom implementation.
+      inline string to_string(uint32_t i) {
+        stringstream ss;
+        ss << i;
+        return ss.str();
+      }
     } // namespace std
   #endif
 

@@ -1036,7 +1036,7 @@ namespace orc {
                                                 true));
     // figure out which types are selected
     const std::vector<bool> selectedColumns = stripe.getSelectedColumns();
-    for(uint i=0; i < numChildren; ++i) {
+    for(size_t i=0; i < numChildren; ++i) {
       const Type &child = type.getSubtype(i);
       if (selectedColumns[static_cast<size_t>(child.getColumnId())]) {
         childrenReader[i] = buildReader(child, stripe).release();

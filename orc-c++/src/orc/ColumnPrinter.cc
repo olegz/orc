@@ -28,6 +28,16 @@
   #pragma clang diagnostic ignored "-Wformat-security"
 #endif
 
+#ifdef _WIN32
+// TODO: put this adapter somewhere.
+// NOTES: in Windows gmtime_s does not works when the time is before 1970.
+// This will make some test fails.
+#define localtime_r(timeValue, tmValue) localtime_s((tmValue), (timeValue))
+#define gmtime_r(timeValue, tmValue) gmtime_s((tmValue), (timeValue))
+#define snprintf(str, size, format, ...) \
+	_snprintf_s((str), (size), _TRUNCATE, (format), __VA_ARGS__)
+#endif
+
 namespace orc {
 
   class BooleanColumnPrinter: public ColumnPrinter {

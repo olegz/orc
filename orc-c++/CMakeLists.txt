@@ -14,6 +14,9 @@ configure_file (
   "include/orc/orc-config.hh.in"
   "include/orc/orc-config.hh"
   )
+if (MSVC)
+  include_directories(${CMAKE_SOURCE_DIR}/orc-c++/os/win)
+endif (MSVC)
 
 include_directories (
   "include"
