@@ -784,19 +784,146 @@ TEST(Reader, noStripeStatistics) {
   EXPECT_EQ(0, reader->getNumberOfStripeStatistics());
 }
 
-  TEST(Reader, futureFormatVersion) {
-    std::ostringstream filename;
-    filename << exampleDirectory << "/version1999.orc";
+TEST(Reader, memoryEstimates) {
+  orc::ReaderOptions opts;
+  std::ostringstream filename;
+
+  // Test on a file with no compression
+  filename << exampleDirectory << "/demo-11-none.orc";
+  std::unique_ptr<orc::Reader> reader =
+    orc::createReader(orc::readLocalFile(filename.str()), opts);
+  EXPECT_EQ(73828, reader->memoryEstimate());
+
+  uint64_t batchSize = 1 ;
+  std::unique_ptr<orc::ColumnVectorBatch> batch =
+      reader->createRowBatch(batchSize);
+  EXPECT_EQ(114, batch->memoryUse());
+
+  batchSize = 1000 ;
+  batch = reader->createRowBatch(batchSize);
+  EXPECT_EQ(114000, batch->memoryUse());
+
+  // Test on a file with compression
+  std::ostringstream filename2;
+  filename2 << exampleDirectory << "/demo-12-zlib.orc";
+  reader = orc::createReader(orc::readLocalFile(filename2.str()), opts);
+  EXPECT_EQ(7109284, reader->memoryEstimate());
+
+  batchSize = 1 ;
+  batch = reader->createRowBatch(batchSize);
+  EXPECT_EQ(114, batch->memoryUse());
+
+  batchSize = 1000 ;
+  batch = reader->createRowBatch(batchSize);
+  EXPECT_EQ(114000, batch->memoryUse());
+}
+
+TEST(Reader, seekToRow) {
+  /* Test with a regular file */
+  {
     orc::ReaderOptions opts;
-    std::ostringstream errorMsg;
-    opts.setErrorStream(errorMsg);
+    std::ostringstream filename;
+    filename << exampleDirectory << "/demo-11-none.orc";
     std::unique_ptr<orc::Reader> reader =
-      orc::createReader(orc::readLocalFile(filename.str()), opts);
-    EXPECT_EQ(("Warning: ORC file " + filename.str() + 
-               " was written in an unknown format version 19.99\n"),
-              errorMsg.str());
-    EXPECT_EQ("19.99", reader->getFormatVersion());
+        orc::createReader(orc::readLocalFile(filename.str()), opts);
+    EXPECT_EQ(1920800, reader->getNumberOfRows());
+
+    std::unique_ptr<orc::ColumnVectorBatch> batch =
+        reader->createRowBatch(5000); // Stripe size
+    reader->next(*batch);
+    EXPECT_EQ(5000, batch->numElements);
+    EXPECT_EQ(0, reader->getRowNumber());
+
+    // We only load data till the end of the current stripe
+    reader->seekToRow(11000);
+    reader->next(*batch);
+    EXPECT_EQ(4000, batch->numElements);
+    EXPECT_EQ(11000, reader->getRowNumber());
+
+    // We only load data till the end of the current stripe
+    reader->seekToRow(99999);
+    reader->next(*batch);
+    EXPECT_EQ(1, batch->numElements);
+    EXPECT_EQ(99999, reader->getRowNumber());
+
+    // Skip more rows than available
+    reader->seekToRow(1920800);
+    reader->next(*batch);
+    EXPECT_EQ(0, batch->numElements);
+    EXPECT_EQ(1920800, reader->getRowNumber());
   }
+
+  /* Test with a portion of the file */
+  {
+    orc::ReaderOptions opts;
+    std::ostringstream filename;
+    filename << exampleDirectory << "/demo-11-none.orc";
+    opts.range(13126, 13145);   // Read only the second stripe (rows 5000..9999)
+
+    std::unique_ptr<orc::Reader> reader =
+        orc::createReader(orc::readLocalFile(filename.str()), opts);
+    EXPECT_EQ(1920800, reader->getNumberOfRows());
+
+    std::unique_ptr<orc::ColumnVectorBatch> batch =
+        reader->createRowBatch(5000); // Stripe size
+    reader->next(*batch);
+    EXPECT_EQ(5000, batch->numElements);
+
+    reader->seekToRow(7000);
+    reader->next(*batch);
+    EXPECT_EQ(3000, batch->numElements);
+    EXPECT_EQ(7000, reader->getRowNumber());
+
+    reader->seekToRow(1000);
+    reader->next(*batch);
+    EXPECT_EQ(0, batch->numElements);
+    EXPECT_EQ(10000, reader->getRowNumber());
+
+    reader->seekToRow(11000);
+    reader->next(*batch);
+    EXPECT_EQ(0, batch->numElements);
+    EXPECT_EQ(10000, reader->getRowNumber());
+  }
+
+  /* Test with an empty file */
+  {
+    orc::ReaderOptions opts;
+    std::ostringstream filename;
+    filename << exampleDirectory << "/TestOrcFile.emptyFile.orc";
+    std::unique_ptr<orc::Reader> reader =
+        orc::createReader(orc::readLocalFile(filename.str()), opts);
+    EXPECT_EQ(0, reader->getNumberOfRows());
+
+    std::unique_ptr<orc::ColumnVectorBatch> batch =
+        reader->createRowBatch(5000);
+    reader->next(*batch);
+    EXPECT_EQ(0, batch->numElements);
+
+    reader->seekToRow(0);
+    reader->next(*batch);
+    EXPECT_EQ(0, batch->numElements);
+    EXPECT_EQ(0, reader->getRowNumber());
+
+    reader->seekToRow(1);
+    reader->next(*batch);
+    EXPECT_EQ(0, batch->numElements);
+    EXPECT_EQ(0, reader->getRowNumber());
+  }
+}
+
+TEST(Reader, futureFormatVersion) {
+  std::ostringstream filename;
+  filename << exampleDirectory << "/version1999.orc";
+  orc::ReaderOptions opts;
+  std::ostringstream errorMsg;
+  opts.setErrorStream(errorMsg);
+  std::unique_ptr<orc::Reader> reader =
+    orc::createReader(orc::readLocalFile(filename.str()), opts);
+  EXPECT_EQ(("Warning: ORC file " + filename.str() +
+             " was written in an unknown format version 19.99\n"),
+            errorMsg.str());
+  EXPECT_EQ("19.99", reader->getFormatVersion());
+}
 
   std::map<std::string, std::string> makeMetadata() {
     std::map<std::string, std::string> result;

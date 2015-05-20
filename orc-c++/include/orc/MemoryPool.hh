@@ -73,6 +73,7 @@ namespace orc {
 
     void reserve(uint64_t _size);
     void resize(uint64_t _size);
+    void clear();
   };
 
 } // namespace orc

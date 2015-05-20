@@ -30,24 +30,6 @@
 namespace orc {
 
   /**
-   * An abstract interface for a buffer provided by the input stream.
-   */
-  class Buffer {
-  public:
-    virtual ~Buffer();
-
-    /**
-     * Get the start of the buffer.
-     */
-    virtual char *getStart() const = 0;
-
-    /**
-     * Get the length of the buffer in bytes.
-     */
-    virtual uint64_t getLength() const = 0;
-  };
-
-  /**
    * An abstract interface for providing ORC readers a stream of bytes.
    */
   class InputStream {
@@ -62,15 +44,13 @@ namespace orc {
     /**
      * Read length bytes from the file starting at offset into
      * the buffer.
+     * @param buffer the buffer to write data into
      * @param offset the position in the file to read from
      * @param length the number of bytes to read
-     * @param buffer a Buffer to reuse from a previous call to read. Ownership
-     *    of this buffer passes to the InputStream object.
-     * @return the buffer with the requested data. The client owns the Buffer.
      */
-    virtual Buffer* read(uint64_t offset,
-                         uint64_t length,
-                         Buffer* buffer) = 0;
+    virtual void read(char* buffer,
+                      uint64_t offset,
+                      uint64_t length) = 0;
 
     /**
      * Get the name of the stream for error messages.
@@ -85,12 +65,38 @@ namespace orc {
   std::unique_ptr<InputStream> readLocalFile(const std::string& path);
 
   /**
-   * Create a reader to the for the ORC file.
+   * Create a reader for the ORC file.
    * @param stream the stream to read
    * @param options the options for reading the file
    */
   std::unique_ptr<Reader> createReader(std::unique_ptr<InputStream> stream,
                                        const ReaderOptions& options);
+
+  /**
+   * Create a copy of a reader for the ORC file
+   * @param stream the stream to read
+   * @param options the options for reading the file
+   * @param reader ORC file reader
+   */
+  std::unique_ptr<Reader> createReaderCopy(std::unique_ptr<InputStream> stream,
+                                       const ReaderOptions& options,
+                                       const Reader* reader
+                                       );
+
+  /**
+   * Create a reader for the ORC file using provided serialized data
+   * @param stream the stream to read
+   * @param options the options for reading the file
+   * @param strPostscript serialized postscript
+   * @param strFooter serialized footer
+   * @param strMetadata serialized metadata
+   */
+  std::unique_ptr<Reader> createReaderSerialized(std::unique_ptr<InputStream> stream,
+                                       const ReaderOptions& options,
+                                       const std::string* strPostscript,
+                                       const std::string* strFooter,
+                                       const std::string* strMetadata
+                                       );
 }
 
 #endif

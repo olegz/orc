@@ -30,7 +30,7 @@ int main(int argc, char* argv[]) {
   }
 
   orc::ReaderOptions opts;
-  std::list<int> cols;
+  std::list<int32_t> cols;
   cols.push_back(0);
   opts.include(cols);
 
@@ -59,11 +59,11 @@ int main(int argc, char* argv[]) {
   if(reader->getNumberOfStripeStatistics() == 0){
     std::cout << "File " << argv[1] << " doesn't have stripe statistics"  << std::endl;
   }else{
-    for (unsigned int j = 0; j < reader->getNumberOfStripeStatistics(); j++) {
+    for (size_t j = 0; j < reader->getNumberOfStripeStatistics(); j++) {
       stripeStats = reader->getStripeStatistics(j);
       std::cout << "*** Stripe " << j << " ***" << std::endl << std::endl ;
 
-      for(unsigned int k = 0; k < stripeStats->getNumberOfColumns(); ++k) {
+      for(uint32_t k = 0; k < stripeStats->getNumberOfColumns(); ++k) {
         std::cout << "--- Column " << k << " ---" << std::endl;
         std::cout << stripeStats->getColumnStatistics(k)->toString()
                   << std::endl;

@@ -26,11 +26,12 @@
 
 int main(int argc, char* argv[]) {
   if (argc < 2) {
-    std::cout << "Usage: file-scan <filename>\n";
+    std::cout << "Usage: file-sca <filename>\n";
+    return 1;
   }
 
   orc::ReaderOptions opts;
-  std::list<int> cols;
+  std::list<int32_t> cols;
   cols.push_back(0);
   opts.include(cols);
 
@@ -43,14 +44,17 @@ int main(int argc, char* argv[]) {
     return -1;
   }
 
-  std::unique_ptr<orc::ColumnVectorBatch> batch = reader->createRowBatch(1000);
-  unsigned long rows = 0;
-  unsigned long batches = 0;
+  const int32_t BATCH_SIZE = 1000;
+  std::unique_ptr<orc::ColumnVectorBatch> batch = reader->createRowBatch(BATCH_SIZE);
+
+  uint64_t rows = 0;
+  uint64_t batches = 0;
   while (reader->next(*batch)) {
     batches += 1;
     rows += batch->numElements;
   }
   std::cout << "Rows: " << rows << std::endl;
   std::cout << "Batches: " << batches << std::endl;
+
   return 0;
 }

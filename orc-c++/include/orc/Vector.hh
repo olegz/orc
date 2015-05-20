@@ -59,28 +59,28 @@ namespace orc {
   class Type {
   public:
     virtual ~Type();
-    virtual int assignIds(int root) = 0;
-    virtual int getColumnId() const = 0;
+    virtual int32_t assignIds(int32_t root) = 0;
+    virtual int32_t getColumnId() const = 0;
     virtual TypeKind getKind() const = 0;
-    virtual unsigned int getSubtypeCount() const = 0;
-    virtual const Type& getSubtype(unsigned int typeId) const = 0;
-    virtual const std::string& getFieldName(unsigned int fieldId) const = 0;
-    virtual unsigned int getMaximumLength() const = 0;
-    virtual unsigned int getPrecision() const = 0;
-    virtual unsigned int getScale() const = 0;
+    virtual uint64_t getSubtypeCount() const = 0;
+    virtual const Type& getSubtype(uint64_t typeId) const = 0;
+    virtual const std::string& getFieldName(uint64_t fieldId) const = 0;
+    virtual uint64_t getMaximumLength() const = 0;
+    virtual uint64_t getPrecision() const = 0;
+    virtual uint64_t getScale() const = 0;
     virtual std::string toString() const = 0;
   };
 
-  const int DEFAULT_DECIMAL_SCALE = 18;
-  const int DEFAULT_DECIMAL_PRECISION = 38;
+  const int32_t DEFAULT_DECIMAL_SCALE = 18;
+  const int32_t DEFAULT_DECIMAL_PRECISION = 38;
 
   std::unique_ptr<Type> createPrimitiveType(TypeKind kind);
   std::unique_ptr<Type> createCharType(TypeKind kind,
-                                       unsigned int maxLength);
+                                       uint64_t maxLength);
   std::unique_ptr<Type>
-                createDecimalType(unsigned int precision=
+                createDecimalType(uint64_t precision=
                                     DEFAULT_DECIMAL_PRECISION,
-                                  unsigned int scale=DEFAULT_DECIMAL_SCALE);
+                                  uint64_t scale=DEFAULT_DECIMAL_SCALE);
   std::unique_ptr<Type>
     createStructType(std::vector<Type*> types,
                       std::vector<std::string> fieldNames);
@@ -130,6 +130,11 @@ namespace orc {
      */
     virtual void resize(uint64_t capacity);
 
+    /**
+     * Calculate heap memory use by this batch.
+     */
+    virtual uint64_t memoryUse();
+
   private:
     ColumnVectorBatch(const ColumnVectorBatch&);
     ColumnVectorBatch& operator=(const ColumnVectorBatch&);
@@ -142,13 +147,21 @@ namespace orc {
     DataBuffer<int64_t> data;
     std::string toString() const;
     void resize(uint64_t capacity);
+    virtual uint64_t memoryUse();
   };
+
+  struct TimestampVectorBatch: public LongVectorBatch {
+    TimestampVectorBatch(uint64_t capacity, MemoryPool& pool);
+    virtual ~TimestampVectorBatch();
+    uint64_t memoryUse();
+   };
 
   struct DoubleVectorBatch: public ColumnVectorBatch {
     DoubleVectorBatch(uint64_t capacity, MemoryPool& pool);
     virtual ~DoubleVectorBatch();
     std::string toString() const;
     void resize(uint64_t capacity);
+    uint64_t memoryUse();
 
     DataBuffer<double> data;
   };
@@ -158,6 +171,7 @@ namespace orc {
     virtual ~StringVectorBatch();
     std::string toString() const;
     void resize(uint64_t capacity);
+    uint64_t memoryUse();
 
     // pointers to the start of each string
     DataBuffer<char*> data;
@@ -170,6 +184,7 @@ namespace orc {
     virtual ~StructVectorBatch();
     std::string toString() const;
     void resize(uint64_t capacity);
+    uint64_t memoryUse();
 
     std::vector<ColumnVectorBatch*> fields;
   };
@@ -179,6 +194,7 @@ namespace orc {
     virtual ~ListVectorBatch();
     std::string toString() const;
     void resize(uint64_t capacity);
+    uint64_t memoryUse();
 
     /**
      * The offset of the first element of each list.
@@ -195,6 +211,7 @@ namespace orc {
     virtual ~MapVectorBatch();
     std::string toString() const;
     void resize(uint64_t capacity);
+    uint64_t memoryUse();
 
     /**
      * The offset of the first element of each list.
@@ -242,6 +259,7 @@ namespace orc {
     virtual ~Decimal64VectorBatch();
     std::string toString() const;
     void resize(uint64_t capacity);
+    uint64_t memoryUse();
 
     // total number of digits
     int32_t precision;
@@ -265,6 +283,7 @@ namespace orc {
     virtual ~Decimal128VectorBatch();
     std::string toString() const;
     void resize(uint64_t capacity);
+    uint64_t memoryUse();
 
     // total number of digits
     int32_t precision;

@@ -70,19 +70,19 @@ namespace orc {
 
     #if __cplusplus >= 201103L
       SeekableArrayInputStream(std::initializer_list<unsigned char> list,
-                               long block_size = -1);
+                               int64_t block_size = -1);
     #endif // __cplusplus
 
     SeekableArrayInputStream(const unsigned char* list,
                              uint64_t length,
-                             long block_size = -1);
+                             int64_t block_size = -1);
     SeekableArrayInputStream(const char* list,
                              uint64_t length,
-                             long block_size = -1);
+                             int64_t block_size = -1);
     virtual ~SeekableArrayInputStream();
     virtual bool Next(const void** data, int*size) override;
-    virtual void BackUp(int count) override;
-    virtual bool Skip(int count) override;
+    virtual void BackUp(int32_t count) override;
+    virtual bool Skip(int32_t count) override;
     virtual google::protobuf::int64 ByteCount() const override;
     virtual void seek(PositionProvider& position) override;
     virtual std::string getName() const override;
@@ -97,20 +97,21 @@ namespace orc {
     const uint64_t start;
     const uint64_t length;
     const uint64_t blockSize;
-    Buffer* buffer;
+    std::unique_ptr<DataBuffer<char> > buffer;
     uint64_t position;
     uint64_t pushBack;
 
   public:
     SeekableFileInputStream(InputStream* input,
                             uint64_t offset,
+                            std::unique_ptr<DataBuffer<char> > _buffer,
                             uint64_t byteCount,
-                            long blockSize = -1);
+                            int64_t blockSize = -1);
     virtual ~SeekableFileInputStream();
 
     virtual bool Next(const void** data, int*size) override;
-    virtual void BackUp(int count) override;
-    virtual bool Skip(int count) override;
+    virtual void BackUp(int32_t count) override;
+    virtual bool Skip(int32_t count) override;
     virtual int64_t ByteCount() const override;
     virtual void seek(PositionProvider& position) override;
     virtual std::string getName() const override;

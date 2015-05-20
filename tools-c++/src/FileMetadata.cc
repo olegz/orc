@@ -12,7 +12,7 @@ using namespace orc::proto;
 
 uint64_t getTotalPaddingSize(Footer footer);
 
-int main(int argc, char* argv[])
+int32_t main(int32_t argc, char* argv[])
 {
   std::ifstream input;
 
@@ -20,6 +20,7 @@ int main(int argc, char* argv[])
 
   if (argc < 2) {
     std::cout << "Usage: file-metadata <filename>\n";
+    return 1;
   }
 
   std::cout << "Structure for " << argv[1] << std::endl;
@@ -30,7 +31,7 @@ int main(int argc, char* argv[])
 
   // Read the postscript size
   input.seekg(fileSize-1);
-  int result = input.get();
+  int32_t result = input.get();
   if (result == EOF) {
     std::cerr << "Failed to read postscript size\n";
     return -1;
@@ -43,12 +44,12 @@ int main(int argc, char* argv[])
   input.read(buffer.data(), postscriptSize);
   PostScript postscript ;
   postscript.ParseFromArray(buffer.data(),
-                            static_cast<int>(postscriptSize));
+                            static_cast<int32_t>(postscriptSize));
   std::cout << std::endl << " === Postscript === " << std::endl ;
   postscript.PrintDebugString();
 
   // Everything but the postscript is compressed
-  switch (static_cast<int>(postscript.compression())) {
+  switch (static_cast<int32_t>(postscript.compression())) {
   case NONE:
       break;
   case ZLIB:
@@ -70,14 +71,14 @@ int main(int argc, char* argv[])
   buffer.resize(static_cast<size_t>(metadataSize));
   input.read(buffer.data(), metadataSize);
   Metadata metadata ;
-  metadata.ParseFromArray(buffer.data(), static_cast<int>(metadataSize));
+  metadata.ParseFromArray(buffer.data(), static_cast<int32_t>(metadataSize));
 
   // Read the footer
   //input.seekg(fileSize -1 - postscriptSize-footerSize);
   buffer.resize(static_cast<size_t>(footerSize));
   input.read(buffer.data(), footerSize);
   Footer footer ;
-  footer.ParseFromArray(buffer.data(), static_cast<int>(footerSize));
+  footer.ParseFromArray(buffer.data(), static_cast<int32_t>(footerSize));
   std::cout << std::endl << " === Footer === " << std::endl ;
   footer.PrintDebugString();
 
@@ -86,7 +87,7 @@ int main(int argc, char* argv[])
   StripeInformation stripe ;
   Stream section;
   ColumnEncoding encoding;
-  for (int stripeIx=0; stripeIx<footer.stripes_size(); stripeIx++)
+  for (int32_t stripeIx=0; stripeIx<footer.stripes_size(); stripeIx++)
   {
       std::cout << "Stripe " << stripeIx+1 <<": " << std::endl ;
       stripe = footer.stripes(stripeIx);
@@ -104,11 +105,11 @@ int main(int argc, char* argv[])
       input.read(buffer.data(), tailLength);
 
       StripeFooter stripeFooter;
-      stripeFooter.ParseFromArray(buffer.data(), static_cast<int>(tailLength));
+      stripeFooter.ParseFromArray(buffer.data(), static_cast<int32_t>(tailLength));
       //stripeFooter.PrintDebugString();
       uint64_t stripeStart = stripe.offset();
       uint64_t sectionStart = stripeStart;
-      for (int streamIx=0; streamIx<stripeFooter.streams_size(); streamIx++) {
+      for (int32_t streamIx=0; streamIx<stripeFooter.streams_size(); streamIx++) {
           section = stripeFooter.streams(streamIx);
           std::cout << "    Stream: column " << section.column()
                     << " section "
@@ -116,7 +117,7 @@ int main(int argc, char* argv[])
                     << " length " << section.length() << std::endl;
           sectionStart += section.length();
       };
-      for (int columnIx=0; columnIx<stripeFooter.columns_size();
+      for (int32_t columnIx=0; columnIx<stripeFooter.columns_size();
            columnIx++) {
           encoding = stripeFooter.columns(columnIx);
           std::cout << "    Encoding column " << columnIx << ": "
@@ -130,15 +131,13 @@ int main(int argc, char* argv[])
 
   uint64_t paddedBytes = getTotalPaddingSize(footer);
   // empty ORC file is ~45 bytes. Assumption here is file length always >0
-  double percentPadding = static_cast<double>(paddedBytes) * 100 / fileSize;
+  double percentPadding = static_cast<double>(paddedBytes) * 100 / static_cast<double>(fileSize);
   std::cout << "File length: " << fileSize << " bytes" << std::endl;
   std::cout <<"Padding length: " << paddedBytes << " bytes" << std::endl;
   std::cout <<"Padding ratio: " << std::fixed << std::setprecision(2)
             << percentPadding << " %" << std::endl;
 
   input.close();
-
-
 
   google::protobuf::ShutdownProtobufLibrary();
 
@@ -148,7 +147,7 @@ int main(int argc, char* argv[])
 uint64_t getTotalPaddingSize(Footer footer) {
   uint64_t paddedBytes = 0;
   StripeInformation stripe;
-  for (int stripeIx=1; stripeIx<footer.stripes_size(); stripeIx++) {
+  for (int32_t stripeIx=1; stripeIx<footer.stripes_size(); stripeIx++) {
       stripe = footer.stripes(stripeIx-1);
       uint64_t prevStripeOffset = stripe.offset();
       uint64_t prevStripeLen = stripe.datalength() + stripe.indexlength() +
