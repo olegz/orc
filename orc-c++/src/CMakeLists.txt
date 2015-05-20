@@ -17,6 +17,7 @@ include_directories (
   ${ZLIB_INCLUDE_DIRS}
   ${SNAPPY_INCLUDE_DIRS}
   )
+
 if (MSVC)
   set (PROTOBUF_PROTOC_EXECUTABLE ${CMAKE_BINARY_DIR}/orc-c++/libs/protobuf-${PROTOBUF_VERSION}/${CMAKE_CFG_INTDIR}/protoc)
 else (MSVC)
@@ -30,6 +31,7 @@ add_custom_command(OUTPUT orc_proto.pb.h orc_proto.pb.cc
         --cpp_out="${CMAKE_CURRENT_BINARY_DIR}"
         --java_out="${CMAKE_BINARY_DIR}/orc-java"
         "${CMAKE_SOURCE_DIR}/proto/orc_proto.proto"
+   DEPENDS ${PROTOBUF_PROTOC_EXECUTABLE}
 )
 
 set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CXX11_FLAGS} ${WARN_FLAGS}")
@@ -38,8 +40,13 @@ if (C09)
   set (ADAPTOR_CLASS "orc/C09Adapter.cc")
 endif (C09)
 
+if (MSVC)
+  set (MMAN_CLASS "${CMAKE_CURRENT_SOURCE_DIR}/../os/win/sys/mman.cc")
+endif (MSVC)
+
 add_library (orc STATIC
   ${ADAPTOR_CLASS}
+  ${MMAN_CLASS}
   orc_proto.pb.h
   wrap/orc-proto-wrapper.cc
   orc/ByteRLE.cc
