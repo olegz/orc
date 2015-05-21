@@ -39,10 +39,6 @@
 
 namespace snappy {
 
-#ifdef _WIN32
-typedef int ssize_t;
-#endif
-
 // Any hash function will produce a valid compressed bitstream, but a good
 // hash function reduces the number of collisions and thus yields better
 // compression for compressible input, and more speed for incompressible

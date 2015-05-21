@@ -10,6 +10,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+INCLUDE_DIRECTORIES(${CMAKE_CURRENT_BINARY_DIR})
+
+CONFIGURE_FILE(snappy-stubs-public.h.cmake snappy-stubs-public.h)
 add_library (snappy STATIC
   snappy.cc
   snappy-sinksource.cc

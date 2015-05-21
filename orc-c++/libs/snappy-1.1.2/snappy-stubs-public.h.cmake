@@ -59,6 +59,9 @@
 namespace snappy {
 
 #if 1
+#ifdef _WIN32
+  typedef int ssize_t;
+#endif
 typedef int8_t int8;
 typedef uint8_t uint8;
 typedef int16_t int16;
