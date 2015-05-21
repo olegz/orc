@@ -11,14 +11,8 @@
 # limitations under the License.
 
 INCLUDE (CheckIncludeFileCXX)
-if (MSVC)
-  # There is a config file for Windows.
-  include_directories(${CMAKE_CURRENT_SOURCE_DIR}/vsprojects)
-else (MSVC)
-  # Other platforms use auto-generated config.
-  CHECK_INCLUDE_FILE_CXX("tr1/unordered_map" HAVE_TR1)
-  CONFIGURE_FILE(config.h.cmake config.h)
-endif (MSVC)
+CHECK_INCLUDE_FILE_CXX("tr1/unordered_map" HAVE_TR1)
+CONFIGURE_FILE(config.h.cmake config.h)
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/src
                     ${CMAKE_CURRENT_SOURCE_DIR}
