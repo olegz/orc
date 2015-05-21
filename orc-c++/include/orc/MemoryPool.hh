@@ -71,6 +71,7 @@ namespace orc {
       return buf[i];
     }
 
+    void clear();
     void reserve(uint64_t _size);
     void resize(uint64_t _size);
   };
