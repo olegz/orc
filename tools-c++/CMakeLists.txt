@@ -11,6 +11,4 @@
 # limitations under the License.
 
 add_subdirectory(src)
-if (NOT C09)
-  add_subdirectory(test)
-endif (NOT C09)
+add_subdirectory(test)
