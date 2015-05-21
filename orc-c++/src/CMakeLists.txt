@@ -36,9 +36,9 @@ add_custom_command(OUTPUT orc_proto.pb.h orc_proto.pb.cc
 
 set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CXX11_FLAGS} ${WARN_FLAGS}")
 
-if (C09)
+if (C09 AND NOT MSVC)
   set (ADAPTOR_CLASS "orc/C09Adapter.cc")
-endif (C09)
+endif (C09 AND NOT MSVC)
 
 if (MSVC)
   set (MMAN_CLASS "${CMAKE_CURRENT_SOURCE_DIR}/../os/win/sys/mman.cc")

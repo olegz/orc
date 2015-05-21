@@ -42,7 +42,8 @@ set (PROTOBUF_LIBRARIES protobuf)
 
 set (SNAPPY_VERSION "1.1.2")
 set (SNAPPY_INCLUDE_DIRS
-     "${CMAKE_SOURCE_DIR}/orc-c++/libs/snappy-${SNAPPY_VERSION}")
+     "${CMAKE_SOURCE_DIR}/orc-c++/libs/snappy-${SNAPPY_VERSION}"
+     "${CMAKE_BINARY_DIR}/orc-c++/libs/snappy-${SNAPPY_VERSION}")
 set (SNAPPY_LIBRARIES snappy)
 
 set (ZLIB_VERSION "1.2.8")
