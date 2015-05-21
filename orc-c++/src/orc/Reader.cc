@@ -873,11 +873,11 @@ namespace orc {
     std::unique_ptr<ColumnReader> reader;
 
     // internal methods
-    void readPostscript(Buffer *buffer);
-    void readFooter(Buffer *&buffer, uint64_t fileLength);
+    void readPostscript(DataBuffer<char> &buffer);
+    void readFooter(DataBuffer<char> &buffer, uint64_t fileLength);
     proto::StripeFooter getStripeFooter(const proto::StripeInformation& info);
     void startNextStripe();
-    void ensureOrcFooter(Buffer * buffer);
+    void ensureOrcFooter(DataBuffer<char> &buffer);
     void checkOrcVersion();
     void selectTypeParent(size_t columnId);
     void selectTypeChildren(size_t columnId);
@@ -973,10 +973,11 @@ namespace orc {
       throw ParseError("File size too small");
     }
 
-    Buffer *buffer = stream->read(size - readSize, readSize, nullptr);
+    DataBuffer<char> buffer(memoryPool,readSize);
+    stream->read(buffer.data(), size - readSize, readSize);
     readPostscript(buffer);
     readFooter(buffer, size);
-    delete buffer;
+    buffer.clear();
 
     currentStripe = static_cast<uint64_t>(footer.stripes_size());
     lastStripe = 0;
@@ -1134,12 +1135,12 @@ namespace orc {
     }
   }
 
-  void ReaderImpl::ensureOrcFooter(Buffer *buffer) {
+  void ReaderImpl::ensureOrcFooter(DataBuffer<char> &buffer) {
 
     const std::string MAGIC("ORC");
     const uint64_t magicLength = MAGIC.length();
-    const char * const bufferStart = buffer->getStart();
-    const uint64_t bufferLength = buffer->getLength();
+    const char * const bufferStart = buffer.data();
+    const uint64_t bufferLength = buffer.size();
 
     if (postscriptLength < magicLength || bufferLength < magicLength) {
       throw ParseError("Invalid ORC postscript length");
@@ -1150,10 +1151,10 @@ namespace orc {
     if (memcmp(magicStart, MAGIC.c_str(), magicLength) != 0) {
       // If there is no magic string at the end, check the beginning.
       // Only files written by Hive 0.11.0 don't have the tail ORC string.
-      Buffer *frontBuffer = stream->read(0, magicLength, nullptr);
+      DataBuffer<char> frontBuffer(memoryPool, magicLength);
+      stream->read(frontBuffer.data(), 0, magicLength);
       bool foundMatch =
-        memcmp(frontBuffer->getStart(), MAGIC.c_str(), magicLength) == 0;
-      delete frontBuffer;
+        memcmp(frontBuffer.data(), MAGIC.c_str(), magicLength) == 0;
       if (!foundMatch) {
         throw ParseError("Not an ORC file");
       }
@@ -1211,14 +1212,13 @@ namespace orc {
     return postscript.has_writerversion() && postscript.writerversion();
   }
 
-  void ReaderImpl::readPostscript(Buffer *buffer) {
-    char *ptr = buffer->getStart();
-    uint64_t readSize = buffer->getLength();
-    postscriptLength = ptr[readSize - 1] & 0xff;
+  void ReaderImpl::readPostscript(DataBuffer<char> &buffer) {
+    char *ptr = buffer.data();
+    postscriptLength = ptr[buffer.size() - 1] & 0xff;
 
     ensureOrcFooter(buffer);
 
-    if (!postscript.ParseFromArray(ptr + readSize - 1 - postscriptLength,
+    if (!postscript.ParseFromArray(ptr + buffer.size() - 1 - postscriptLength,
                                    static_cast<int>(postscriptLength))) {
       throw ParseError("Failed to parse the postscript");
     }
@@ -1234,8 +1234,8 @@ namespace orc {
     compression = static_cast<CompressionKind>(postscript.compression());
   }
 
-  void ReaderImpl::readFooter(Buffer *&buffer, uint64_t fileLength) {
-    uint64_t readSize = buffer->getLength();
+  void ReaderImpl::readFooter(DataBuffer<char> &buffer, uint64_t fileLength) {
+    uint64_t readSize = buffer.size();
     uint64_t footerSize = postscript.footerlength();
     uint64_t metadataSize = postscript.metadatalength();
     uint64_t tailSize = 1 + postscriptLength + footerSize + metadataSize;
@@ -1243,11 +1243,12 @@ namespace orc {
     char *footerStart;
 
     if (tailSize > readSize) {
-      buffer = stream->read(fileLength - tailSize,
-                            metadataSize + footerSize, buffer);
-      metadataStart = buffer->getStart();
+      buffer.resize(metadataSize + footerSize);
+      stream->read(buffer.data(), fileLength - tailSize,
+                            metadataSize + footerSize);
+      metadataStart = buffer.data();
     } else {
-      metadataStart = buffer->getStart() + (readSize - tailSize);
+      metadataStart = buffer.data() + (readSize - tailSize);
     }
     footerStart = metadataStart + metadataSize;
     std::unique_ptr<SeekableInputStream> pbStream =
@@ -1281,11 +1282,13 @@ namespace orc {
     uint64_t footerStart = info.offset() + info.indexlength() +
       info.datalength();
     uint64_t footerLength = info.footerlength();
+    std::unique_ptr<DataBuffer<char> > buffer(new DataBuffer<char>(memoryPool));
     std::unique_ptr<SeekableInputStream> pbStream =
       createDecompressor(compression,
                          std::unique_ptr<SeekableInputStream>
                          (new SeekableFileInputStream(stream.get(),
                                                       footerStart,
+                                                      std::move(buffer),
                                                       footerLength,
                                                       static_cast<int64_t>
                                                       (blockSize)
@@ -1373,11 +1376,13 @@ namespace orc {
         int64_t myBlock = static_cast<int64_t>(shouldStream ?
                                          1024 * 1024 :
                                          stream.length());
+        std::unique_ptr<DataBuffer<char> > buffer(new DataBuffer<char>(memoryPool));
         return createDecompressor(reader.getCompression(),
                                   std::unique_ptr<SeekableInputStream>
                                   (new SeekableFileInputStream
                                    (&input,
                                     offset,
+                                    std::move(buffer),
                                     stream.length(),
                                     myBlock)),
                                   reader.getCompressionSize(),

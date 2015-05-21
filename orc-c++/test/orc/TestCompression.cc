@@ -203,7 +203,8 @@ namespace orc {
   TEST_F(TestCompression, testFileBackup) {
     SCOPED_TRACE("testFileBackup");
     std::unique_ptr<InputStream> file = readLocalFile(simpleFile);
-    SeekableFileInputStream stream(file.get(), 0, 200, 20);
+    std::unique_ptr<DataBuffer<char> > buffer(new DataBuffer<char>(*getDefaultPool()));
+    SeekableFileInputStream stream(file.get(), 0, std::move(buffer), 200, 20);
     const void *ptr;
     int len;
     ASSERT_THROW(stream.BackUp(10), std::logic_error);
@@ -234,7 +235,8 @@ namespace orc {
   TEST_F(TestCompression, testFileSkip) {
     SCOPED_TRACE("testFileSkip");
     std::unique_ptr<InputStream> file = readLocalFile(simpleFile);
-    SeekableFileInputStream stream(file.get(), 0, 200, 20);
+    std::unique_ptr<DataBuffer<char> > buffer(new DataBuffer<char>(*getDefaultPool()));
+    SeekableFileInputStream stream(file.get(), 0, std::move(buffer), 200, 20);
     const void *ptr;
     int len;
     ASSERT_EQ(true, stream.Next(&ptr, &len));
@@ -254,7 +256,8 @@ namespace orc {
   TEST_F(TestCompression, testFileCombo) {
     SCOPED_TRACE("testFileCombo");
     std::unique_ptr<InputStream> file = readLocalFile(simpleFile);
-    SeekableFileInputStream stream(file.get(), 0, 200, 20);
+    std::unique_ptr<DataBuffer<char> > buffer(new DataBuffer<char>(*getDefaultPool()));
+    SeekableFileInputStream stream(file.get(), 0, std::move(buffer), 200, 20);
     const void *ptr;
     int len;
     ASSERT_EQ(true, stream.Next(&ptr, &len));
@@ -274,7 +277,8 @@ namespace orc {
   TEST_F(TestCompression, testFileSeek) {
     SCOPED_TRACE("testFileSeek");
     std::unique_ptr<InputStream> file = readLocalFile(simpleFile);
-    SeekableFileInputStream stream(file.get(), 0, 200, 20);
+    std::unique_ptr<DataBuffer<char> > buffer(new DataBuffer<char>(*getDefaultPool()));
+    SeekableFileInputStream stream(file.get(), 0, std::move(buffer), 200, 20);
     const void *ptr;
     int len;
     EXPECT_EQ(0, stream.ByteCount());

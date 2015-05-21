@@ -97,13 +97,14 @@ namespace orc {
     const uint64_t start;
     const uint64_t length;
     const uint64_t blockSize;
-    Buffer* buffer;
+    std::unique_ptr<DataBuffer<char> > buffer;
     uint64_t position;
     uint64_t pushBack;
 
   public:
     SeekableFileInputStream(InputStream* input,
                             uint64_t offset,
+                            std::unique_ptr<DataBuffer<char> > _buffer,
                             uint64_t byteCount,
                             int64_t blockSize = -1);
     virtual ~SeekableFileInputStream();
