@@ -61,19 +61,12 @@ namespace orc {
 
   template <class T>
   DataBuffer<T>::~DataBuffer(){
-    clear();
-  }
-
-  template <class T>
-  void DataBuffer<T>::clear(){
     for(uint64_t i=currentSize; i > 0; --i) {
       (buf + i - 1)->~T();
     }
     if (buf) {
       memoryPool.free(reinterpret_cast<char*>(buf));
-      buf = nullptr;
     }
-    currentCapacity = currentSize = 0 ;
   }
 
   template <class T>
@@ -109,17 +102,10 @@ namespace orc {
   // Specializations for char
 
   template <>
-  void DataBuffer<char>::clear(){
+  DataBuffer<char>::~DataBuffer(){
     if (buf) {
       memoryPool.free(reinterpret_cast<char*>(buf));
-      buf = nullptr;
     }
-    currentCapacity = currentSize = 0 ;
-  }
-
-  template <>
-  DataBuffer<char>::~DataBuffer(){
-    clear();
   }
 
   template <>
@@ -134,17 +120,10 @@ namespace orc {
   // Specializations for char*
 
   template <>
-  void DataBuffer<char*>::clear(){
+  DataBuffer<char*>::~DataBuffer(){
     if (buf) {
       memoryPool.free(reinterpret_cast<char*>(buf));
-      buf = nullptr;
     }
-    currentCapacity = currentSize = 0 ;
-  }
-
-  template <>
-  DataBuffer<char*>::~DataBuffer(){
-    clear();
   }
 
   template <>
@@ -159,17 +138,10 @@ namespace orc {
   // Specializations for double
 
   template <>
-  void DataBuffer<double>::clear(){
+  DataBuffer<double>::~DataBuffer(){
     if (buf) {
       memoryPool.free(reinterpret_cast<char*>(buf));
-      buf = nullptr;
     }
-    currentCapacity = currentSize = 0 ;
-  }
-
-  template <>
-  DataBuffer<double>::~DataBuffer(){
-    clear();
   }
 
   template <>
@@ -184,17 +156,10 @@ namespace orc {
   // Specializations for int64_t
 
   template <>
-  void DataBuffer<int64_t>::clear(){
+  DataBuffer<int64_t>::~DataBuffer(){
     if (buf) {
       memoryPool.free(reinterpret_cast<char*>(buf));
-      buf = nullptr;
     }
-    currentCapacity = currentSize = 0 ;
-  }
-
-  template <>
-  DataBuffer<int64_t>::~DataBuffer(){
-    clear();
   }
 
   template <>
@@ -209,17 +174,10 @@ namespace orc {
   // Specializations for uint64_t
 
   template <>
-  void DataBuffer<uint64_t>::clear(){
+  DataBuffer<uint64_t>::~DataBuffer(){
     if (buf) {
       memoryPool.free(reinterpret_cast<char*>(buf));
-      buf = nullptr;
     }
-    currentCapacity = currentSize = 0 ;
-  }
-
-  template <>
-  DataBuffer<uint64_t>::~DataBuffer(){
-    clear();
   }
 
   template <>
@@ -234,17 +192,10 @@ namespace orc {
   // Specializations for unsigned char
 
   template <>
-  void DataBuffer<unsigned char>::clear(){
+  DataBuffer<unsigned char>::~DataBuffer(){
     if (buf) {
       memoryPool.free(reinterpret_cast<char*>(buf));
-      buf = nullptr;
     }
-    currentCapacity = currentSize = 0 ;
-  }
-
-  template <>
-  DataBuffer<unsigned char>::~DataBuffer(){
-    clear();
   }
 
   template <>
