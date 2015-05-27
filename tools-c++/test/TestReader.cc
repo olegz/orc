@@ -16,6 +16,8 @@
  * limitations under the License.
  */
 
+#include "orc/Adaptor.hh"
+
 #include "gzip.hh"
 #include "orc/ColumnPrinter.hh"
 #include "orc/OrcFile.hh"
@@ -27,7 +29,7 @@
 #include <sstream>
 
 #ifdef __clang__
-  #pragma clang diagnostic ignored "-Wmissing-variable-declarations"
+  DIAGNOSTIC_IGNORE("-Wmissing-variable-declarations")
 #endif
 
 namespace orc {
@@ -117,14 +119,14 @@ namespace orc {
     EXPECT_EQ(getFilename(), reader->getStreamName());
     EXPECT_EQ(GetParam().userMeta.size(), reader->getMetadataKeys().size());
     for(std::map<std::string, std::string>::const_iterator itr =
-          GetParam().userMeta.cbegin();
-        itr != GetParam().userMeta.cend();
+          GetParam().userMeta.begin();
+        itr != GetParam().userMeta.end();
         ++itr) {
       ASSERT_EQ(true, reader->hasMetadataValue(itr->first));
       std::string val = reader->getMetadataValue(itr->first);
       EXPECT_EQ(itr->second, val);
     }
-    EXPECT_EQ(false, reader->hasMetadataValue("foo"));
+    EXPECT_EQ(true, !reader->hasMetadataValue("foo"));
     EXPECT_EQ(18446744073709551615UL, reader->getRowNumber());
 
     EXPECT_EQ(GetParam().typeString, reader->getType().toString());
@@ -485,6 +487,7 @@ namespace orc {
                                        std::map<std::string, std::string>())
                     ));
 
+#ifdef HAS_PRE_1970
 INSTANTIATE_TEST_CASE_P(TestReader1900, MatchTest,
     testing::Values(
                     OrcFileDescription("TestOrcFile.testDate1900.orc",
@@ -499,8 +502,9 @@ INSTANTIATE_TEST_CASE_P(TestReader1900, MatchTest,
                                        10000,
                                        std::map<std::string, std::string>())
 		    ));
+#endif
 
-#ifndef __APPLE__
+#ifdef HAS_POST_2038
   INSTANTIATE_TEST_CASE_P(TestReader2038, MatchTest,
     testing::Values(
                     OrcFileDescription("TestOrcFile.testDate2038.orc",
@@ -519,7 +523,10 @@ INSTANTIATE_TEST_CASE_P(TestReader1900, MatchTest,
 
   TEST(Reader, columnSelectionTest) {
     ReaderOptions opts;
-    std::list<int64_t> includes = {1,3,5,7,9};
+    std::list<int64_t> includes;
+    for(int i=1; i < 10; i += 2) {
+      includes.push_back(i);
+    }
     opts.include(includes);
     std::ostringstream filename;
     filename << exampleDirectory << "/demo-11-none.orc";
@@ -750,15 +757,15 @@ TEST(Reader, corruptStatistics) {
   std::unique_ptr<orc::Reader> reader =
     orc::createReader(orc::readLocalFile(filename.str()), opts);
 
-  EXPECT_EQ(false, reader->hasCorrectStatistics());
+  EXPECT_EQ(true, !reader->hasCorrectStatistics());
 
   // 2nd real column, string
   std::unique_ptr<orc::ColumnStatistics> col_2 =
     reader->getColumnStatistics(2);
   const orc::StringColumnStatistics& strStats =
     dynamic_cast<const orc::StringColumnStatistics&> (*(col_2.get()));
-  EXPECT_EQ(false, strStats.hasMinimum());
-  EXPECT_EQ(false, strStats.hasMaximum());
+  EXPECT_EQ(true, !strStats.hasMinimum());
+  EXPECT_EQ(true, !strStats.hasMaximum());
 
   // stripe statistics
   unsigned long stripeIdx = 1;
@@ -769,8 +776,8 @@ TEST(Reader, corruptStatistics) {
   const orc::DecimalColumnStatistics* col_4 =
     dynamic_cast<const orc::DecimalColumnStatistics*>
     (stripeStats->getColumnStatistics(4));
-  EXPECT_EQ(false, col_4->hasMinimum());
-  EXPECT_EQ(false, col_4->hasMaximum());
+  EXPECT_EQ(true, !col_4->hasMinimum());
+  EXPECT_EQ(true, !col_4->hasMaximum());
 }
 
 TEST(Reader, noStripeStatistics) {

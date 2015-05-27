@@ -27,8 +27,8 @@ INCLUDE(CPack)
 
 set (GMOCK_VERSION "1.7.0")
 set (GMOCK_INCLUDE_DIRS
-     "${CMAKE_SOURCE_DIR}/orc-c++/libs/gmock-${GMOCK_VERSION}/include"
-     "${CMAKE_SOURCE_DIR}/orc-c++/libs/gmock-${GMOCK_VERSION}/gtest/include"
+     "${CMAKE_SOURCE_DIR}/c++/libs/gmock-${GMOCK_VERSION}/include"
+     "${CMAKE_SOURCE_DIR}/c++/libs/gmock-${GMOCK_VERSION}/gtest/include"
     )
 set (GMOCK_LIBRARIES gmock)
 if(NOT APPLE AND NOT MSVC)
@@ -37,23 +37,45 @@ endif(NOT APPLE AND NOT MSVC)
 
 set (PROTOBUF_VERSION "2.6.0")
 set (PROTOBUF_INCLUDE_DIRS
-     "${CMAKE_SOURCE_DIR}/orc-c++/libs/protobuf-${PROTOBUF_VERSION}/src")
+     "${CMAKE_SOURCE_DIR}/c++/libs/protobuf-${PROTOBUF_VERSION}/src")
 set (PROTOBUF_LIBRARIES protobuf)
+set (PROTOBUF_EXECUTABLE "${CMAKE_BINARY_DIR}/c++/libs/protobuf-${PROTOBUF_VERSION}/protoc")
 
 set (SNAPPY_VERSION "1.1.2")
 set (SNAPPY_INCLUDE_DIRS
-     "${CMAKE_SOURCE_DIR}/orc-c++/libs/snappy-${SNAPPY_VERSION}")
+     "${CMAKE_SOURCE_DIR}/c++/libs/snappy-${SNAPPY_VERSION}")
 set (SNAPPY_LIBRARIES snappy)
 
 set (ZLIB_VERSION "1.2.8")
 set (ZLIB_INCLUDE_DIRS
-     "${CMAKE_SOURCE_DIR}/orc-c++/libs/zlib-${ZLIB_VERSION}"
-     "${CMAKE_BINARY_DIR}/orc-c++/libs/zlib-${ZLIB_VERSION}"
+     "${CMAKE_SOURCE_DIR}/c++/libs/zlib-${ZLIB_VERSION}"
+     "${CMAKE_BINARY_DIR}/c++/libs/zlib-${ZLIB_VERSION}"
     )
 set (ZLIB_LIBRARIES zlib)
 
-if (MSVC)
-  set (GMOCK_LIB "${CMAKE_BINARY_DIR}/libs/gmock-${GMOCK_VERSION}/gmock_main")
+#
+# Compiler specific flags
+#
+if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+  set (CMAKE_CXX_FLAGS "-g -O2")
+  set (CXX11_FLAGS "-std=c++11")
+  set (WARN_FLAGS "-Weverything -Wno-c++98-compat -Wno-missing-prototypes")
+  set (WARN_FLAGS "${WARN_FLAGS} -Wno-c++98-compat-pedantic -Wno-padded")
+  set (WARN_FLAGS "${WARN_FLAGS} -Wno-covered-switch-default")
+  set (WARN_FLAGS "${WARN_FLAGS} -Wno-missing-noreturn -Wno-unknown-pragmas")
+  set (WARN_FLAGS "${WARN_FLAGS} -Wconversion -Werror")
+elseif (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+  set (CMAKE_CXX_FLAGS "-g -O2")
+  set (WARN_FLAGS "-Wall -Wno-unknown-pragmas -Wconversion -Werror")
+  if (CMAKE_CXX_COMPILER_VERSION VERSION_LESS "4.3")
+    set (CXX11_FLAGS "")
+    set (WARN_FLAGS "-Wformat -Werror")
+  elseif (CMAKE_CXX_COMPILER_VERSION VERSION_LESS "4.7")
+    set (CXX11_FLAGS "-std=c++0x")
+  else ()
+    set (CXX11_FLAGS "-std=c++11")
+  endif ()
+elseif (MSVC)
   add_definitions (-D_SCL_SECURE_NO_WARNINGS)
   add_definitions (-D_CRT_SECURE_NO_WARNINGS)
   # TODO: We assume MSVC debug mode. In the future, set these flags
@@ -66,36 +88,13 @@ if (MSVC)
   set(CMAKE_EXE_LINKER_FLAGS_DEBUG "${CMAKE_EXE_LINKER_FLAGS_DEBUG} /NODEFAULTLIB:libcd.lib")
 
   set(CMAKE_EXE_LINKER_FLAGS_DEBUG "${CMAKE_EXE_LINKER_FLAGS_DEBUG} /NODEFAULTLIB:msvcrtd.lib")
-  include_directories(${CMAKE_SOURCE_DIR}/os/win)
-endif (MSVC)
+endif ()
   
 enable_testing()
 
-if(NOT C09 AND NOT MSVC)
-  # Visual studio enables C++11 support by default.
-  set (CXX11_FLAGS "-std=c++11")
-endif(NOT C09 AND NOT MSVC)
-
-if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
-  set (COVERAGE_FLAGS "--coverage -g -O0")
-  set (CXX11_FLAGS "${CXX11_FLAGS}")
-  set (WARN_FLAGS "-Weverything -Wno-c++98-compat -Wno-missing-prototypes")
-  set (WARN_FLAGS "${WARN_FLAGS} -Wno-c++98-compat-pedantic -Wno-padded")
-  set (WARN_FLAGS "${WARN_FLAGS} -Wno-covered-switch-default")
-  set (WARN_FLAGS "${WARN_FLAGS} -Wno-missing-noreturn -Wno-unknown-pragmas")
-  set (WARN_FLAGS "${WARN_FLAGS} -Wconversion -Werror")
-elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
-  set (WARN_FLAGS "-Wall -Wno-unknown-pragmas -Wconversion -Werror")
-endif ()
-
-if (NOT MSVC)
-  set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -O2")
-endif (NOT MSVC)
-#set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${COVERAGE_FLAGS}")
-
 set (EXAMPLE_DIRECTORY ${CMAKE_SOURCE_DIR}/examples)
 
-add_subdirectory(orc-c++)
+add_subdirectory(c++)
 add_subdirectory(tools-c++)
 
 # Add another target called test-out that prints the results on failure

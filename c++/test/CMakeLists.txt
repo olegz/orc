@@ -11,25 +11,28 @@
 # limitations under the License.
 
 include_directories(
-  ${PROJECT_SOURCE_DIR}/c++/include
   ${PROJECT_SOURCE_DIR}/c++/src
-  ${PROJECT_SOURCE_DIR}/tools-c++/src
   ${PROJECT_BINARY_DIR}/c++/include
   ${PROJECT_BINARY_DIR}/c++/src
   ${PROTOBUF_INCLUDE_DIRS}
   ${ZLIB_INCLUDE_DIRS}
+  ${SNAPPY_INCLUDE_DIRS}
   ${GMOCK_INCLUDE_DIRS}
 )
 
 set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CXX11_FLAGS} ${WARN_FLAGS}")
 
-add_executable (tool-test
-  gzip.cc
-  TestReader.cc
-  ToolTest.cc
+add_executable (test-orc
+  orc/TestByteRle.cc
+  orc/TestColumnPrinter.cc
+  orc/TestColumnReader.cc
+  orc/TestCompression.cc
+  orc/TestDriver.cc
+  orc/TestInt128.cc
+  orc/TestRle.cc
 )
 
-target_link_libraries (tool-test
+target_link_libraries (test-orc
   orc
   ${PROTOBUF_LIBRARIES}
   ${GMOCK_LIBRARIES}
@@ -37,4 +40,5 @@ target_link_libraries (tool-test
   ${SNAPPY_LIBRARIES}
 )
 
-add_test (tool-test tool-test ${EXAMPLE_DIRECTORY})
+add_test (test-orc test-orc)
+

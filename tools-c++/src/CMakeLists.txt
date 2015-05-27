@@ -11,9 +11,10 @@
 # limitations under the License.
 
 include_directories (
-  ${PROJECT_SOURCE_DIR}/orc-c++/include
-  ${PROJECT_SOURCE_DIR}/orc-c++/src
-  ${PROJECT_BINARY_DIR}/orc-c++/src
+  ${PROJECT_SOURCE_DIR}/c++/include
+  ${PROJECT_SOURCE_DIR}/c++/src
+  ${PROJECT_BINARY_DIR}/c++/include
+  ${PROJECT_BINARY_DIR}/c++/src
   ${PROTOBUF_INCLUDE_DIRS}
   )
 
