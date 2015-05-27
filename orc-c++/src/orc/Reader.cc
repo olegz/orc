@@ -973,11 +973,11 @@ namespace orc {
       throw ParseError("File size too small");
     }
 
-    DataBuffer<char> buffer(memoryPool,readSize);
-    stream->read(buffer.data(), size - readSize, readSize);
-    readPostscript(buffer);
-    readFooter(buffer, size);
-    buffer.clear();
+    DataBuffer<char>* buffer = new DataBuffer<char>(memoryPool,readSize);
+    stream->read(buffer->data(), size - readSize, readSize);
+    readPostscript(*buffer);
+    readFooter(*buffer, size);
+    delete buffer;
 
     currentStripe = static_cast<uint64_t>(footer.stripes_size());
     lastStripe = 0;
