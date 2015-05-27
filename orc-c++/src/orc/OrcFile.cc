@@ -29,6 +29,36 @@
 
 namespace orc {
 
+  Buffer::~Buffer() {
+    // PASS
+  }
+
+  class HeapBuffer: public Buffer {
+  private:
+    char* start;
+    uint64_t length;
+
+  public:
+    HeapBuffer(uint64_t size) {
+      start = new char[size];
+      length = size;
+    }
+
+    virtual ~HeapBuffer();
+
+    virtual char *getStart() const override {
+      return start;
+    }
+
+    virtual uint64_t getLength() const override {
+      return length;
+    }
+  };
+
+  HeapBuffer::~HeapBuffer() {
+    delete[] start;
+  }
+
   class FileInputStream : public InputStream {
   private:
     std::string filename ;
@@ -55,10 +85,16 @@ namespace orc {
       return totalLength;
     }
 
-    void read(char* buffer,
-              uint64_t offset,
-              uint64_t length) override {
-      ssize_t bytesRead = pread(file, buffer, length,
+    Buffer* read(uint64_t offset,
+                 uint64_t length,
+                 Buffer* buffer) override {
+      if (buffer == nullptr) {
+        buffer = new HeapBuffer(length);
+      } else if (buffer->getLength() < length) {
+        delete buffer;
+        buffer = new HeapBuffer(length);
+      }
+      ssize_t bytesRead = pread(file, buffer->getStart(), length,
                                 static_cast<off_t>(offset));
       if (bytesRead == -1) {
         throw ParseError("Bad read of " + filename);
@@ -66,6 +102,7 @@ namespace orc {
       if (static_cast<uint64_t>(bytesRead) != length) {
         throw ParseError("Short read of " + filename);
       }
+      return buffer;
     }
 
     const std::string& getName() const override {
@@ -75,6 +112,40 @@ namespace orc {
 
   FileInputStream::~FileInputStream() {
     close(file);
+  }
+
+  /**
+   * A buffer for use with an memmapped file where the Buffer doesn't own
+   * the memory that it references.
+   */
+  class MmapBuffer: public Buffer {
+  private:
+    char* start;
+    uint64_t length;
+
+  public:
+    MmapBuffer(): start(nullptr), length(0) {
+      // PASS
+    }
+
+    virtual ~MmapBuffer();
+
+    void reset(char *_start, uint64_t _length) {
+      start = _start;
+      length = _length;
+    }
+
+    virtual char *getStart() const override {
+      return start;
+    }
+
+    virtual uint64_t getLength() const override {
+      return length;
+    }
+  };
+
+  MmapBuffer::~MmapBuffer() {
+    // PASS
   }
 
   /**
@@ -99,9 +170,9 @@ namespace orc {
       return filename;
     }
 
-    void read(char* buffer,
-              uint64_t offset,
-              uint64_t length) override;
+    Buffer* read(uint64_t offset,
+                 uint64_t length,
+                 Buffer* buffer) override;
   };
 
   MmapInputStream::MmapInputStream(std::string _filename) {
@@ -133,13 +204,17 @@ namespace orc {
     }
   }
 
-  void MmapInputStream::read(char* buffer,
-                             uint64_t offset,
-                             uint64_t length) {
+  Buffer* MmapInputStream::read(uint64_t offset,
+                                uint64_t length,
+                                Buffer* buffer) {
+    if (buffer == nullptr) {
+      buffer = new MmapBuffer();
+    }
     if (offset + length > totalLength) {
       throw std::runtime_error("Read past end of file " + filename);
     }
-    buffer = start + offset;
+    dynamic_cast<MmapBuffer*>(buffer)->reset(start + offset, length);
+    return buffer;
   }
 
   std::unique_ptr<InputStream> readLocalFile(const std::string& path) {
