@@ -58,10 +58,6 @@ namespace orc {
     void read(char* buffer,
               uint64_t offset,
               uint64_t length) override {
-      if (!buffer) {
-        throw ParseError("Buffer is null");
-      }
-
       ssize_t bytesRead = pread(file, buffer, length,
                                 static_cast<off_t>(offset));
       if (bytesRead == -1) {

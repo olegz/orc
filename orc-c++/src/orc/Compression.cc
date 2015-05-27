@@ -156,7 +156,6 @@ namespace orc {
 
   SeekableFileInputStream::SeekableFileInputStream(InputStream* stream,
                                                    uint64_t offset,
-                                                   std::unique_ptr<DataBuffer<char> > _buffer,
                                                    uint64_t byteCount,
                                                    int64_t _blockSize
                                                    ): input(stream),
@@ -165,26 +164,25 @@ namespace orc {
                                                       blockSize(computeBlock
                                                                 (_blockSize,
                                                                  length)) {
-    buffer.reset(_buffer.release());
     position = 0;
+    buffer = nullptr;
     pushBack = 0;
   }
 
   SeekableFileInputStream::~SeekableFileInputStream() {
-    // PASS
+    delete buffer;
   }
 
   bool SeekableFileInputStream::Next(const void** data, int*size) {
     uint64_t bytesRead;
     if (pushBack != 0) {
-      *data = buffer->data() + (buffer->size() - pushBack);
+      *data = buffer->getStart() + (buffer->getLength() - pushBack);
       bytesRead = pushBack;
     } else {
       bytesRead = std::min(length - position, blockSize);
       if (bytesRead > 0) {
-        buffer->resize(bytesRead);
-        input->read(buffer->data(), start + position, bytesRead);
-        *data = static_cast<void*>(buffer->data());
+        buffer = input->read(start + position, bytesRead, buffer);
+        *data = static_cast<void*>(buffer->getStart());
       }
     }
     position += bytesRead;
