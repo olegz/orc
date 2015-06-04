@@ -10,5 +10,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+include_directories (
+  ${CMAKE_CURRENT_BINARY_DIR}/include
+  "include"
+  )
+
+add_subdirectory(include)
+add_subdirectory(libs)
 add_subdirectory(src)
 add_subdirectory(test)
