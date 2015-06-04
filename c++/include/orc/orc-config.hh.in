@@ -67,7 +67,6 @@
 
 #ifdef ORC_CXX_HAS_UNIQUE_PTR
   #define ORC_UNIQUE_PTR std::unique_ptr
-  #define ORC_NEED_UTILITY
 #else
   #define ORC_UNIQUE_PTR std::auto_ptr
   namespace std {
