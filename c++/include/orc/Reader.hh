@@ -475,6 +475,11 @@ namespace orc {
     ReaderOptions& setErrorStream(std::ostream& stream);
 
     /**
+     * Use a serialized file footer.
+     */
+    ReaderOptions& setSerializedFooter(const std::string& serialization);
+
+    /**
      * Set the memory allocator.
      */
     ReaderOptions& setMemoryPool(MemoryPool& pool);
@@ -524,6 +529,11 @@ namespace orc {
      * Get the memory allocator.
      */
     MemoryPool* getMemoryPool() const;
+
+    /**
+     * Get the serialized file footer that the user passed in.
+     */
+    std::string getSerializedFooter() const;
   };
 
   /**
@@ -683,6 +693,11 @@ namespace orc {
      * check file has correct column statistics
      */
     virtual bool hasCorrectStatistics() const = 0;
+
+    /**
+     * Serialize the file footer.
+     */
+    virtual std::string serializeFooter() const = 0;
   };
 }
 

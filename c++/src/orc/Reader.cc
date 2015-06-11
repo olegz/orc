@@ -25,6 +25,9 @@
 #include "TypeImpl.hh"
 #include "orc/Int128.hh"
 
+#include "wrap/coded-stream-wrapper.h"
+#include "google/protobuf/io/zero_copy_stream_impl.h"
+
 #include <algorithm>
 #include <iostream>
 #include <limits>
@@ -846,20 +849,18 @@ namespace orc {
     MemoryPool& memoryPool;
 
     // postscript
-    proto::PostScript postscript;
+    std::unique_ptr<proto::PostScript> postscript;
     uint64_t blockSize;
     CompressionKind compression;
-    uint64_t postscriptLength;
 
     // footer
-    proto::Footer footer;
+    std::unique_ptr<proto::Footer> footer;
     DataBuffer<uint64_t> firstRowOfStripe;
     uint64_t numberOfStripes;
     std::unique_ptr<Type> schema;
 
     // metadata
-    bool isMetadataLoaded;
-    proto::Metadata metadata;
+    std::unique_ptr<proto::Metadata> metadata;
     uint64_t numberOfStripeStatistics;
 
     // reading state
@@ -874,14 +875,12 @@ namespace orc {
     std::unique_ptr<ColumnReader> reader;
 
     // internal methods
-    void readPostscript(Buffer *buffer);
-    void readFooter(Buffer *&buffer, uint64_t fileLength);
     proto::StripeFooter getStripeFooter(const proto::StripeInformation& info);
     void startNextStripe();
-    void ensureOrcFooter(Buffer * buffer);
     void checkOrcVersion();
     void selectTypeParent(size_t columnId);
     void selectTypeChildren(size_t columnId);
+    void readMetadata();
     std::unique_ptr<ColumnVectorBatch> createRowBatch(const Type& type,
                                                       uint64_t capacity
                                                       ) const;
@@ -891,9 +890,13 @@ namespace orc {
      * Constructor that lets the user specify additional options.
      * @param stream the stream to read from
      * @param options options for reading
+     * @param postscript the postscript for the file
+     * @param footer the footer for the file
      */
     ReaderImpl(std::unique_ptr<InputStream> stream,
-               const ReaderOptions& options);
+               const ReaderOptions& options,
+               std::unique_ptr<proto::PostScript> postscript,
+               std::unique_ptr<proto::Footer> footer);
 
     const ReaderOptions& getReaderOptions() const;
 
@@ -949,6 +952,8 @@ namespace orc {
     MemoryPool* getMemoryPool() const ;
 
     bool hasCorrectStatistics() const override;
+
+    std::string serializeFooter() const override;
   };
 
   InputStream::~InputStream() {
@@ -956,39 +961,26 @@ namespace orc {
   };
 
   ReaderImpl::ReaderImpl(std::unique_ptr<InputStream> input,
-                         const ReaderOptions& opts
+                         const ReaderOptions& opts,
+                         std::unique_ptr<proto::PostScript> _postscript,
+                         std::unique_ptr<proto::Footer> _footer
                          ): stream(std::move(input)),
                             options(opts),
                             memoryPool(*opts.getMemoryPool()),
+                            postscript(std::move(_postscript)),
+                            footer(std::move(_footer)),
                             firstRowOfStripe(memoryPool, 0) {
-    isMetadataLoaded = false;
-    // figure out the size of the file using the option or filesystem
-    uint64_t size = std::min(options.getTailLocation(),
-                                  static_cast<uint64_t>
-                                  (stream->getLength()));
-
-    //read last bytes into buffer to get PostScript
-    uint64_t readSize = std::min(size, DIRECTORY_SIZE_GUESS);
-
-    if (readSize < 1) {
-      throw ParseError("File size too small");
-    }
-
-    Buffer *buffer = stream->read(size - readSize, readSize, nullptr);
-    readPostscript(buffer);
-    readFooter(buffer, size);
-    delete buffer;
-
-    currentStripe = static_cast<uint64_t>(footer.stripes_size());
+    checkOrcVersion();
+    currentStripe = static_cast<uint64_t>(footer->stripes_size());
     lastStripe = 0;
     currentRowInStripe = 0;
     uint64_t rowTotal = 0;
 
-    firstRowOfStripe.resize(static_cast<uint64_t>(footer.stripes_size()));
-    for(size_t i=0; i < static_cast<size_t>(footer.stripes_size()); ++i) {
+    firstRowOfStripe.resize(static_cast<uint64_t>(footer->stripes_size()));
+    for(size_t i=0; i < static_cast<size_t>(footer->stripes_size()); ++i) {
       firstRowOfStripe[i] = rowTotal;
       proto::StripeInformation stripeInfo =
-        footer.stripes(static_cast<int>(i));
+        footer->stripes(static_cast<int>(i));
       rowTotal += stripeInfo.numberofrows();
       bool isStripeInRange = stripeInfo.offset() >= opts.getOffset() &&
         stripeInfo.offset() < opts.getOffset() + opts.getLength();
@@ -1005,17 +997,18 @@ namespace orc {
 
     if (currentStripe == 0) {
       previousRow = (std::numeric_limits<uint64_t>::max)();
-    } else if (currentStripe == static_cast<uint64_t>(footer.stripes_size())) {
-      previousRow = footer.numberofrows();
+    } else if (currentStripe ==
+               static_cast<uint64_t>(footer->stripes_size())) {
+      previousRow = footer->numberofrows();
     } else {
       previousRow = firstRowOfStripe[firstStripe]-1;
     }
 
-    schema = convertType(footer.types(0), footer);
+    schema = convertType(footer->types(0), *footer);
     schema->assignIds(0);
     previousRow = (std::numeric_limits<uint64_t>::max)();
 
-    selectedColumns.assign(static_cast<size_t>(footer.types_size()), false);
+    selectedColumns.assign(static_cast<size_t>(footer->types_size()), false);
 
     const std::list<int64_t>& included = options.getInclude();
     for(std::list<int64_t>::const_iterator columnId = included.begin();
@@ -1025,6 +1018,21 @@ namespace orc {
         selectTypeChildren(static_cast<size_t>(*columnId));
       }
     }
+  }
+
+  std::string ReaderImpl::serializeFooter() const {
+    std::ostringstream buf;
+    google::protobuf::io::OstreamOutputStream zero(&buf);
+    google::protobuf::io::CodedOutputStream output(&zero);
+    output.WriteVarint32(static_cast<uint32_t>(postscript->ByteSize()));
+    if (!postscript->SerializeToCodedStream(&output)) {
+      throw std::runtime_error("failed to serailize postscript");
+    }
+    output.WriteVarint32(static_cast<uint32_t>(footer->ByteSize()));
+    if (!footer->SerializeToCodedStream(&output)) {
+      throw std::runtime_error("failed to serailize footer");
+    }
+    return buf.str();
   }
 
   const ReaderOptions& ReaderImpl::getReaderOptions() const {
@@ -1053,7 +1061,7 @@ namespace orc {
       throw std::logic_error("stripe index out of range");
     }
     proto::StripeInformation stripeInfo =
-      footer.stripes(static_cast<int>(stripeIndex));
+      footer->stripes(static_cast<int>(stripeIndex));
 
     return std::unique_ptr<StripeInformation>
       (new StripeInformationImpl
@@ -1066,25 +1074,25 @@ namespace orc {
 
   std::string ReaderImpl::getFormatVersion() const {
     std::stringstream result;
-    for(int i=0; i < postscript.version_size(); ++i) {
+    for(int i=0; i < postscript->version_size(); ++i) {
       if (i != 0) {
         result << ".";
       }
-      result << postscript.version(i);
+      result << postscript->version(i);
     }
     return result.str();
   }
 
   uint64_t ReaderImpl::getNumberOfRows() const {
-    return footer.numberofrows();
+    return footer->numberofrows();
   }
 
   uint64_t ReaderImpl::getContentLength() const {
-    return footer.contentlength();
+    return footer->contentlength();
   }
 
   uint64_t ReaderImpl::getRowIndexStride() const {
-    return footer.rowindexstride();
+    return footer->rowindexstride();
   }
 
   const std::string& ReaderImpl::getStreamName() const {
@@ -1093,24 +1101,24 @@ namespace orc {
 
   std::list<std::string> ReaderImpl::getMetadataKeys() const {
     std::list<std::string> result;
-    for(int i=0; i < footer.metadata_size(); ++i) {
-      result.push_back(footer.metadata(i).name());
+    for(int i=0; i < footer->metadata_size(); ++i) {
+      result.push_back(footer->metadata(i).name());
     }
     return result;
   }
 
   std::string ReaderImpl::getMetadataValue(const std::string& key) const {
-    for(int i=0; i < footer.metadata_size(); ++i) {
-      if (footer.metadata(i).name() == key) {
-        return footer.metadata(i).value();
+    for(int i=0; i < footer->metadata_size(); ++i) {
+      if (footer->metadata(i).name() == key) {
+        return footer->metadata(i).value();
       }
     }
     throw std::range_error("key not found");
   }
 
   bool ReaderImpl::hasMetadataValue(const std::string& key) const {
-    for(int i=0; i < footer.metadata_size(); ++i) {
-      if (footer.metadata(i).name() == key) {
+    for(int i=0; i < footer->metadata_size(); ++i) {
+      if (footer->metadata(i).name() == key) {
         return true;
       }
     }
@@ -1119,7 +1127,7 @@ namespace orc {
 
   void ReaderImpl::selectTypeParent(size_t columnId) {
     for(size_t parent=0; parent < columnId; ++parent) {
-      const proto::Type& parentType = footer.types(static_cast<int>(parent));
+      const proto::Type& parentType = footer->types(static_cast<int>(parent));
       for(int idx=0; idx < parentType.subtypes_size(); ++idx) {
         uint64_t child = parentType.subtypes(idx);
         if (child == columnId) {
@@ -1136,36 +1144,11 @@ namespace orc {
   void ReaderImpl::selectTypeChildren(size_t columnId) {
     if (!selectedColumns[columnId]) {
       selectedColumns[columnId] = true;
-      const proto::Type& parentType = footer.types(static_cast<int>(columnId));
+      const proto::Type& parentType =
+        footer->types(static_cast<int>(columnId));
       for(int idx=0; idx < parentType.subtypes_size(); ++idx) {
         uint64_t child = parentType.subtypes(idx);
         selectTypeChildren(child);
-      }
-    }
-  }
-
-  void ReaderImpl::ensureOrcFooter(Buffer *buffer) {
-
-    const std::string MAGIC("ORC");
-    const uint64_t magicLength = MAGIC.length();
-    const char * const bufferStart = buffer->getStart();
-    const uint64_t bufferLength = buffer->getLength();
-
-    if (postscriptLength < magicLength || bufferLength < magicLength) {
-      throw ParseError("Invalid ORC postscript length");
-    }
-    const char* magicStart = bufferStart + bufferLength - 1 - magicLength;
-
-    // Look for the magic string at the end of the postscript.
-    if (memcmp(magicStart, MAGIC.c_str(), magicLength) != 0) {
-      // If there is no magic string at the end, check the beginning.
-      // Only files written by Hive 0.11.0 don't have the tail ORC string.
-      Buffer *frontBuffer = stream->read(0, magicLength, nullptr);
-      bool foundMatch =
-        memcmp(frontBuffer->getStart(), MAGIC.c_str(), magicLength) == 0;
-      delete frontBuffer;
-      if (!foundMatch) {
-        throw ParseError("Not an ORC file");
       }
     }
   }
@@ -1184,19 +1167,36 @@ namespace orc {
 
   std::unique_ptr<Statistics> ReaderImpl::getStatistics() const {
     return std::unique_ptr<Statistics>
-      (new StatisticsImpl(footer,
+      (new StatisticsImpl(*footer,
                           hasCorrectStatistics()));
   }
 
   std::unique_ptr<ColumnStatistics>
   ReaderImpl::getColumnStatistics(uint32_t index) const {
-    if (index >= static_cast<uint64_t>(footer.statistics_size())) {
+    if (index >= static_cast<uint64_t>(footer->statistics_size())) {
       throw std::logic_error("column index out of range");
     }
     proto::ColumnStatistics col =
-      footer.statistics(static_cast<int32_t>(index));
+      footer->statistics(static_cast<int32_t>(index));
     return std::unique_ptr<ColumnStatistics> (convertColumnStatistics
                                               (col, hasCorrectStatistics()));
+  }
+
+  void ReaderImpl::readMetadata() {
+    uint64_t metadataStart = 
+    std::unique_ptr<SeekableInputStream> pbStream =
+      createDecompressor(compression,
+                         std::unique_ptr<SeekableInputStream>
+                         (new SeekableArrayInputStream(metadataStart,
+                                                       metadataSize)),
+                         blockSize,
+                         memoryPool);
+    if (!metadata.ParseFromZeroCopyStream(pbStream.get())) {
+      throw ParseError("Failed to parse the metadata");
+    }
+    numberOfStripeStatistics =
+      static_cast<uint64_t>(metadata.stripestats_size());
+
   }
 
   std::unique_ptr<Statistics>
@@ -1226,12 +1226,12 @@ namespace orc {
     // Implement this by setting previousRow to the number of rows in the file.
 
     // seeking past lastStripe
-    if ( (lastStripe == static_cast<uint64_t>(footer.stripes_size())
-            && rowNumber >= footer.numberofrows())  ||
-         (lastStripe < static_cast<uint64_t>(footer.stripes_size())
+    if ( (lastStripe == static_cast<uint64_t>(footer->stripes_size())
+            && rowNumber >= footer->numberofrows())  ||
+         (lastStripe < static_cast<uint64_t>(footer->stripes_size())
             && rowNumber >= firstRowOfStripe[lastStripe])   ) {
-      currentStripe = static_cast<uint64_t>(footer.stripes_size());
-      previousRow = footer.numberofrows();
+      currentStripe = static_cast<uint64_t>(footer->stripes_size());
+      previousRow = footer->numberofrows();
       return;
     }
 
@@ -1243,8 +1243,8 @@ namespace orc {
 
     // seeking before the first stripe
     if (seekToStripe < firstStripe) {
-      currentStripe = static_cast<uint64_t>(footer.stripes_size());
-      previousRow = footer.numberofrows();
+      currentStripe = static_cast<uint64_t>(footer->stripes_size());
+      previousRow = footer->numberofrows();
       return;
     }
 
@@ -1256,72 +1256,7 @@ namespace orc {
   }
 
   bool ReaderImpl::hasCorrectStatistics() const {
-    return postscript.has_writerversion() && postscript.writerversion();
-  }
-
-  void ReaderImpl::readPostscript(Buffer *buffer) {
-    char *ptr = buffer->getStart();
-    uint64_t readSize = buffer->getLength();
-    postscriptLength = ptr[readSize - 1] & 0xff;
-
-    ensureOrcFooter(buffer);
-
-    if (!postscript.ParseFromArray(ptr + readSize - 1 - postscriptLength,
-                                   static_cast<int>(postscriptLength))) {
-      throw ParseError("Failed to parse the postscript");
-    }
-    if (postscript.has_compressionblocksize()) {
-      blockSize = postscript.compressionblocksize();
-    } else {
-      blockSize = 256 * 1024;
-    }
-
-    checkOrcVersion();
-
-    //check compression codec
-    compression = static_cast<CompressionKind>(postscript.compression());
-  }
-
-  void ReaderImpl::readFooter(Buffer *&buffer, uint64_t fileLength) {
-    uint64_t readSize = buffer->getLength();
-    uint64_t footerSize = postscript.footerlength();
-    uint64_t metadataSize = postscript.metadatalength();
-    uint64_t tailSize = 1 + postscriptLength + footerSize + metadataSize;
-    char *metadataStart;
-    char *footerStart;
-
-    if (tailSize > readSize) {
-      buffer = stream->read(fileLength - tailSize,
-                            metadataSize + footerSize, buffer);
-      metadataStart = buffer->getStart();
-    } else {
-      metadataStart = buffer->getStart() + (readSize - tailSize);
-    }
-    footerStart = metadataStart + metadataSize;
-    std::unique_ptr<SeekableInputStream> pbStream =
-      createDecompressor(compression,
-                         std::unique_ptr<SeekableInputStream>
-                         (new SeekableArrayInputStream(footerStart,
-                                                       footerSize)),
-                         blockSize,
-                         memoryPool);
-    if (!footer.ParseFromZeroCopyStream(pbStream.get())) {
-      throw ParseError("Failed to parse the footer");
-    }
-
-    numberOfStripes = static_cast<uint64_t>(footer.stripes_size());
-    pbStream =
-      createDecompressor(compression,
-                         std::unique_ptr<SeekableInputStream>
-                         (new SeekableArrayInputStream(metadataStart,
-                                                       metadataSize)),
-                         blockSize,
-                         memoryPool);
-    if (!metadata.ParseFromZeroCopyStream(pbStream.get())) {
-      throw ParseError("Failed to parse the metadata");
-    }
-    numberOfStripeStatistics =
-      static_cast<uint64_t>(metadata.stripestats_size());
+    return postscript->has_writerversion() && postscript->writerversion();
   }
 
   proto::StripeFooter ReaderImpl::getStripeFooter
@@ -1441,7 +1376,7 @@ namespace orc {
   }
 
   void ReaderImpl::startNextStripe() {
-    currentStripeInfo = footer.stripes(static_cast<int>(currentStripe));
+    currentStripeInfo = footer->stripes(static_cast<int>(currentStripe));
     currentStripeFooter = getStripeFooter(currentStripeInfo);
     rowsInCurrentStripe = currentStripeInfo.numberofrows();
     StripeStreamsImpl stripeStreams(*this, currentStripeFooter,
@@ -1466,7 +1401,7 @@ namespace orc {
       data.numElements = 0;
       if (lastStripe > 0) {
         previousRow = firstRowOfStripe[lastStripe - 1] +
-          footer.stripes(static_cast<int>(lastStripe - 1)).numberofrows();
+          footer->stripes(static_cast<int>(lastStripe - 1)).numberofrows();
       } else {
         previousRow = 0;
       }
@@ -1573,9 +1508,110 @@ namespace orc {
     return createRowBatch(*(schema.get()), capacity);
   }
 
+  void ensureOrcFooter(Buffer *buffer) {
+
+    const std::string MAGIC("ORC");
+    const uint64_t magicLength = MAGIC.length();
+    const char * const bufferStart = buffer->getStart();
+    const uint64_t bufferLength = buffer->getLength();
+
+    if (postscriptLength < magicLength || bufferLength < magicLength) {
+      throw ParseError("Invalid ORC postscript length");
+    }
+    const char* magicStart = bufferStart + bufferLength - 1 - magicLength;
+
+    // Look for the magic string at the end of the postscript.
+    if (memcmp(magicStart, MAGIC.c_str(), magicLength) != 0) {
+      // If there is no magic string at the end, check the beginning.
+      // Only files written by Hive 0.11.0 don't have the tail ORC string.
+      Buffer *frontBuffer = stream->read(0, magicLength, nullptr);
+      bool foundMatch =
+        memcmp(frontBuffer->getStart(), MAGIC.c_str(), magicLength) == 0;
+      delete frontBuffer;
+      if (!foundMatch) {
+        throw ParseError("Not an ORC file");
+      }
+    }
+  }
+
+  std::unique_ptr<proto::PostScript> readPostscript(Buffer *buffer) {
+    char *ptr = buffer->getStart();
+    uint64_t readSize = buffer->getLength();
+    postscriptLength = ptr[readSize - 1] & 0xff;
+
+    ensureOrcFooter(buffer);
+
+    if (!postscript.ParseFromArray(ptr + readSize - 1 - postscriptLength,
+                                   static_cast<int>(postscriptLength))) {
+      throw ParseError("Failed to parse the postscript");
+    }
+    if (postscript->has_compressionblocksize()) {
+      blockSize = postscript->compressionblocksize();
+    } else {
+      blockSize = 256 * 1024;
+    }
+
+    //check compression codec
+    compression = static_cast<CompressionKind>(postscript.compression());
+  }
+
+  void readFooter(Buffer *&buffer, uint64_t fileLength) {
+    uint64_t readSize = buffer->getLength();
+    uint64_t footerSize = postscript.footerlength();
+    uint64_t tailSize = 1 + postscriptLength + footerSize + metadataSize;
+    char *footerStart;
+
+    if (tailSize > readSize) {
+      buffer = stream->read(fileLength - tailSize,
+                            metadataSize + footerSize, buffer);
+      metadataStart = buffer->getStart();
+    } else {
+      metadataStart = buffer->getStart() + (readSize - tailSize);
+    }
+    footerStart = metadataStart + metadataSize;
+    std::unique_ptr<SeekableInputStream> pbStream =
+      createDecompressor(compression,
+                         std::unique_ptr<SeekableInputStream>
+                         (new SeekableArrayInputStream(footerStart,
+                                                       footerSize)),
+                         blockSize,
+                         memoryPool);
+    if (!footer.ParseFromZeroCopyStream(pbStream.get())) {
+      throw ParseError("Failed to parse the footer");
+    }
+
+    numberOfStripes = static_cast<uint64_t>(footer.stripes_size());
+  }
+
   std::unique_ptr<Reader> createReader(std::unique_ptr<InputStream> stream,
                                        const ReaderOptions& options) {
-    return std::unique_ptr<Reader>(new ReaderImpl(std::move(stream), options));
+    // figure out the size of the file using the option or filesystem
+    uint64_t size = std::min(options.getTailLocation(),
+                             static_cast<uint64_t>(stream->getLength()));
+    std::unique_ptr<PostScript> ps;
+    std::unique_ptr<Footer> footer;
+    std::string serializedFooter = options.getSerializedFooter();
+    if (serializedFooter.length() != 0) {
+      // TODO
+    } else {
+
+      //read last bytes into buffer to get PostScript
+      uint64_t readSize = std::min(size, DIRECTORY_SIZE_GUESS);
+
+      if (readSize < 1) {
+        throw ParseError("File size too small");
+      }
+
+      Buffer *buffer = stream->read(size - readSize, readSize, nullptr);
+      ps = std::move(readPostscript(buffer));
+      footer = std::move(readFooter(buffer, size));
+      delete buffer;
+    }
+    return std::unique_ptr<Reader>(new ReaderImpl(std::move(stream),
+                                                  options,
+                                                  size,
+                                                  std::move(ps),
+                                                  std::move(footer));
   }
 
   ColumnStatistics::~ColumnStatistics() {
