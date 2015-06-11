@@ -2908,4 +2908,43 @@ TEST(Reader, futureFormatVersion) {
     return result;
   }
 
+class MockInputStream: public InputStream {
+public:
+  ~MockInputStream();
+  MOCK_CONST_METHOD0(getLength, uint64_t());
+  MOCK_CONST_METHOD0(getName, const std::string&());
+  MOCK_METHOD3(read, Buffer* (uint64_t, uint64_t, Buffer*));
+};
+
+MockInputStream::~MockInputStream() {
+  // PASS
+}
+
+TEST(Reader, serializedConstructor) {
+  orc::ReaderOptions opts;
+  std::ostringstream filename;
+
+  // open a file
+  filename << exampleDirectory << "/demo-12-zlib.orc";
+  std::unique_ptr<orc::Reader> reader =
+    orc::createReader(orc::readLocalFile(filename.str()), opts);
+
+  // for the next reader copy the serialized tail
+  std::string tail = reader->getSerializedFileTail();
+  opts.setSerializedFileTail(tail);
+
+  // We insist on no calls to the input stream when looking at the file
+  // information.
+  MockInputStream *fakeStream = new MockInputStream();
+  EXPECT_CALL(*fakeStream, getLength()).Times(0);
+  EXPECT_CALL(*fakeStream, getName()).Times(0);
+  EXPECT_CALL(*fakeStream, read(testing::_, testing::_, testing::_)).Times(0);
+
+  std::unique_ptr<orc::Reader> reader2 =
+    orc::createReader(std::unique_ptr<InputStream>(fakeStream), opts);
+
+  EXPECT_EQ(1920800, reader2->getNumberOfRows());
+  EXPECT_EQ(CompressionKind_ZLIB, reader2->getCompression());
+}
+
 }  // namespace

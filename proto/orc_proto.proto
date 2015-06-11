@@ -217,3 +217,10 @@ message PostScript {
   // Leave this last in the record
   optional string magic = 8000;
 }
+
+// The contents of the file tail that must be serialized.
+message FileTail {
+  optional PostScript postscript = 1;
+  optional Footer footer = 2;
+  optional uint64 footerStart = 3;
+}
