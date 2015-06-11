@@ -475,6 +475,19 @@ namespace orc {
     ReaderOptions& setErrorStream(std::ostream& stream);
 
     /**
+     * Open the file used a serialized copy of the file tail.
+     *
+     * When one process opens the file and other processes need to read
+     * the rows, we want to enable clients to just read the tail once.
+     * By passing the string returned by Reader.getSerializedFileTail(), to
+     * this function, the second reader will not need to read the file tail
+     * from disk.
+     *
+     * @param serialization the bytes of the serialized tail to use
+     */
+    ReaderOptions& setSerializedFileTail(const std::string& serialization);
+
+    /**
      * Set the memory allocator.
      */
     ReaderOptions& setMemoryPool(MemoryPool& pool);
@@ -524,6 +537,11 @@ namespace orc {
      * Get the memory allocator.
      */
     MemoryPool* getMemoryPool() const;
+
+    /**
+     * Get the serialized file tail that the user passed in.
+     */
+    std::string getSerializedFileTail() const;
   };
 
   /**
@@ -683,6 +701,14 @@ namespace orc {
      * check file has correct column statistics
      */
     virtual bool hasCorrectStatistics() const = 0;
+
+    /**
+     * Get the serialized file tail.
+     * Usefull if another reader of the same file wants to avoid re-reading
+     * the file tail. See ReaderOptions.setSerializedFileTail().
+     * @return a string of bytes with the file tail
+     */
+    virtual std::string getSerializedFileTail() const = 0;
   };
 }
 
