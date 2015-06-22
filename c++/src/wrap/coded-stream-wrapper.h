@@ -19,7 +19,10 @@
 
 DIAGNOSTIC_PUSH
 
-DIAGNOSTIC_IGNORE("-Wshorten-64-to-32")
+#ifdef __clang__
+  DIAGNOSTIC_IGNORE("-Wshorten-64-to-32")
+#endif
+
 DIAGNOSTIC_IGNORE("-Wconversion")
 
 #include <google/protobuf/io/coded_stream.h>
