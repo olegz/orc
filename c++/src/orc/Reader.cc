@@ -26,7 +26,6 @@
 #include "orc/Int128.hh"
 
 #include "wrap/coded-stream-wrapper.h"
-#include "google/protobuf/io/zero_copy_stream_impl.h"
 
 #include <algorithm>
 #include <iostream>
