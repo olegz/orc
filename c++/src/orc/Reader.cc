@@ -1656,7 +1656,7 @@ namespace orc {
     } else {
       // figure out the size of the file using the option or filesystem
       uint64_t size = std::min(options.getTailLocation(),
-			       static_cast<uint64_t>(stream->getLength()));
+                               static_cast<uint64_t>(stream->getLength()));
 
       //read last bytes into buffer to get PostScript
       uint64_t readSize = std::min(size, DIRECTORY_SIZE_GUESS);
@@ -1666,7 +1666,7 @@ namespace orc {
       Buffer *buffer = stream->read(size - readSize, readSize, nullptr);
 
       uint64_t postscriptSize = buffer->getStart()[readSize - 1] & 0xff;
-      ps = std::move(readPostscript(stream.get(), buffer, postscriptSize));
+      ps = readPostscript(stream.get(), buffer, postscriptSize);
       uint64_t footerSize = ps->footerlength();
       uint64_t tailSize = 1 + postscriptSize + footerSize;
       footerStart = size - tailSize;
@@ -1679,8 +1679,8 @@ namespace orc {
         footerOffset = readSize - tailSize;
       }
 
-      footer = std::move(readFooter(stream.get(), buffer, footerOffset, *ps,
-                                    *memoryPool));
+      footer = readFooter(stream.get(), buffer, footerOffset, *ps,
+                          *memoryPool);
       delete buffer;
     }
     return std::unique_ptr<Reader>(new ReaderImpl(std::move(stream),
