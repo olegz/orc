@@ -19,7 +19,7 @@
 #ifndef ORC_COLUMN_PRINTER_HH
 #define ORC_COLUMN_PRINTER_HH
 
-#include "orc/OrcFile.hh"
+#include "OrcFile.hh"
 
 #include <string>
 #include <memory>
