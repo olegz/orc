@@ -1,0 +1,34 @@
+description = 'ORC API'
+
+group = 'org.apache.orc' 
+
+apply plugin: 'eclipse'
+apply plugin: 'idea'
+apply plugin: 'java'
+apply plugin: 'application'
+apply plugin: 'maven'
+
+sourceCompatibility=1.7
+targetCompatibility=1.7
+
+repositories {
+    mavenCentral()
+    mavenLocal()
+}
+
+dependencies {
+    compile "org.apache.hive:hive-storage-api:2.0.0-SNAPSHOT" 
+    compile "org.apache.hive:hive-common:2.0.0-SNAPSHOT"   
+    compile "org.apache.hadoop:hadoop-common:2.6.0"
+    compile "org.iq80.snappy:snappy:0.1"  
+    
+    testCompile "junit:junit:4.12"
+    testCompile "org.mockito:mockito-all:1.9.5"
+    
+    runtime "org.apache.hadoop:hadoop-mapreduce-client-core:2.6.0"
+}
+
+
+task wrapper(type: Wrapper) {
+    description = 'Generates gradlew[.bat] scripts'
+}
